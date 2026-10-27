@@ -2,7 +2,7 @@
 
 Herramienta para que una pyme de alimentos envasados registre sus productos y genere etiquetas que cumplen la normativa chilena de rotulado: tabla nutricional, sellos "ALTO EN", alérgenos, ingredientes, origen y código de barras.
 
-**Estado:** en desarrollo (etapa inicial).
+**Estado:** en desarrollo. Listos: formato de los datos y cálculos (tabla nutricional, porciones, sellos, alérgenos, mezclas, chequeos), con pruebas automáticas. Siguiente: la etiqueta con los datos.
 
 ## Qué hace (meta)
 
@@ -20,6 +20,17 @@ El repositorio solo trae datos de ejemplo de una marca ficticia (modo demo). Los
 ## English
 
 Label generator for packaged foods sold in Chile: keeps one record per product from supplier data and produces labels compliant with Chilean food labeling rules (nutrition facts, "ALTO EN" warning seals, allergens, origin, barcode). Work in progress. Demo data only; real company data lives outside this repository.
+
+## Para desarrollar
+
+```
+npm ci
+npm run validate          # revisa el formato de demo/
+npm run label             # muestra lo calculado para cada producto de demo/
+npm test                  # pruebas automáticas
+```
+
+Detalle de los datos y de los cálculos: [docs/formato-datos.md](docs/formato-datos.md).
 
 ## Licencia
 

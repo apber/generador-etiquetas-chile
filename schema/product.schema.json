@@ -141,6 +141,10 @@
         },
         "country_of_origin": { "description": "null = missing datum.", "type": ["string", "null"] },
         "in_shell": { "description": "If true, nutrition is per edible portion and the label adds a note.", "type": "boolean" },
+        "edible_g_per_100g": {
+          "description": "In-shell products: grams of edible part in 100 g as sold (weighed once). Servings per package are counted on the edible part.",
+          "type": ["number", "null"], "exclusiveMinimum": 0, "maximum": 100
+        },
         "storage": { "description": "null = company default text.", "type": ["string", "null"] },
         "usage_instructions": { "type": ["string", "null"] },
         "extra_text": { "type": ["string", "null"] },

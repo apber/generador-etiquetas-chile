@@ -1,0 +1,115 @@
+{
+  "format_version": 1,
+  "id": "pistachos-salados",
+  "type": "simple",
+  "status": "active",
+  "product_name": "Pistachos salados",
+  "description": [
+    "PISTACHOS TOSTADOS",
+    "CON SAL"
+  ],
+  "highlight": [
+    "CON CÁSCARA"
+  ],
+  "ring_color": "#5E7A2E",
+  "presentations": [
+    {
+      "net_weight_g": 100,
+      "container": "small_pouch",
+      "barcode": "2000000000046",
+      "barcode_source": "own"
+    }
+  ],
+  "composition": {
+    "ingredients": "{pistachos} con cáscara, sal",
+    "name_as_ingredient": "pistachos salados",
+    "contains": [
+      "pistachio"
+    ],
+    "may_contain": [
+      "peanut",
+      "tree_nuts"
+    ],
+    "added": [
+      {
+        "nutrient": "sodium",
+        "ingredient": "sal"
+      }
+    ],
+    "country_of_origin": "Estados Unidos",
+    "in_shell": true,
+    "edible_g_per_100g": 50,
+    "storage": null,
+    "usage_instructions": null,
+    "extra_text": null,
+    "supplier_shelf_life": null,
+    "source": "demo"
+  },
+  "nutrition": {
+    "serving": {
+      "g": 30,
+      "household_measure": "¼ taza",
+      "source": "demo"
+    },
+    "per_100g": {
+      "energy_kcal": {
+        "value": 570,
+        "source": "demo"
+      },
+      "protein_g": {
+        "value": 21,
+        "source": "demo"
+      },
+      "total_fat_g": {
+        "value": 46,
+        "source": "demo"
+      },
+      "saturated_fat_g": {
+        "value": 5.5,
+        "source": "demo"
+      },
+      "monounsaturated_fat_g": {
+        "value": 24,
+        "source": "demo"
+      },
+      "polyunsaturated_fat_g": {
+        "value": 14,
+        "source": "demo"
+      },
+      "trans_fat_g": {
+        "value": 0,
+        "source": "demo"
+      },
+      "cholesterol_mg": {
+        "value": 0,
+        "source": "demo"
+      },
+      "available_carbohydrates_g": {
+        "value": 18,
+        "source": "demo"
+      },
+      "total_sugars_g": {
+        "value": 7.5,
+        "source": "demo"
+      },
+      "dietary_fiber_g": {
+        "value": 10,
+        "source": "demo"
+      },
+      "sodium_mg": {
+        "value": 450,
+        "source": "demo"
+      }
+    }
+  },
+  "sources": [
+    {
+      "id": "demo",
+      "level": 1,
+      "kind": "manual",
+      "from": "Proveedor ficticio",
+      "date": "2026-10-27",
+      "note": "Valores de ejemplo, no son de un producto real."
+    }
+  ]
+}

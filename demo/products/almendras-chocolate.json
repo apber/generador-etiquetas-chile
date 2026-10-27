@@ -1,0 +1,121 @@
+{
+  "format_version": 1,
+  "id": "almendras-chocolate",
+  "type": "simple",
+  "status": "active",
+  "product_name": "Almendras con chocolate",
+  "description": [
+    "ALMENDRAS CUBIERTAS",
+    "CON CHOCOLATE DE LECHE"
+  ],
+  "ring_color": "#4A2C1A",
+  "presentations": [
+    {
+      "net_weight_g": 50,
+      "container": "small_pouch",
+      "barcode": "2000000000039",
+      "barcode_source": "own"
+    }
+  ],
+  "composition": {
+    "ingredients": "cobertura de chocolate de leche (azúcar, manteca de cacao, {leche} entera en polvo, pasta de cacao, {lecitina de soya}, vainillina), {almendras}, goma laca, aceite vegetal, jarabe de glucosa",
+    "name_as_ingredient": "almendras con chocolate",
+    "contains": [
+      "almond",
+      "milk",
+      "soy"
+    ],
+    "may_contain": [
+      "peanut",
+      "tree_nuts",
+      "gluten"
+    ],
+    "added": [
+      {
+        "nutrient": "sugar",
+        "ingredient": "azúcar, jarabe de glucosa"
+      },
+      {
+        "nutrient": "fat",
+        "ingredient": "manteca de cacao, aceite vegetal"
+      }
+    ],
+    "country_of_origin": "Chile",
+    "in_shell": false,
+    "storage": "Conservar en lugar fresco y seco. Se recomienda refrigerar.",
+    "usage_instructions": null,
+    "extra_text": null,
+    "supplier_shelf_life": {
+      "amount": 12,
+      "unit": "months"
+    },
+    "source": "demo"
+  },
+  "nutrition": {
+    "serving": {
+      "g": 30,
+      "household_measure": "¼ taza",
+      "source": "demo"
+    },
+    "per_100g": {
+      "energy_kcal": {
+        "value": 560,
+        "source": "demo"
+      },
+      "protein_g": {
+        "value": 12,
+        "source": "demo"
+      },
+      "total_fat_g": {
+        "value": 38,
+        "source": "demo"
+      },
+      "saturated_fat_g": {
+        "value": 15,
+        "source": "demo"
+      },
+      "monounsaturated_fat_g": {
+        "value": 17,
+        "source": "demo"
+      },
+      "polyunsaturated_fat_g": {
+        "value": 4,
+        "source": "demo"
+      },
+      "trans_fat_g": {
+        "value": 0,
+        "source": "demo"
+      },
+      "cholesterol_mg": {
+        "value": 5,
+        "source": "demo"
+      },
+      "available_carbohydrates_g": {
+        "value": 40,
+        "source": "demo"
+      },
+      "total_sugars_g": {
+        "value": 35,
+        "source": "demo"
+      },
+      "dietary_fiber_g": {
+        "value": 5,
+        "source": "demo"
+      },
+      "sodium_mg": {
+        "value": 40,
+        "source": "demo"
+      }
+    }
+  },
+  "sources": [
+    {
+      "id": "demo",
+      "level": 1,
+      "kind": "manual",
+      "from": "Proveedor ficticio",
+      "date": "2026-10-27",
+      "note": "Valores de ejemplo, no son de un producto real."
+    }
+  ]
+}

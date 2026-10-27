@@ -1,0 +1,16 @@
+{
+  "format_version": 1,
+  "id": "salsa-demo",
+  "type": "management_only",
+  "status": "active",
+  "product_name": "Salsa demo",
+  "presentations": [
+    {
+      "net_weight_g": 170,
+      "container": "jar",
+      "barcode": "2000000000053",
+      "barcode_source": "own"
+    }
+  ],
+  "notes": "Producto solo de gestión: sin etiqueta del sistema."
+}

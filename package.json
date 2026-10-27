@@ -8,6 +8,7 @@
   "author": "Angelo Bernier",
   "scripts": {
     "validate": "node scripts/validate-data.mjs",
+    "label": "node scripts/label-data.mjs",
     "test": "node --test"
   },
   "devDependencies": {
