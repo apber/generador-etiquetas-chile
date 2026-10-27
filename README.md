@@ -4,12 +4,16 @@ Herramienta para que una pyme de alimentos envasados registre sus productos y ge
 
 **Estado:** en desarrollo. Listos: formato de los datos y cálculos (tabla nutricional, porciones, sellos, alérgenos, mezclas, chequeos), con pruebas automáticas. Siguiente: la etiqueta con los datos.
 
-## Qué hace (meta)
+## Qué hará cuando esté terminado
 
-- Guarda una ficha por producto con los datos del proveedor (nutrición por 100 g, ingredientes, alérgenos, origen).
-- Calcula lo derivado: valores por porción, porciones por envase, sellos ALTO EN, redondeos y chequeos de coherencia.
-- Arma mezclas a partir de las fichas de sus ingredientes.
-- Genera la etiqueta y la hoja de impresión en PDF.
+- ✅ Guarda una ficha por producto con los datos del proveedor (nutrición por 100 g, ingredientes, alérgenos, origen).
+- ✅ Calcula lo derivado: valores por porción, porciones por envase, sellos ALTO EN, redondeos y chequeos de coherencia.
+- ✅ Arma mezclas a partir de las fichas de sus ingredientes.
+- ⏳ Genera la etiqueta y la hoja de impresión en PDF.
+- ⏳ Lee los datos desde fotos de la etiqueta del proveedor.
+- ⏳ App para celular y programa para PC, con los datos en una carpeta de OneDrive.
+
+✅ listo · ⏳ pendiente
 
 Normativa de referencia: Reglamento Sanitario de los Alimentos (DS 977/96, MINSAL), Ley 20.606, DS 297/1992 y Ley 19.496.
 
