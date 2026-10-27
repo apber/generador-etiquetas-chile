@@ -14,6 +14,9 @@ export const LIMITS_SOLID = {
   sodium_mg: 400,
 };
 
+/** A nutrient can never exceed this other one, so a known bound below the limit rules the seal out. */
+const UPPER_BOUND = { saturated_fat_g: 'total_fat_g', total_sugars_g: 'available_carbohydrates_g' };
+
 /** Seals in label order, with the added nutrients that make each one evaluated. */
 export const SEALS = [
   { id: 'energy', nutrient: 'energy_kcal', evaluatedWhenAdded: ['sugar', 'fat'] },
@@ -36,8 +39,12 @@ export function evaluateSeals(raw, declared, added, limits = LIMITS_SOLID) {
     const r = raw[s.nutrient];
     const d = declared[s.nutrient];
     const limit = limits[s.nutrient];
-    const unknown = r === undefined;
-    const exceeds = !unknown && (r > limit || d > limit);
+    // A missing value can still be ruled out by its upper bound (saturated fat <= total fat,
+    // sugars <= available carbohydrates): e.g. cranberries with 0.6 g fat cannot reach 4 g saturated.
+    const bound = r === undefined ? raw[UPPER_BOUND[s.nutrient]] : undefined;
+    const boundRulesOut = bound !== undefined && bound <= limit;
+    const unknown = r === undefined && !boundRulesOut;
+    const exceeds = r !== undefined && (r > limit || d > limit);
     return {
       id: s.id,
       nutrient: s.nutrient,
@@ -49,6 +56,7 @@ export function evaluateSeals(raw, declared, added, limits = LIMITS_SOLID) {
       exceeds,
       due: evaluated && exceeds,
       unknown: evaluated && unknown,
+      ruledOutBy: r === undefined && boundRulesOut ? UPPER_BOUND[s.nutrient] : null,
     };
   });
 }

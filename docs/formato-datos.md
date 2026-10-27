@@ -57,6 +57,14 @@ La ficha guarda **solo lo que se escribe o se lee del proveedor**. Todo lo deriv
 
 En `company.json`: `brand` (marca), `packer` (envasador), `health_permit` (resolución sanitaria), `slogan` (eslogan sin y con sellos), `default_storage` (conservación por defecto), `follow_us` (Síguenos), `barcodes` (códigos de la empresa).
 
+## Cereales con gluten
+
+`gluten` va en contiene cuando el producto es o trae un cereal con gluten (p. ej. avena). Trigo, cebada, centeno y avena también están uno por uno (`wheat`, `barley`, `rye`, `oat`) para no perder un "Puede contener: trigo, cebada y centeno" del proveedor cuando `gluten` ya está en contiene.
+
+## Palabras del proveedor → catálogo
+
+`reading_aliases` en `data/allergens.json` dice cómo se traduce lo que escribe el proveedor (para la lectura de fotos). Lectura estricta: "frutos secos" = frutos de cáscara + maní; "lácteos" = leche; "dióxido de azufre" = sulfitos.
+
 ## Alérgeno genérico de frutos de cáscara
 
 El id `tree_nuts` se imprime como "otros frutos de cáscara" si el producto contiene algún fruto de cáscara (p. ej. almendras) y como "frutos de cáscara" si no (p. ej. pasas).

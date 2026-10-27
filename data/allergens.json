@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "description": "Allergen catalog for CONTIENE (contains) and PUEDE CONTENER (may contain). Legal list: RSA (DS 977/96) art. 107 h and Res. Exenta 427/2010 MINSAL. Sesame and mustard are not on the Chilean legal list but are included because suppliers declare them.",
+  "description": "Allergen catalog for CONTIENE (contains) and PUEDE CONTENER (may contain). Legal list: RSA (DS 977/96) art. 107 h and Res. Exenta 427/2010 MINSAL. Sesame and mustard are not on the Chilean legal list but are included because suppliers declare them. Gluten cereals (wheat, barley, rye, oat) are listed one by one so that \"may contain wheat\" is kept when \"gluten\" is already in contains.",
   "allergens": [
     {
       "id": "gluten",
@@ -9,6 +9,38 @@
         "en": "gluten"
       },
       "group": "legal_list"
+    },
+    {
+      "id": "wheat",
+      "name": {
+        "es": "trigo",
+        "en": "wheat"
+      },
+      "group": "gluten_cereals"
+    },
+    {
+      "id": "barley",
+      "name": {
+        "es": "cebada",
+        "en": "barley"
+      },
+      "group": "gluten_cereals"
+    },
+    {
+      "id": "rye",
+      "name": {
+        "es": "centeno",
+        "en": "rye"
+      },
+      "group": "gluten_cereals"
+    },
+    {
+      "id": "oat",
+      "name": {
+        "es": "avena",
+        "en": "oats"
+      },
+      "group": "gluten_cereals"
     },
     {
       "id": "crustaceans",
@@ -159,5 +191,39 @@
       },
       "group": "declared_by_suppliers"
     }
-  ]
+  ],
+  "reading_aliases": {
+    "description": "How supplier wording maps to catalog ids when reading a label (stage 7e). Strict reading: in Chile \"frutos secos\" usually includes peanuts.",
+    "es": {
+      "frutos secos": [
+        "tree_nuts",
+        "peanut"
+      ],
+      "otros frutos secos": [
+        "tree_nuts",
+        "peanut"
+      ],
+      "frutos de cáscara": [
+        "tree_nuts"
+      ],
+      "nueces": [
+        "walnut"
+      ],
+      "lácteos": [
+        "milk"
+      ],
+      "leche": [
+        "milk"
+      ],
+      "dióxido de azufre": [
+        "sulphites"
+      ],
+      "sulfitos": [
+        "sulphites"
+      ],
+      "cereales con gluten": [
+        "gluten"
+      ]
+    }
+  }
 }

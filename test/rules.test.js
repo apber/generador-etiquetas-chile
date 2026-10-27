@@ -38,6 +38,16 @@ test('above the limit means more than the limit; raw or declared value counts (s
   assert.equal(s.find((x) => x.id === 'saturated_fat').unknown, true);
 });
 
+test('a missing value is ruled out when its upper bound is below the limit', () => {
+  // Sweetened dried cranberries: sugar and oil added, saturated fat not declared, 0.6 g total fat
+  const raw = { energy_kcal: 326, total_fat_g: 0.6, available_carbohydrates_g: 83, sodium_mg: 3.42 };
+  const s = evaluateSeals(raw, raw, [{ nutrient: 'sugar', ingredient: 'azúcar' }, { nutrient: 'fat', ingredient: 'aceite' }]);
+  const sat = s.find((x) => x.id === 'saturated_fat');
+  assert.equal(sat.unknown, false);
+  assert.equal(sat.ruledOutBy, 'total_fat_g');
+  assert.equal(s.find((x) => x.id === 'sugars').unknown, true); // 83 g of carbohydrates do not rule it out
+});
+
 const index = catalogIndex(loadCatalog());
 
 test('generic tree nuts: "otros" only when the product contains a tree nut', () => {
@@ -48,6 +58,11 @@ test('generic tree nuts: "otros" only when the product contains a tree nut', () 
 
 test('may contain drops what is in contains and duplicates', () => {
   assert.deepEqual(cleanMayContain(['peanut'], ['gluten', 'peanut', 'soy', 'gluten']), ['gluten', 'soy']);
+});
+
+test('oats: gluten in contains keeps wheat, barley and rye in may contain', () => {
+  const may = cleanMayContain(['gluten'], ['wheat', 'barley', 'rye']);
+  assert.deepEqual(allergenNames(may, ['gluten'], index), ['trigo', 'cebada', 'centeno']);
 });
 
 test('mix allergens: main allergens of the components first, then the rest', () => {
