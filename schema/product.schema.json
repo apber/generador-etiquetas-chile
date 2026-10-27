@@ -18,8 +18,8 @@
       "items": { "type": "string", "minLength": 1 }
     },
     "highlight": {
-      "description": "Optional. Front panel, up to 2 lines (e.g. TOSTADO, NO FRITO).",
-      "type": "array", "maxItems": 2,
+      "description": "Optional. Front panel, usually 1-2 lines (e.g. TOSTADO, NO FRITO); 3 when needed (fit is checked on the label).",
+      "type": "array", "maxItems": 3,
       "items": { "type": "string", "minLength": 1 }
     },
     "ring_color": {

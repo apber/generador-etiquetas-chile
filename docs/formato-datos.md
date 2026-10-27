@@ -33,7 +33,7 @@ La ficha guarda **solo lo que se escribe o se lee del proveedor**. Todo lo deriv
 |---|---|
 | `product_name` | Nombre del producto (arco inferior del medallón) |
 | `description` | Descripción: nombre del alimento (RSA art. 107 a), hasta 3 líneas |
-| `highlight` | Destacado, opcional, hasta 2 líneas |
+| `highlight` | Destacado, opcional; normalmente 1–2 líneas, 3 si hace falta (se revisa que quepa) |
 | `ring_color` | Color del aro (hexadecimal o `null`) |
 | `status` | `active` (se vende) / `inactive` (no se vende) |
 | `presentations[]` | Presentaciones: `net_weight_g` (peso neto), `container` (envase), `barcode` (EAN-13 de esa presentación), `barcode_source` (`own` propio / `third_party` entregado por otra entidad) |
