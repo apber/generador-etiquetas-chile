@@ -1,0 +1,113 @@
+{
+  "format_version": 1,
+  "id": "mani-tostado",
+  "type": "simple",
+  "status": "active",
+  "product_name": "Maní tostado",
+  "description": [
+    "MANÍ TOSTADO",
+    "SIN SAL"
+  ],
+  "highlight": [
+    "TOSTADO, NO FRITO"
+  ],
+  "ring_color": "#7A4A1E",
+  "presentations": [
+    {
+      "net_weight_g": 100,
+      "container": "small_pouch",
+      "barcode": "2000000000008",
+      "barcode_source": "own"
+    }
+  ],
+  "composition": {
+    "ingredients": "{maní}",
+    "name_as_ingredient": "maní",
+    "contains": [
+      "peanut"
+    ],
+    "may_contain": [
+      "tree_nuts",
+      "soy",
+      "sesame"
+    ],
+    "added": [],
+    "country_of_origin": "Chile",
+    "in_shell": false,
+    "storage": null,
+    "usage_instructions": null,
+    "extra_text": null,
+    "supplier_shelf_life": {
+      "amount": 12,
+      "unit": "months"
+    },
+    "source": "demo"
+  },
+  "nutrition": {
+    "serving": {
+      "g": 30,
+      "household_measure": "¼ taza",
+      "source": "demo"
+    },
+    "per_100g": {
+      "energy_kcal": {
+        "value": 590,
+        "source": "demo"
+      },
+      "protein_g": {
+        "value": 25,
+        "source": "demo"
+      },
+      "total_fat_g": {
+        "value": 49,
+        "source": "demo"
+      },
+      "saturated_fat_g": {
+        "value": 7,
+        "source": "demo"
+      },
+      "monounsaturated_fat_g": {
+        "value": 24,
+        "source": "demo"
+      },
+      "polyunsaturated_fat_g": {
+        "value": 15,
+        "source": "demo"
+      },
+      "trans_fat_g": {
+        "value": 0,
+        "source": "demo"
+      },
+      "cholesterol_mg": {
+        "value": 0,
+        "source": "demo"
+      },
+      "available_carbohydrates_g": {
+        "value": 14,
+        "source": "demo"
+      },
+      "total_sugars_g": {
+        "value": 5,
+        "source": "demo"
+      },
+      "dietary_fiber_g": {
+        "value": 8,
+        "source": "demo"
+      },
+      "sodium_mg": {
+        "value": 5,
+        "source": "demo"
+      }
+    }
+  },
+  "sources": [
+    {
+      "id": "demo",
+      "level": 1,
+      "kind": "manual",
+      "from": "Proveedor ficticio",
+      "date": "2026-10-27",
+      "note": "Valores de ejemplo, no son de un producto real."
+    }
+  ]
+}

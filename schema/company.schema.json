@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/apber/generador-etiquetas-chile/schema/company.schema.json",
+  "title": "Company data",
+  "description": "One file per company: what is the same on every label.",
+  "type": "object",
+  "required": ["format_version", "brand", "packer", "health_permit", "slogan", "default_storage"],
+  "additionalProperties": false,
+  "properties": {
+    "format_version": { "const": 1 },
+    "brand": { "type": "string", "minLength": 1 },
+    "packer": {
+      "type": "object",
+      "required": ["name", "address", "country"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "country": { "type": "string" }
+      }
+    },
+    "health_permit": {
+      "description": "Resolución sanitaria (RSA art. 107 e).",
+      "type": "object",
+      "required": ["text"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "description": "Text as printed.", "type": "string" },
+        "number": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "authority": { "type": "string" }
+      }
+    },
+    "slogan": {
+      "type": "object",
+      "required": ["no_seals", "with_seals"],
+      "additionalProperties": false,
+      "properties": {
+        "no_seals": { "type": "string" },
+        "with_seals": { "description": "No health descriptors (Ley 20.606).", "type": "string" }
+      }
+    },
+    "default_storage": { "type": "string" },
+    "follow_us": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "qr": { "description": "QR file in the company folder.", "type": "string" },
+        "instagram": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "facebook": { "type": "string" }
+      }
+    },
+    "barcodes": {
+      "description": "EAN-13 codes the company owns or was given. Which ones are assigned is read from the product records.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["number", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "number": { "type": "string", "pattern": "^[0-9]{13}$" },
+          "source": { "enum": ["own", "third_party"] },
+          "note": { "type": "string" }
+        }
+      }
+    }
+  }
+}

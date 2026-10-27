@@ -1,0 +1,163 @@
+{
+  "format_version": 1,
+  "description": "Allergen catalog for CONTIENE (contains) and PUEDE CONTENER (may contain). Legal list: RSA (DS 977/96) art. 107 h and Res. Exenta 427/2010 MINSAL. Sesame and mustard are not on the Chilean legal list but are included because suppliers declare them.",
+  "allergens": [
+    {
+      "id": "gluten",
+      "name": {
+        "es": "gluten",
+        "en": "gluten"
+      },
+      "group": "legal_list"
+    },
+    {
+      "id": "crustaceans",
+      "name": {
+        "es": "crustáceos",
+        "en": "crustaceans"
+      },
+      "group": "legal_list"
+    },
+    {
+      "id": "egg",
+      "name": {
+        "es": "huevo",
+        "en": "egg"
+      },
+      "group": "legal_list"
+    },
+    {
+      "id": "fish",
+      "name": {
+        "es": "pescado",
+        "en": "fish"
+      },
+      "group": "legal_list"
+    },
+    {
+      "id": "peanut",
+      "name": {
+        "es": "maní",
+        "en": "peanuts"
+      },
+      "group": "legal_list"
+    },
+    {
+      "id": "soy",
+      "name": {
+        "es": "soya",
+        "en": "soy"
+      },
+      "group": "legal_list"
+    },
+    {
+      "id": "milk",
+      "name": {
+        "es": "leche",
+        "en": "milk"
+      },
+      "group": "legal_list"
+    },
+    {
+      "id": "almond",
+      "name": {
+        "es": "almendras",
+        "en": "almonds"
+      },
+      "group": "tree_nuts"
+    },
+    {
+      "id": "hazelnut",
+      "name": {
+        "es": "avellanas",
+        "en": "hazelnuts"
+      },
+      "group": "tree_nuts"
+    },
+    {
+      "id": "cashew",
+      "name": {
+        "es": "castañas de cajú",
+        "en": "cashews"
+      },
+      "group": "tree_nuts"
+    },
+    {
+      "id": "walnut",
+      "name": {
+        "es": "nueces",
+        "en": "walnuts"
+      },
+      "group": "tree_nuts"
+    },
+    {
+      "id": "brazil_nut",
+      "name": {
+        "es": "nueces de Brasil",
+        "en": "Brazil nuts"
+      },
+      "group": "tree_nuts"
+    },
+    {
+      "id": "pecan",
+      "name": {
+        "es": "nueces pecán",
+        "en": "pecans"
+      },
+      "group": "tree_nuts"
+    },
+    {
+      "id": "macadamia",
+      "name": {
+        "es": "nueces de macadamia",
+        "en": "macadamia nuts"
+      },
+      "group": "tree_nuts"
+    },
+    {
+      "id": "pistachio",
+      "name": {
+        "es": "pistachos",
+        "en": "pistachios"
+      },
+      "group": "tree_nuts"
+    },
+    {
+      "id": "tree_nuts",
+      "name": {
+        "es": "frutos de cáscara",
+        "en": "tree nuts"
+      },
+      "name_if_contains_any": {
+        "es": "otros frutos de cáscara",
+        "en": "other tree nuts"
+      },
+      "group": "tree_nuts",
+      "generic": true
+    },
+    {
+      "id": "sulphites",
+      "name": {
+        "es": "sulfitos",
+        "en": "sulphites"
+      },
+      "group": "legal_list"
+    },
+    {
+      "id": "sesame",
+      "name": {
+        "es": "sésamo",
+        "en": "sesame"
+      },
+      "group": "declared_by_suppliers"
+    },
+    {
+      "id": "mustard",
+      "name": {
+        "es": "mostaza",
+        "en": "mustard"
+      },
+      "group": "declared_by_suppliers"
+    }
+  ]
+}

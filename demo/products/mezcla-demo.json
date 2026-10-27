@@ -1,0 +1,41 @@
+{
+  "format_version": 1,
+  "id": "mezcla-demo",
+  "type": "mix",
+  "status": "active",
+  "product_name": "Mezcla demo",
+  "description": [
+    "MEZCLA DE",
+    "MANÍ Y PASAS"
+  ],
+  "highlight": [
+    "MANÍ TOSTADO, NO FRITO"
+  ],
+  "ring_color": "#2F5D50",
+  "presentations": [
+    {
+      "net_weight_g": 150,
+      "container": "small_pouch",
+      "barcode": "2000000000022",
+      "barcode_source": "own"
+    }
+  ],
+  "recipe": {
+    "components": [
+      {
+        "product": "mani-tostado",
+        "g_per_100g": 60
+      },
+      {
+        "product": "pasas-con-aceite",
+        "g_per_100g": 40
+      }
+    ]
+  },
+  "nutrition": {
+    "serving": {
+      "g": 30,
+      "household_measure": "¼ taza"
+    }
+  }
+}

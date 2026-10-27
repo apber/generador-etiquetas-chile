@@ -1,0 +1,97 @@
+{
+  "format_version": 1,
+  "id": "pasas-con-aceite",
+  "type": "simple",
+  "status": "active",
+  "product_name": "Pasas",
+  "description": [
+    "PASAS",
+    "DESHIDRATADAS"
+  ],
+  "ring_color": "#5B2A4E",
+  "presentations": [
+    {
+      "net_weight_g": 100,
+      "container": "small_pouch",
+      "barcode": "2000000000015",
+      "barcode_source": "own"
+    }
+  ],
+  "composition": {
+    "ingredients": "pasas, aceite de maravilla",
+    "name_as_ingredient": "pasas",
+    "contains": [],
+    "may_contain": [
+      "peanut",
+      "tree_nuts"
+    ],
+    "added": [
+      {
+        "nutrient": "fat",
+        "ingredient": "aceite de maravilla"
+      }
+    ],
+    "country_of_origin": "Chile",
+    "in_shell": false,
+    "storage": null,
+    "usage_instructions": null,
+    "extra_text": null,
+    "supplier_shelf_life": null,
+    "source": "demo"
+  },
+  "nutrition": {
+    "serving": {
+      "g": 30,
+      "household_measure": "¼ taza",
+      "source": "demo"
+    },
+    "per_100g": {
+      "energy_kcal": {
+        "value": 300,
+        "source": "demo"
+      },
+      "protein_g": {
+        "value": 3,
+        "source": "demo"
+      },
+      "total_fat_g": {
+        "value": 0.5,
+        "source": "demo"
+      },
+      "saturated_fat_g": {
+        "value": 0.1,
+        "source": "demo"
+      },
+      "cholesterol_mg": {
+        "value": 0,
+        "source": "demo"
+      },
+      "available_carbohydrates_g": {
+        "value": 72,
+        "source": "demo"
+      },
+      "total_sugars_g": {
+        "value": 60,
+        "source": "demo"
+      },
+      "dietary_fiber_g": {
+        "value": 4,
+        "source": "demo"
+      },
+      "sodium_mg": {
+        "value": 15,
+        "source": "demo"
+      }
+    }
+  },
+  "sources": [
+    {
+      "id": "demo",
+      "level": 1,
+      "kind": "manual",
+      "from": "Proveedor ficticio",
+      "date": "2026-10-27",
+      "note": "Valores de ejemplo, no son de un producto real."
+    }
+  ]
+}

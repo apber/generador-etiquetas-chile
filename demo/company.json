@@ -1,0 +1,40 @@
+{
+  "format_version": 1,
+  "brand": "Frutos Demo",
+  "packer": {
+    "name": "Empresa Demo SpA",
+    "address": "Calle Ficticia 123, Ciudad Demo",
+    "country": "Chile"
+  },
+  "health_permit": {
+    "text": "Res. SEREMI N° 0000000 – 01.01.26",
+    "number": "0000000",
+    "date": "2026-01-01",
+    "authority": "SEREMI de Salud (ficticia)"
+  },
+  "slogan": {
+    "no_seals": "DEL HUERTO A TU MESA",
+    "with_seals": "SABOR EN CADA BOCADO"
+  },
+  "default_storage": "Conservar en lugar fresco y seco.",
+  "follow_us": {
+    "instagram": "@frutosdemo"
+  },
+  "barcodes": [
+    {
+      "number": "2000000000008",
+      "source": "own",
+      "note": "Prefijo 200: uso interno, solo para pruebas"
+    },
+    {
+      "number": "2000000000015",
+      "source": "own",
+      "note": "Prefijo 200: uso interno, solo para pruebas"
+    },
+    {
+      "number": "2000000000022",
+      "source": "own",
+      "note": "Prefijo 200: uso interno, solo para pruebas"
+    }
+  ]
+}

@@ -2,12 +2,12 @@
   "name": "generador-etiquetas-chile",
   "version": "0.0.0",
   "private": true,
-  "description": "Generador de etiquetas de alimentos que cumplen la normativa chilena",
+  "description": "Food label generator compliant with Chilean labeling rules",
   "type": "module",
   "license": "MIT",
   "author": "Angelo Bernier",
   "scripts": {
-    "validar": "node scripts/validar-fichas.mjs",
+    "validate": "node scripts/validate-data.mjs",
     "test": "node --test"
   },
   "devDependencies": {
