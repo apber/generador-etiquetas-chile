@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/apber/generador-etiquetas-chile/esquema/empresa.schema.json",
+  "title": "Datos fijos de la empresa",
+  "description": "Un solo archivo por empresa: lo que es igual en todas las etiquetas.",
+  "type": "object",
+  "required": ["formato", "marca", "envasador", "resolucion_sanitaria", "eslogan", "conservacion_por_defecto"],
+  "additionalProperties": false,
+  "properties": {
+    "formato": { "const": 1 },
+    "marca": { "type": "string", "minLength": 1 },
+    "envasador": {
+      "type": "object",
+      "required": ["nombre", "domicilio", "pais"],
+      "additionalProperties": false,
+      "properties": {
+        "nombre": { "type": "string" },
+        "domicilio": { "type": "string" },
+        "pais": { "type": "string" }
+      }
+    },
+    "resolucion_sanitaria": {
+      "type": "object",
+      "required": ["texto"],
+      "additionalProperties": false,
+      "properties": {
+        "texto": { "description": "Texto tal como se imprime.", "type": "string" },
+        "numero": { "type": "string" },
+        "fecha": { "type": "string", "format": "date" },
+        "autoridad": { "type": "string" }
+      }
+    },
+    "eslogan": {
+      "type": "object",
+      "required": ["sin_sellos", "con_sellos"],
+      "additionalProperties": false,
+      "properties": {
+        "sin_sellos": { "type": "string" },
+        "con_sellos": { "description": "Sin descriptores saludables (Ley 20.606).", "type": "string" }
+      }
+    },
+    "conservacion_por_defecto": { "type": "string" },
+    "siguenos": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "qr": { "description": "Archivo del QR en la carpeta de la empresa.", "type": "string" },
+        "instagram": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "facebook": { "type": "string" }
+      }
+    },
+    "codigos_barras": {
+      "description": "Códigos EAN-13 que tiene la empresa. Cuáles están asignados se ve en las fichas.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["numero", "origen"],
+        "additionalProperties": false,
+        "properties": {
+          "numero": { "type": "string", "pattern": "^[0-9]{13}$" },
+          "origen": { "enum": ["propio", "corporacion"] },
+          "nota": { "type": "string" }
+        }
+      }
+    }
+  }
+}

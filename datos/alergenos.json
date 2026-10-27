@@ -1,0 +1,31 @@
+{
+  "formato": 1,
+  "descripcion": "Catálogo de alérgenos para CONTIENE y PUEDE CONTENER. Lista legal: RSA (DS 977/96) art. 107 h y Res. Exenta 427/2010 MINSAL. Sésamo y mostaza no están en la lista legal chilena, pero se incluyen porque los proveedores los declaran.",
+  "alergenos": [
+    { "id": "gluten", "nombre": "gluten", "grupo": "lista_legal" },
+    { "id": "crustaceos", "nombre": "crustáceos", "grupo": "lista_legal" },
+    { "id": "huevo", "nombre": "huevo", "grupo": "lista_legal" },
+    { "id": "pescado", "nombre": "pescado", "grupo": "lista_legal" },
+    { "id": "mani", "nombre": "maní", "grupo": "lista_legal" },
+    { "id": "soya", "nombre": "soya", "grupo": "lista_legal" },
+    { "id": "leche", "nombre": "leche", "grupo": "lista_legal" },
+    { "id": "almendras", "nombre": "almendras", "grupo": "frutos_cascara" },
+    { "id": "avellanas", "nombre": "avellanas", "grupo": "frutos_cascara" },
+    { "id": "castanas_caju", "nombre": "castañas de cajú", "grupo": "frutos_cascara" },
+    { "id": "nueces", "nombre": "nueces", "grupo": "frutos_cascara" },
+    { "id": "nueces_brasil", "nombre": "nueces de Brasil", "grupo": "frutos_cascara" },
+    { "id": "nueces_pecan", "nombre": "nueces pecán", "grupo": "frutos_cascara" },
+    { "id": "macadamia", "nombre": "nueces de macadamia", "grupo": "frutos_cascara" },
+    { "id": "pistachos", "nombre": "pistachos", "grupo": "frutos_cascara" },
+    {
+      "id": "frutos_cascara",
+      "nombre": "frutos de cáscara",
+      "nombre_si_contiene_alguno": "otros frutos de cáscara",
+      "grupo": "frutos_cascara",
+      "generico": true
+    },
+    { "id": "sulfitos", "nombre": "sulfitos", "grupo": "lista_legal" },
+    { "id": "sesamo", "nombre": "sésamo", "grupo": "declarado_por_proveedores" },
+    { "id": "mostaza", "nombre": "mostaza", "grupo": "declarado_por_proveedores" }
+  ]
+}

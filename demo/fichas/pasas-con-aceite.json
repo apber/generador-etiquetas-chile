@@ -1,0 +1,43 @@
+{
+  "formato": 1,
+  "id": "pasas-con-aceite",
+  "tipo": "simple",
+  "estado": "se_vende",
+  "nombre_producto": "Pasas",
+  "descripcion": ["PASAS", "DESHIDRATADAS"],
+  "color_aro": "#5B2A4E",
+  "presentaciones": [
+    { "peso_neto_g": 100, "envase": "sobre_chico", "codigo_barras": "2000000000015", "origen_codigo": "propio" }
+  ],
+  "composicion": {
+    "ingredientes": "pasas, aceite de maravilla",
+    "nombre_como_ingrediente": "pasas",
+    "contiene": [],
+    "puede_contener": ["mani", "frutos_cascara"],
+    "anadidos": [{ "tipo": "grasa", "ingrediente": "aceite de maravilla" }],
+    "pais_origen": "Chile",
+    "con_cascara": false,
+    "conservacion": null,
+    "instrucciones_uso": null,
+    "texto_adicional": null,
+    "duracion_proveedor": null,
+    "fuente": "demo"
+  },
+  "nutricion": {
+    "porcion": { "g": 30, "medida_casera": "¼ taza", "fuente": "demo" },
+    "por_100g": {
+      "energia_kcal": { "valor": 300, "fuente": "demo" },
+      "proteinas_g": { "valor": 3, "fuente": "demo" },
+      "grasas_totales_g": { "valor": 0.5, "fuente": "demo" },
+      "grasas_saturadas_g": { "valor": 0.1, "fuente": "demo" },
+      "colesterol_mg": { "valor": 0, "fuente": "demo" },
+      "hidratos_carbono_disponibles_g": { "valor": 72, "fuente": "demo" },
+      "azucares_totales_g": { "valor": 60, "fuente": "demo" },
+      "fibra_dietetica_g": { "valor": 4, "fuente": "demo" },
+      "sodio_mg": { "valor": 15, "fuente": "demo" }
+    }
+  },
+  "fuentes": [
+    { "id": "demo", "nivel": 1, "tipo": "manual", "origen": "Proveedor ficticio", "fecha": "2026-10-27", "nota": "Valores de ejemplo, no son de un producto real." }
+  ]
+}
