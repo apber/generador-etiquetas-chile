@@ -107,12 +107,12 @@ test('text checks: health words with seals, false or misleading claims', () => {
 
 test('next free barcode skips used and third-party codes', () => {
   const company = { barcodes: [
-    { number: '7801234500150', source: 'third_party' },
-    { number: '0746747013506', source: 'own' },
-    { number: '0746747013513', source: 'own' },
+    { number: '2999999999991', source: 'third_party' },
+    { number: '2000000000039', source: 'own' },
+    { number: '2000000000046', source: 'own' },
   ] };
-  const products = new Map([['a', { id: 'a', presentations: [{ net_weight_g: 50, barcode: '0746747013506' }] }]]);
-  assert.equal(nextFreeBarcode(company, products), '0746747013513');
-  products.set('b', { id: 'b', presentations: [{ net_weight_g: 50, barcode: '0746747013513' }] });
+  const products = new Map([['a', { id: 'a', presentations: [{ net_weight_g: 50, barcode: '2000000000039' }] }]]);
+  assert.equal(nextFreeBarcode(company, products), '2000000000046');
+  products.set('b', { id: 'b', presentations: [{ net_weight_g: 50, barcode: '2000000000046' }] });
   assert.equal(nextFreeBarcode(company, products), null);
 });
