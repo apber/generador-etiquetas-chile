@@ -18,7 +18,11 @@
   },
   "default_storage": "Conservar en lugar fresco y seco.",
   "follow_us": {
-    "instagram": "@frutosdemo"
+    "qr_url": "https://example.com/frutos-demo",
+    "qr_label": "la página de Frutos Demo",
+    "instagram": "@frutosdemo",
+    "whatsapp": "+56 9 0000 0000",
+    "facebook": "Frutos Demo"
   },
   "barcodes": [
     {

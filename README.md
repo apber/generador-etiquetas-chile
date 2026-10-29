@@ -2,14 +2,15 @@
 
 Herramienta para que una pyme de alimentos envasados registre sus productos y genere etiquetas que cumplen la normativa chilena de rotulado: tabla nutricional, sellos "ALTO EN", alérgenos, ingredientes, origen y código de barras.
 
-**Estado:** en desarrollo. Listos: formato de los datos y cálculos (tabla nutricional, porciones, sellos, alérgenos, mezclas, chequeos), con pruebas automáticas. Siguiente: la etiqueta con los datos.
+**Estado:** en desarrollo (v0.3). Listos: formato de los datos, cálculos (tabla nutricional, porciones, sellos, alérgenos, mezclas, chequeos) y la plantilla de la etiqueta del sobre chico, que se maqueta sola por producto con el largo mínimo para su contenido; todo con pruebas automáticas. Siguiente: la hoja de impresión en PDF.
 
 ## Qué hará cuando esté terminado
 
 - ✅ Guarda una ficha por producto con los datos del proveedor (nutrición por 100 g, ingredientes, alérgenos, origen).
 - ✅ Calcula lo derivado: valores por porción, porciones por envase, sellos ALTO EN, redondeos y chequeos de coherencia.
 - ✅ Arma mezclas a partir de las fichas de sus ingredientes.
-- ⏳ Genera la etiqueta y la hoja de impresión en PDF.
+- ✅ Genera la etiqueta de cada producto (frente y reverso, con el largo justo para su contenido).
+- ⏳ Arma la hoja de impresión en PDF.
 - ⏳ Lee los datos desde fotos de la etiqueta del proveedor.
 - ⏳ App para celular y programa para PC, con los datos en una carpeta de OneDrive.
 
@@ -31,10 +32,12 @@ Label generator for packaged foods sold in Chile: keeps one record per product f
 npm ci
 npm run validate          # revisa el formato de demo/
 npm run label             # muestra lo calculado para cada producto de demo/
+npx playwright install chromium   # una vez: navegador para maquetar las etiquetas
+npm run render            # maqueta las etiquetas de demo/ en etiquetas/ (HTML + resultado)
 npm test                  # pruebas automáticas
 ```
 
-Detalle de los datos y de los cálculos: [docs/formato-datos.md](docs/formato-datos.md).
+Detalle de los datos y de los cálculos: [docs/formato-datos.md](docs/formato-datos.md). La plantilla: [docs/plantilla.md](docs/plantilla.md).
 
 ## Licencia
 

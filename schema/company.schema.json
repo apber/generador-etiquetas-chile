@@ -45,7 +45,9 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "qr": { "description": "QR file in the company folder.", "type": "string" },
+        "qr_url": { "description": "Address the label QR opens; the system draws the QR from it (error correction M, no logo).", "type": "string" },
+        "qr_label": { "description": "What the QR opens, for its accessible name (e.g. \"la página de la marca\").", "type": "string" },
+        "qr": { "description": "QR file in the company folder (before qr_url; the label template does not use it).", "type": "string" },
         "instagram": { "type": "string" },
         "whatsapp": { "type": "string" },
         "facebook": { "type": "string" }

@@ -4,7 +4,8 @@
 //
 // expected.json: { "products": { "<id>": { "variant"?, "netWeightG"?, "seals"?, "slogan"?,
 //   "servings"?, "rows"?: { "<nutrient>": ["<per 100 g>", "<per serving>"] }, "ingredients"?,
-//   "contains"?, "mayContain"?, "packer"?, "origin"?, "alertsInclude"?: [codes], "review"?: [codes] } } }
+//   "contains"?, "mayContain"?, "packer"?, "origin"?, "alertsInclude"?: [codes], "review"?: [codes],
+//   "backLengthMm"?: length of the back laid out by the template (needs Chromium) } } }
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,6 +15,15 @@ import { loadFolder } from '../src/node/load-folder.js';
 import { buildLabelData } from '../src/label-data.js';
 
 const dir = process.env.LABEL_DATA_DIR;
+
+let renderer = null;
+if (dir) {
+  try {
+    const { chromium } = await import('playwright');
+    const b = await chromium.launch(); await b.close();
+    renderer = (await import('../src/node/render-label.js')).openRenderer;
+  } catch { renderer = null; }
+}
 
 if (!dir) {
   test('external company data (set LABEL_DATA_DIR to run)', { skip: true }, () => {});
@@ -40,4 +50,15 @@ if (!dir) {
       check('review', d.blocking.review, e.review);
     });
   }
+  const withLength = Object.entries(expected.products).filter(([, e]) => e.backLengthMm !== undefined);
+  test('external data: back length laid out by the template', { skip: (!renderer && 'Chromium not installed') || (!withLength.length && 'no backLengthMm') }, async () => {
+    const r = await renderer();
+    try {
+      for (const [key, e] of withLength) {
+        const d = buildLabelData(store, { productId: e.productId ?? key, variant: e.variant, netWeightG: e.netWeightG });
+        const { result } = await r.render(d, store.company);
+        assert.equal(result.lengthMm, e.backLengthMm, `${key}: ${result.variant}`);
+      }
+    } finally { await r.close(); }
+  });
 }

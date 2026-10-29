@@ -4,3 +4,7 @@ Thumbs.db
 # Datos reales de clientes: nunca en el repositorio
 datos-reales/
 *.local.json
+
+# Etiquetas generadas y fuentes descargadas
+etiquetas/
+.cache/
