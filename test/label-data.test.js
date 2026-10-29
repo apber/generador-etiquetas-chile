@@ -46,7 +46,7 @@ test('added sugar and fat: three seals, slogan with seals, own storage text', ()
 test('in-shell product: note, sodium seal and servings on the edible part', () => {
   const store = demo();
   let d = build(store, 'pistachos-salados');
-  assert.equal(d.nutrition.note, 'Valores por 100 g de parte comestible (sin cáscara)');
+  assert.equal(d.nutrition.note, 'Valores por parte comestible (sin cáscara)');
   assert.deepEqual(d.front.seals, ['sodium']);
   assert.equal(d.nutrition.servingsPerPackage.basedOnG, 50); // 100 g with shell, 50 g edible
   assert.equal(d.nutrition.servingsPerPackage.text, 'aprox. 2');
@@ -64,20 +64,23 @@ test('mix: weighted table, seals from what any component adds, ingredients and o
   assert.equal(d.ingredients.text, '{maní}, pasas (pasas, aceite de maravilla)');
   assert.equal(d.contains.text, 'maní');
   assert.equal(d.mayContain.text, 'frutos de cáscara, soya, sésamo');
-  assert.equal(d.packer.title, 'ELABORADO Y ENVASADO EN CHILE POR:');
-  assert.equal(d.packer.text, 'Empresa Demo SpA, Calle Ficticia 123, Ciudad Demo.');
-  assert.deepEqual(d.origin, { title: 'ORIGEN DE LOS INGREDIENTES:', text: 'Chile' });
+  assert.equal(d.packer.title, 'ELABORADO Y ENVASADO POR:');
+  assert.equal(d.packer.text, 'Empresa Demo SpA, Calle Ficticia 123, Ciudad Demo, Chile.');
+  assert.deepEqual(d.origin, { title: 'ORIGEN:', text: 'Chile' });
+  assert.deepEqual(d.nutrition.columns, { per100g: '100 g', perServing: 'Porción' });
   assert.equal(d.nutrition.servingsPerPackage.text, '5');
   assert.deepEqual(d.variant, [{ component: 'mani-tostado', used: 'mani-tostado' }, { component: 'pasas-con-aceite', used: 'pasas-con-aceite' }]);
   assert.ok(codes(d).includes('assumed_zero:monounsaturated_fat_g'));
 });
 
-test('mix: origin grouped by country and the plain packer title option', () => {
+test('mix: origin grouped by country and the previous texts as options', () => {
   const store = withProduct(demo(), 'pasas-con-aceite', (p) => { p.composition.country_of_origin = 'Argentina'; return p; });
-  const d = build(store, 'mezcla-demo', {}, { mixPackerTitle: 'plain' });
+  const d = build(store, 'mezcla-demo', {}, { mixPackerTitle: 'in_country', mixOriginTitle: 'long', servingColumnTitle: 'one' });
   assert.equal(d.origin.text, 'Chile (maní); Argentina (pasas)');
-  assert.equal(d.packer.title, 'ELABORADO Y ENVASADO POR:');
-  assert.equal(d.packer.text, 'Empresa Demo SpA, Calle Ficticia 123, Ciudad Demo, Chile.');
+  assert.equal(d.origin.title, 'ORIGEN DE LOS INGREDIENTES:');
+  assert.equal(d.packer.title, 'ELABORADO Y ENVASADO EN CHILE POR:');
+  assert.equal(d.packer.text, 'Empresa Demo SpA, Calle Ficticia 123, Ciudad Demo.');
+  assert.equal(d.nutrition.columns.perServing, '1 porción');
 });
 
 test('mix: missing origin of a component is named, the rest is printed', () => {
@@ -154,7 +157,7 @@ test('claims are checked against the seals and what was added', () => {
 
 test('removing a seal that is due needs a recorded decision and keeps the slogan with seals', () => {
   const store = withProduct(demo(), 'pasas-con-aceite', (p) => {
-    p.confirmed_alerts = [{ alert: REMOVE_SEAL('energy'), decision: 'remove_seal', date: '2026-10-27', note: 'Aukan asume el riesgo' }];
+    p.confirmed_alerts = [{ alert: REMOVE_SEAL('energy'), decision: 'remove_seal', date: '2026-10-27', note: 'La empresa asume el riesgo' }];
     return p;
   });
   const d = build(store, 'pasas-con-aceite');
@@ -163,7 +166,7 @@ test('removing a seal that is due needs a recorded decision and keeps the slogan
   assert.equal(d.front.slogan, 'SABOR EN CADA BOCADO');
   const a = d.alerts.find((x) => x.code === 'seal_removed:energy');
   assert.equal(a.kind, 'regulatory');
-  assert.equal(a.confirmed.note, 'Aukan asume el riesgo');
+  assert.equal(a.confirmed.note, 'La empresa asume el riesgo');
 });
 
 test('management-only products have no label', () => {

@@ -14,8 +14,15 @@ export const DEFAULT_OPTIONS = {
   decimals: DEFAULT_DECIMALS,
   /** 'when_not_exact' (default) or 'when_rounded_up' (legal minimum). */
   servingsApprox: 'when_not_exact',
-  /** Mix title: 'in_country' ("ELABORADO Y ENVASADO EN CHILE POR:") or 'plain' ("ELABORADO Y ENVASADO POR:"). */
-  mixPackerTitle: 'in_country',
+  /**
+   * Mix packer line: 'plain' (default since 29-10-2026: "ELABORADO Y ENVASADO POR:" and the country at the end of
+   * the address, as in simple products) or 'in_country' ("ELABORADO Y ENVASADO EN CHILE POR:", address without country).
+   */
+  mixPackerTitle: 'plain',
+  /** Mix origin title: 'short' ("ORIGEN:", default since 29-10-2026) or 'long' ("ORIGEN DE LOS INGREDIENTES:"). */
+  mixOriginTitle: 'short',
+  /** Title of the per-serving column of the table: 'short' ("Porción", default since 29-10-2026) or 'one' ("1 porción"). */
+  servingColumnTitle: 'short',
   limits: LIMITS_SOLID,
 };
 
@@ -229,7 +236,7 @@ export function buildLabelData(store, request, options = {}) {
     const originText = byCountry.size === 0 ? null
       : byCountry.size === 1 && [...byCountry.values()][0].length === named.length ? [...byCountry.keys()][0]
       : [...byCountry].map(([country, names]) => `${country} (${names.join(', ')})`).join('; ');
-    origin = { title: LABEL_TEXT.originOfIngredients, text: originText };
+    origin = { title: opts.mixOriginTitle === 'long' ? LABEL_TEXT.originOfIngredients : LABEL_TEXT.origin, text: originText };
 
     storage = product.composition?.storage ?? company.default_storage;
     for (const { p, name } of named) {
@@ -327,6 +334,7 @@ export function buildLabelData(store, request, options = {}) {
       serving: serving ? { g: servingG, householdMeasure: serving.household_measure, text: LABEL_TEXT.serving(serving.household_measure, formatPlain(servingG)) } : null,
       servingsPerPackage: servings ? { ...servings, label: LABEL_TEXT.servingsPerPackage(servings.text), basedOnG: Number(contentG.toPrecision(6)) } : null,
       note: inShell ? LABEL_TEXT.edibleNote : null,
+      columns: { per100g: LABEL_TEXT.per100gColumn, perServing: opts.servingColumnTitle === 'one' ? LABEL_TEXT.oneServingColumn : LABEL_TEXT.servingColumn },
       fatBreakdownRequired: table.fatBreakdownRequired,
       rows: table.rows,
       per100gRaw: raw,

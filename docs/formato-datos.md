@@ -76,7 +76,7 @@ Código: [`src/label-data.js`](../src/label-data.js) arma todo lo que necesita l
 | Qué | Regla | Código |
 |---|---|---|
 | Redondeo de la tabla | RSA art. 115: desde 100, entero; de 1 a menos de 100, 1 decimal; bajo 1, hasta 2 decimales (sin ceros sobrantes). Si el dígito que se descarta es 5 o más, sube. El rango se vuelve a elegir después de redondear (99,96 → 100) | `src/rounding.js` |
-| Porción | La del proveedor; los valores por porción se calculan desde los de 100 g y se redondean aparte | `src/nutrients.js` |
+| Porción | La del proveedor; los valores por porción se calculan desde los de 100 g y se redondean aparte. Encabezados de las columnas: "100 g" y "Porción" (opción: "1 porción"; el RSA art. 115 no fija el texto). Leyenda con cáscara: "Valores por parte comestible (sin cáscara)" | `src/nutrients.js` |
 | Porciones por envase | Entero con redondeo normal, nunca menos de 1. Por defecto "aprox." siempre que la división no sea exacta (opción: solo cuando se redondea hacia arriba, el mínimo legal). Con cáscara, sobre la parte comestible | `src/rounding.js` |
 | Desglose de grasas | Saturadas, mono, poli, trans y colesterol son obligatorios si la porción tiene 3 g de grasa o más (valor sin redondear o declarado); si no, se muestran solo los que se conocen | `src/nutrients.js` |
 | Mezclas | Valor por 100 g = suma de (valor del componente × gramos / 100); se redondea al final. Fibra solo si todos los componentes la informan. Un componente con 0,5 g de grasa o menos que no informa el desglose cuenta 0 (queda anotado) | `src/nutrients.js` |
@@ -84,7 +84,7 @@ Código: [`src/label-data.js`](../src/label-data.js) arma todo lo que necesita l
 | Eslogan | Con sellos que correspondan por norma, el eslogan "con sellos" (aunque se haya quitado uno por decisión) | `src/label-data.js` |
 | Contiene / puede contener | Mezclas: unión de los componentes, del más pesado al más liviano; primero el alérgeno que es el propio ingrediente (almendras, maní) y después los demás (sulfitos). Lo que está en contiene sale de puede contener | `src/allergens.js` |
 | Ingredientes de una mezcla | Orden decreciente por peso (empates en el orden de la receta). Un componente de un solo ingrediente aparece con su nombre como ingrediente; si tiene varios, "nombre (sus ingredientes)" | `src/ingredients.js` |
-| Envasador y origen | Simple: "ENVASADO POR:" + "ORIGEN: país". Mezcla: "ELABORADO Y ENVASADO EN CHILE POR:" + "ORIGEN DE LOS INGREDIENTES:" agrupado por país (opción: "ELABORADO Y ENVASADO POR:") | `src/label-data.js` |
+| Envasador y origen | Simple: "ENVASADO POR:" + domicilio con el país + "ORIGEN: país". Mezcla: "ELABORADO Y ENVASADO POR:" + domicilio con el país + "ORIGEN:" agrupado por país (opciones: "ELABORADO Y ENVASADO EN CHILE POR:" con el domicilio sin el país, y "ORIGEN DE LOS INGREDIENTES:") | `src/label-data.js` |
 | Chequeos | Energía vs 4·P + 4·HdC + 9·G (10 %; con valores bajo 50 kcal, 5 kcal); grasas parciales ≤ totales; parciales bajo 80 % del total (posible fila mal leída); azúcares ≤ H. de C.; proteínas + grasas + H. de C. + fibra ≤ 100 g | `src/nutrients.js` |
 | Textos | Con sellos: sin palabras de salud (saludable, bienestar…) ni descriptores del mismo nutriente del sello. "Sin azúcar" no va si se añadió azúcar o si la porción tiene 0,5 g de azúcares o más; "sin sal" no va si se añadió sal | `src/claims.js` |
 

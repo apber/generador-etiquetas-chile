@@ -42,7 +42,11 @@ const ADDED = { sugar: 'azúcar', fat: 'grasa o aceite', sodium: 'sal o sodio' }
 export const LABEL_TEXT = {
   serving: (measure, g) => `Porción: ${measure} (${g} g)`,
   servingsPerPackage: (text) => `Porciones por envase: ${text}`,
-  edibleNote: 'Valores por 100 g de parte comestible (sin cáscara)',
+  edibleNote: 'Valores por parte comestible (sin cáscara)',
+  per100gColumn: '100 g',
+  servingColumn: 'Porción',
+  oneServingColumn: '1 porción',
+  nutritionTitle: 'INFORMACIÓN NUTRICIONAL',
   packedBy: 'ENVASADO POR:',
   madeAndPackedIn: (country) => `ELABORADO Y ENVASADO EN ${country.toUpperCase()} POR:`,
   madeAndPackedBy: 'ELABORADO Y ENVASADO POR:',
@@ -161,7 +165,7 @@ export const ALERT_TEXTS = {
     detail: () => 'Con un sello ALTO EN no se permiten descriptores nutricionales del mismo nutriente (Manual MINSAL 2017).',
   },
   seal_removed: {
-    message: (p) => `Se quitó el sello ${SEAL_NAMES[p.seal]} por decisión de Aukan.`,
+    message: (p) => `Se quitó el sello ${SEAL_NAMES[p.seal]} por decisión de la empresa.`,
     detail: (p) => `Corresponde por norma (se agregó ${list(p.addedBy)}; ${nutrientName(p.nutrient)} ${p.value} > ${p.limit}). Decisión registrada el ${p.date}.`,
   },
   over_limit_not_added: {
