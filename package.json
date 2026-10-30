@@ -1,6 +1,6 @@
 {
   "name": "generador-etiquetas-chile",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Food label generator compliant with Chilean labeling rules",
   "type": "module",
@@ -10,7 +10,8 @@
     "validate": "node scripts/validate-data.mjs",
     "label": "node scripts/label-data.mjs",
     "render": "node scripts/render-label.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "sheet": "node scripts/print-sheet.mjs"
   },
   "devDependencies": {
     "ajv": "^8.20.0",
