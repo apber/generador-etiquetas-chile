@@ -87,9 +87,9 @@ export async function layoutLabel(root, cfg) {
       if (a.right > r.right + 0.05) reg.dataset.over = (a.right - r.right).toFixed(2);
       info.redes = { where: 'panel', gap: g, below: a.top - blk.getBoundingClientRect().top > 0.5 };
     });
-    // Social block under the table: tried aligned to the left of the table, to its right and to the right edge
-    // of the content; each one moves down until it hits nothing (table 2.6 px, text 4 px). The two-line form is
-    // used if it fits right below the table; if not, the three-line form if it ends higher.
+    // Social block under the table: flush with the right edge of the content (the edge of the table), moving down
+    // until it hits nothing (table 2.6 px, text and barcode 4 px). The two-line form is used if it fits right
+    // below the table; if not, the three-line form if it ends higher.
     const rd = rev.querySelector('.reg[data-free]');
     if (rd) {
       const R0 = rev.getBoundingClientRect();
@@ -106,19 +106,15 @@ export async function layoutLabel(root, cfg) {
       const maxR = parseFloat(rd.dataset.maxr);
       const place = () => {
         const rb = rd.getBoundingClientRect(), W = rb.width, H = rb.height;
-        let best = null;
-        for (const x0 of [tab.l, tab.r - W, maxR - W]) {
-          const x = Math.min(x0, maxR - W);
-          let y = tab.b + 2.6, moved = true, k = 0;
-          while (moved && k++ < 60) {
-            moved = false;
-            for (const o of obs) {
-              if (x < o.r + o.g - 0.05 && x + W > o.l - o.g + 0.05 && y < o.b + o.g - 0.05 && y + H > o.t - o.g + 0.05) { y = o.b + o.g; moved = true; }
-            }
+        const x = maxR - W;
+        let y = tab.b + 2.6, moved = true, k = 0;
+        while (moved && k++ < 60) {
+          moved = false;
+          for (const o of obs) {
+            if (x < o.r + o.g - 0.05 && x + W > o.l - o.g + 0.05 && y < o.b + o.g - 0.05 && y + H > o.t - o.g + 0.05) { y = o.b + o.g; moved = true; }
           }
-          if (!best || y < best.y - 0.01) best = { x, y, H };
         }
-        return best;
+        return { x, y, H };
       };
       const rw = rd.querySelector('.rw'), rn = rd.querySelector('.rn');
       let best = place(), lines = 2;

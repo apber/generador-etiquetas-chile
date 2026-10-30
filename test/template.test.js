@@ -100,6 +100,10 @@ test('layout in the browser: every demo label gets a length, nothing passes the 
       assert.ok(VARIANTS.some((v) => v.id === result.variant));
       assert.doesNotMatch(html, /class=|data-|<script/);
       assert.match(html, new RegExp(`height: ${result.boardHeight}px`));
+      if (result.redes?.where === 'tabla') {
+        const { redes, colA } = result.regions;
+        assert.ok(Math.abs(redes.right - colA.right) < 0.5, `${p.id}: social block not flush right (${redes.right} vs ${colA.right})`);
+      }
     }
   } finally { await r.close(); }
 });
