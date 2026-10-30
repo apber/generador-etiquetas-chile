@@ -8,7 +8,8 @@ import { parseNumber, rowKey, rowUnit, readTable, fitsPattern, normalizeMeasure,
 import { allergensInStatement, formatIngredients, addedFromIngredients, formatStorage, shelfLife } from '../src/reading/text.js';
 import { transcriptionToDraft } from '../src/reading/convert.js';
 import { measureImage, judgeImage } from '../src/reading/image-quality.js';
-import { buildRequest, readWithGemini, parseResponse } from '../src/reading/gemini.js';
+import { buildRequest, readWithGemini, readWithFallback, parseResponse, DEFAULT_MODEL, FALLBACK_MODEL } from '../src/reading/gemini.js';
+import { mergeCloseUp, focusFor } from '../src/reading/merge.js';
 import { scoreReading } from '../src/reading/score.js';
 
 const catalog = JSON.parse(readFileSync(new URL('../data/allergens.json', import.meta.url)));
@@ -132,6 +133,16 @@ test('table: an unreadable value per 100 g is derived from the serving column (w
   const r = readTable(t);
   assert.equal(r.fields.energy_kcal.status, 'derived');
   assert.equal(r.values.energy_kcal, 560);
+});
+
+test('table: a doubtful value per 100 g is confirmed only if the serving column can tell it apart', () => {
+  const t = demoTable();
+  t.rows[2] = { label: 'Grasa Total', unit: 'g', per_100: { text: '1,2', value: 1.2, legibility: 'doubtful' }, per_serving: cell('0,3') };
+  const r = readTable(t);
+  assert.equal(r.fields.total_fat_g.status, 'derived');
+  assert.equal(r.values.total_fat_g, 1);
+  t.rows[2] = { label: 'Grasa Total', unit: 'g', per_100: { text: '38,0', value: 38, legibility: 'doubtful' }, per_serving: cell('11,4') };
+  assert.equal(readTable(t).fields.total_fat_g.status, 'ok');
 });
 
 test('table: columns that disagree are not used', () => {
@@ -343,4 +354,36 @@ test('Gemini request and response handling (no network)', async () => {
   await assert.rejects(readWithGemini([], { apiKey: 'k', model: 'm', retries: 0, fetchImpl: fake(503, {}) }), { code: 'overloaded' });
   await assert.rejects(readWithGemini([], { apiKey: '', model: 'm' }), { code: 'bad_key' });
   await assert.rejects(readWithGemini([], { apiKey: 'k', model: 'm', fetchImpl: fake(200, { candidates: [{ content: { parts: [{ text: '{"images": [' }] }, finishReason: 'MAX_TOKENS' }] }) }), { code: 'bad_response' });
+});
+
+test('close-up of one section replaces it in the earlier reading', () => {
+  const base = demoTranscription({ may_contain_statement: null, other_allergen_statements: [{ text: 'Elaborado en líneas que procesan maní, sésamo/sésamo', legibility: 'doubtful' }] });
+  const close = { images: [{ index: 1, shows: ['allergens'], problems: [] }], nutrition_table: null, ingredients: null, contains_statement: null,
+    may_contain_statement: null, other_allergen_statements: [{ text: 'Elaborado en líneas que procesan maní, sésamo, mostaza', legibility: 'clear' }] };
+  const m = mergeCloseUp(base, close, 'allergens');
+  assert.equal(m.replaced, true);
+  assert.equal(m.transcription.nutrition_table, base.nutrition_table);
+  const r = transcriptionToDraft(m.transcription, options);
+  assert.ok(!r.alerts.some((a) => a.code === 'allergen_statement_doubtful'));
+  assert.ok(r.draft.composition.may_contain.includes('mustard'));
+  assert.equal(mergeCloseUp(base, { ...close, other_allergen_statements: [] }, 'allergens').replaced, false);
+  assert.equal(focusFor('allergen_statement_doubtful'), 'allergens');
+  assert.equal(focusFor('value_doubtful'), 'table');
+  assert.equal(focusFor('no_origin'), null);
+});
+
+test('fallback model when the main one has no quota; its readings are reviewed in full', async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    if (url.includes(DEFAULT_MODEL)) return { ok: false, status: 429, json: async () => ({ error: { status: 'RESOURCE_EXHAUSTED' } }) };
+    return { ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(demoTranscription()) }] } }] }) };
+  };
+  const r = await readWithFallback([], { apiKey: 'k', fetchImpl });
+  assert.equal(r.fallback, true);
+  assert.ok(calls[1].includes(FALLBACK_MODEL));
+  const d = transcriptionToDraft(r.transcription, { ...options, fallback: r.fallback, model: FALLBACK_MODEL });
+  assert.ok(d.alerts.some((a) => a.code === 'fallback_model' && a.blocking));
+  const body = buildRequest([], { focus: 'allergens' });
+  assert.match(body.contents[0].parts[0].text, /SOLO las frases de alérgenos/);
 });

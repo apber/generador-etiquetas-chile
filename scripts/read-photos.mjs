@@ -1,8 +1,9 @@
 // Reads the photos of a supplier label with Gemini and shows the draft record and its alerts (stage 7e).
 //
 // Usage:
-//   GEMINI_API_KEY=… node scripts/read-photos.mjs --model <model> [--hint "Maní con chocolate"]
+//   GEMINI_API_KEY=… node scripts/read-photos.mjs [--model <model>] [--hint "Maní con chocolate"]
 //       [--kind label_photo|web_capture] [--thinking minimal|low|medium|high] [--media high|medium|low|none] [--out dir] [--force] [--expect expected.json --id <id>] photo1 [photo2 …]
+//   … --focus allergens|table|ingredients --base earlier.transcription.json closeup.jpg   (close-up of one section)
 //   node scripts/read-photos.mjs --transcription saved.json [--hint …] [--expect … --id …]   (no API call)
 //   GEMINI_API_KEY=… node scripts/read-photos.mjs --list-models
 //
@@ -13,14 +14,15 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, basename, extname } from 'node:path';
 import { loadCatalog } from '../src/node/load-folder.js';
 import { openImagePreparer } from '../src/node/prepare-images.js';
-import { readWithGemini, listModels, ReadingError } from '../src/reading/gemini.js';
+import { readWithGemini, readWithFallback, listModels, ReadingError } from '../src/reading/gemini.js';
+import { mergeCloseUp } from '../src/reading/merge.js';
 import { transcriptionToDraft } from '../src/reading/convert.js';
 import { scoreReading } from '../src/reading/score.js';
 import { QUALITY_REASON_TEXT } from '../src/reading/image-quality.js';
 import { PROMPT_VERSION } from '../src/reading/prompt.js';
 
 const args = process.argv.slice(2);
-const opt = { model: null, hint: null, kind: 'label_photo', out: 'lecturas', force: false, expect: null, id: null, transcription: null, list: false, name: null, json: false, thinking: null, media: undefined };
+const opt = { model: null, hint: null, kind: 'label_photo', out: 'lecturas', force: false, expect: null, id: null, transcription: null, list: false, name: null, json: false, thinking: undefined, media: undefined, focus: null, base: null };
 const photos = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -36,6 +38,8 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--list-models') opt.list = true;
   else if (a === '--json') opt.json = true;
   else if (a === '--thinking') opt.thinking = args[++i];
+  else if (a === '--focus') opt.focus = args[++i];
+  else if (a === '--base') opt.base = args[++i];
   else if (a === '--media') opt.media = args[++i] === 'none' ? null : args[i];
   else photos.push(a);
 }
@@ -73,7 +77,10 @@ if (opt.transcription) {
   if (stop && !opt.force) { console.log('\nAlguna foto no sirve: en la app se pediría otra. Use --force para leer igual.'); process.exit(2); }
   const t0 = Date.now();
   try {
-    reading = await readWithGemini(prepared.map((r) => r.image), { apiKey, model: opt.model, productHint: opt.hint, thinkingLevel: opt.thinking, mediaResolution: opt.media });
+    const common = { apiKey, productHint: opt.hint, thinkingLevel: opt.thinking, mediaResolution: opt.media, focus: opt.focus };
+    reading = opt.model
+      ? await readWithGemini(prepared.map((r) => r.image), { ...common, model: opt.model })
+      : await readWithFallback(prepared.map((r) => r.image), common);
   } catch (e) {
     if (e instanceof ReadingError) { console.error(`${e.code}: ${e.message}`); console.error(JSON.stringify(e.info?.body ?? e.info, null, 1)?.slice(0, 1500)); process.exit(3); }
     throw e;
@@ -83,8 +90,16 @@ if (opt.transcription) {
   reading.quality = prepared.map((r) => ({ name: r.name, ok: r.ok, reasons: r.reasons, metrics: r.metrics }));
 }
 
+if (opt.base) {
+  const base = JSON.parse(readFileSync(opt.base, 'utf8'));
+  const merged = mergeCloseUp(base.transcription ?? base, reading.transcription, opt.focus);
+  console.log(merged.replaced ? `\nFoto de cerca (${opt.focus}): reemplaza esa sección de ${basename(opt.base)}.` : `\nLa foto de cerca no trae ${opt.focus}: se deja la lectura anterior.`);
+  reading = { ...reading, closeUpOf: basename(opt.base), transcription: merged.transcription };
+  files = [...(base.files ?? []), ...files];
+}
+
 const result = transcriptionToDraft(reading.transcription, {
-  catalog, productName: opt.hint, sourceKind: opt.kind, files, model: reading.model, promptVersion: reading.promptVersion,
+  catalog, productName: opt.hint, sourceKind: opt.kind, files, model: reading.model, promptVersion: reading.promptVersion, fallback: reading.fallback,
 });
 
 const name = opt.name ?? (opt.transcription ? basename(opt.transcription).replace(/\.transcription\.json$|\.json$/, '') : `${basename(photos[0], extname(photos[0]))}.${(opt.model ?? 'm').replace(/[^a-z0-9.-]/gi, '_')}`);

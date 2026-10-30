@@ -15,6 +15,11 @@ const fmt = (x) => String(x).replace('.', ',');
 
 /** action: retake (otra foto) | review (revisar a mano) | confirm (confirmar) | fallback (completar con respaldo) | none */
 export const READING_ALERTS = {
+  fallback_model: {
+    action: 'review',
+    message: () => 'Hoy se acabaron las lecturas normales: esta se hizo con el lector rápido, que se equivoca más. Revise todos los datos con la bolsa (o léala de nuevo mañana).',
+    detail: (p) => `Modelo de respaldo: ${p.model}.`,
+  },
   photo_unusable: {
     action: 'retake',
     message: (p) => `La foto ${p.index} ${p.reason}. Saque otra con buena luz, de frente y de cerca.`,
@@ -32,7 +37,7 @@ export const READING_ALERTS = {
   },
   serving_doubtful: {
     action: 'confirm',
-    message: (p) => `Confirme la porción: «${p.text ?? ''}».`,
+    message: (p) => (p.text ? `Confirme la porción: «${p.text}».` : `Confirme la porción: ${fmt(p.g ?? '?')} g.`),
     detail: () => 'La línea de la porción no se leyó con total claridad.',
   },
   serving_differs: {
@@ -98,16 +103,24 @@ export const READING_ALERTS = {
   carbs_unspecified: {
     action: 'confirm',
     message: (p) => `La tabla dice «${p.label}» sin aclarar si son disponibles. Confirme que no incluyen la fibra.`,
-    detail: (p) => p.chosen === 'total'
-      ? `Con la fibra restada la energía calza mejor (${p.withFiber} vs ${p.withoutFiber} kcal calculadas, ${p.declared} declaradas): se restó la fibra.`
-      : 'Se tomaron como disponibles.',
+    detail: () => 'Se tomaron como disponibles, tal como están impresos.',
+  },
+  carbs_maybe_total: {
+    action: 'review',
+    message: () => 'Los H. de C. podrían ser los totales (con fibra). Revíselo con el proveedor.',
+    detail: (p) => `Energía declarada ${p.declared} kcal; con los H. de C. impresos da ${p.asPrinted} kcal y restando la fibra ${p.minusFiber} kcal. Se dejó el valor impreso.`,
+  },
+  no_household_measure: {
+    action: 'review',
+    message: (p) => `Falta la medida casera de la porción de ${fmt(p.g)} g (p. ej. «¼ taza» o «5 unidades»). Escríbala.`,
+    detail: () => 'La porción se declara en gramos y en medida casera (RSA art. 115).',
   },
   row_missing: {
     action: 'fallback',
-    message: (p) => `No encontré ${listY(p.keys.map(nutrientName))} en la tabla. Si la foto corta la tabla, saque otra; si el proveedor no lo informa, complételo con una tabla reconocida.`,
+    message: (p) => `No encontré ${listY(p.keys.map(nutrientName))} en la tabla. Si la foto corta la tabla, saque otra; si el proveedor no lo informa, use «Completar con datos de referencia».`,
     detail: (p) => (p.becauseFat.length
       ? `${cap(listY(p.becauseFat.map(nutrientName)))}: obligatorio porque la porción tiene 3 g de grasa o más (RSA art. 115). `
-      : '') + 'Dato obligatorio de la tabla (RSA art. 115).',
+      : '') + 'Dato obligatorio de la tabla (RSA art. 115). Datos de referencia: tabla reconocida del mismo alimento (USDA), consenso de varias marcas o el mismo fabricante en otro país; quedan marcados como referencia.',
   },
   no_serving_column: {
     action: 'none',
@@ -126,9 +139,10 @@ export const READING_ALERTS = {
   },
   value_derived: {
     action: 'confirm',
-    message: (p) => `${cap(nutrientName(p.key))} por 100 g no se lee; se calculó desde la porción (${fmt(p.value)}). Confirme.`,
-    detail: (p) => `Por porción «${p.textServing}» × 100 / ${fmt(p.servingG)}. El redondeo del proveedor puede dar una pequeña diferencia.`,
+    message: (p) => `No se lee bien por 100 g: ${listY(p.keys.map(nutrientName))}. Se calculó desde la porción; confirme.`,
+    detail: (p) => p.items.map((i) => `${nutrientName(i.key)}: «${i.textServing}» × 100 / ${fmt(i.servingG)} = ${fmt(i.value)}`).join('. ') + '. El redondeo del proveedor puede dar una pequeña diferencia.',
   },
+
   table_check: {
     action: 'retake',
     message: () => 'Los números de la tabla no cuadran. Saque otra foto de la tabla.',
@@ -155,14 +169,14 @@ export const READING_ALERTS = {
     detail: () => 'Tomado de la lista de ingredientes.',
   },
   allergen_unknown: {
-    action: 'review',
-    message: (p) => `No reconozco «${p.phrase}» como alérgeno. Revíselo.`,
+    action: 'retake',
+    message: (p) => `No reconozco «${p.phrase}» como alérgeno. Saque una foto de cerca de esa frase; si dice eso, revísela a mano.`,
     detail: (p) => `En: «${p.statement}».`,
   },
   allergen_statement_doubtful: {
-    action: 'review',
-    message: (p) => `Revise la frase de alérgenos: «${p.statement}». Puede faltar un alérgeno; compárela con la bolsa.`,
-    detail: (p) => (p.repeated.length ? `Se repite: ${p.repeated.join(', ')} (puede ser otra palabra mal leída). ` : '') + 'La letra de los alérgenos suele ser muy chica; una palabra mal leída cambia PUEDE CONTENER.',
+    action: 'retake',
+    message: () => 'La frase de alérgenos no se lee bien. Saque una foto de cerca de solo esa frase.',
+    detail: (p) => `Leído: «${p.statement}». ` + (p.repeated.length ? `Se repite: ${p.repeated.join(', ')} (puede ser otra palabra mal leída). ` : '') + 'La letra de los alérgenos suele ser muy chica; una palabra mal leída cambia PUEDE CONTENER. Si la foto de cerca tampoco se lee, revisarla a mano con la bolsa.',
   },
   may_contain_from_statement: {
     action: 'confirm',

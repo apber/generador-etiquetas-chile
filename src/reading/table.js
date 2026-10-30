@@ -81,7 +81,7 @@ export function rowKey(label, unit) {
   if (/sodio/.test(l)) return 'sodium_mg';
   if (/^sal\b/.test(l)) return 'salt_g';
   if (/h\.? ?de ?c\b|h\. ?de ?c\.|hidrato|carbohidrat|\bde carbono\b/.test(l)) {
-    if (/disponib/.test(l)) return 'available_carbohydrates_g';
+    if (/disponib|\bdisp\b/.test(l)) return 'available_carbohydrates_g';
     if (/total/.test(l)) return 'carbohydrates_total_g';
     return 'carbohydrates_unspecified_g';
   }
@@ -187,7 +187,7 @@ export function readTable(table) {
     serving.g = gInText;
   }
   if (!serving.g) issues.push({ code: 'no_serving' });
-  else if (!serving.legible) issues.push({ code: 'serving_doubtful', text: sText });
+  else if (!serving.legible) issues.push({ code: 'serving_doubtful', text: sText, g: serving.g });
 
   // Column headers
   const h100 = normalize(table.per_100_header);
@@ -207,10 +207,33 @@ export function readTable(table) {
     byKey[key] = { label: row.label, unit: printedUnit, per100: readCell(row.per_100, factor), perServing: readCell(row.per_serving, factor) };
   }
 
+  // Serving column without a known serving weight: the legible pairs must keep one proportion with the 100 g
+  // column. If they do, the serving weight is deduced (and unreadable values per 100 g can be derived);
+  // if they do not, the reading of the table is not reliable (e.g. a worn label read with confidence).
+  let disagreeNoServing = false;
+  if (!serving.g && hasServingColumn) {
+    const pairs = Object.entries(byKey).filter(([, r]) => r.per100?.legible && r.perServing?.legible && r.per100.value > 0);
+    const big = pairs.filter(([, r]) => r.per100.value >= 10).map(([, r]) => r.perServing.value / r.per100.value).sort((x, y) => x - y);
+    if (big.length >= 2) {
+      const g = Math.round(big[Math.floor(big.length / 2)] * 100);
+      const off = pairs.filter(([, r]) => Math.abs((r.per100.value * g) / 100 - r.perServing.value) > servingAllowance(r.per100.value, r.per100.text, r.perServing.value, r.perServing.text, g) + 0.05 * r.perServing.value);
+      if (off.length || g <= 0) {
+        disagreeNoServing = true;
+        issues.push({ code: 'columns_disagree_no_serving', keys: off.map(([k]) => k) });
+      } else {
+        serving.g = g;
+        serving.inferred = true;
+        issues.push({ code: 'serving_inferred', g });
+      }
+    }
+  }
+
   // Per key: decide value and status
   const decided = {};
   for (const [key, r] of Object.entries(byKey)) {
-    decided[key] = decide(r, serving.g, hasServingColumn);
+    decided[key] = disagreeNoServing
+      ? { status: 'mismatch', value: r.per100?.value ?? null, note: 'columns_disagree_no_serving' }
+      : decide(r, serving.g, hasServingColumn);
   }
 
   // Serving column calculated for another weight? (all rows off by the same factor)
@@ -231,26 +254,7 @@ export function readTable(table) {
     }
   }
 
-  // Serving column without a known serving weight: its values must keep one proportion with the 100 g column.
-  // If they do not, the reading of the table is not reliable (e.g. a worn label read with confidence).
-  if (!serving.g && hasServingColumn) {
-    const ratios = Object.entries(byKey)
-      .filter(([, r]) => r.per100?.value > 0 && r.perServing?.value > 0)
-      .map(([k, r]) => ({ k, x: r.perServing.value / r.per100.value }));
-    if (ratios.length >= 2) {
-      const sorted = ratios.map((r) => r.x).sort((a, b) => a - b);
-      const median = sorted[Math.floor(sorted.length / 2)];
-      const off = ratios.filter((r) => Math.abs(r.x - median) > 0.1 * median + 0.02);
-      if (off.length) {
-        issues.push({ code: 'columns_disagree_no_serving', keys: ratios.map((r) => r.k) });
-        for (const k of Object.keys(decided)) decided[k] = { ...decided[k], status: 'mismatch', note: 'columns_disagree_no_serving' };
-      } else {
-        serving.g = Math.round(median * 100);
-        serving.inferred = true;
-        issues.push({ code: 'serving_inferred', g: serving.g });
-      }
-    }
-  }
+  if (serving.inferred) issues.splice(issues.findIndex((i) => i.code === 'no_serving'), 1);
 
   // Energy in kJ only
   if (!decided.energy_kcal && decided.energy_kj?.value !== undefined && decided.energy_kj.value !== null) {
@@ -320,7 +324,14 @@ function decide(r, servingG, hasServingColumn) {
     const allowance = servingAllowance(a.value, a.text, b.value, b.text, servingG);
     const consistent = Math.abs((a.value * servingG) / 100 - b.value) <= allowance;
     if (consistent) {
-      // Both say the same: even a doubtful reading is confirmed by the other column.
+      if (!a.legible && b.legible) {
+        // A doubtful value per 100 g is confirmed only if it is the value the serving column gives
+        // (0,3 g in 30 g gives 1,0: it confirms a doubtful 1,0 but not a doubtful 1,2, which also fits by rounding).
+        const d = decimalsIn(a.text);
+        const fromServing = Math.round(((b.value * 100) / servingG) * 10 ** d) / 10 ** d;
+        if (Math.abs(fromServing - a.value) > 1e-9) return derive(b, servingG, 'derived_doubtful_per100');
+      }
+      // Both say the same: a doubtful reading is confirmed by the other column.
       return { status: 'ok', value: a.value, note: a.legible && b.legible ? null : 'confirmed_by_other_column' };
     }
     if (a.legible && !b.legible) return { status: 'ok', value: a.value, note: 'serving_cell_doubtful' };

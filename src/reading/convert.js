@@ -41,6 +41,8 @@ export function transcriptionToDraft(t, options) {
   const sourceId = options.sourceId ?? 'r1';
   const alerts = [];
 
+  if (options.fallback) alerts.push(alert('fallback_model', { model: options.model }));
+
   // Image problems reported by the AI
   const withProblems = (t.images ?? []).filter((i) => i.problems?.length);
   if (withProblems.length) alerts.push(alert('image_problems', { list: withProblems }));
@@ -56,12 +58,13 @@ export function transcriptionToDraft(t, options) {
       becauseFat: missingRows.filter((i) => i.mandatoryBecauseFat).map((i) => i.key) }));
   }
   resolveUnspecifiedCarbs(table, alerts);
-  const byStatus = { doubtful: [], mismatch: [] };
+  if (table.serving?.g && !table.serving.householdMeasure) alerts.push(alert('no_household_measure', { g: table.serving.g }));
+  const byStatus = { doubtful: [], mismatch: [], derived: [] };
   for (const [key, f] of Object.entries(table.fields)) {
     const item = { key, text100: f.per100?.text, textServing: f.perServing?.text, servingG: table.serving?.g };
     if (f.status === 'doubtful') byStatus.doubtful.push(item);
     if (f.status === 'mismatch' && f.note !== 'columns_disagree_no_serving') byStatus.mismatch.push({ ...item, expected: Math.round(((f.per100.value * table.serving.g) / 100) * 100) / 100 });
-    if (f.status === 'derived') alerts.push(alert('value_derived', { ...item, value: f.value }));
+    if (f.status === 'derived') byStatus.derived.push({ ...item, value: f.value });
   }
   for (const [status, items] of Object.entries(byStatus)) {
     if (items.length) alerts.push(alert(`value_${status}`, { keys: items.map((i) => i.key), fields: items.map((i) => i.key), items }));
@@ -177,6 +180,12 @@ export function transcriptionToDraft(t, options) {
     }],
   };
 
+  // One close-up request per allergen sentence
+  const doubtfulStatements = new Set(alerts.filter((a) => a.code === 'allergen_statement_doubtful').map((a) => a.data.statement));
+  for (let i = alerts.length - 1; i >= 0; i--) {
+    if (alerts[i].code === 'allergen_unknown' && doubtfulStatements.has(alerts[i].data.statement)) alerts.splice(i, 1);
+  }
+
   const blocking = alerts.filter((a) => a.blocking).length;
   return {
     draft,
@@ -192,26 +201,22 @@ function supplierName(s) {
   return s.name;
 }
 
-/** "H. de C." without "disponibles": keep it, or subtract fiber if the energy fits better that way. */
+/**
+ * "H. de C." without "disponibles": the value is kept as printed. If the energy fits clearly better with
+ * the fiber subtracted, it may be the total: the person checks it (the value is never changed silently).
+ */
 function resolveUnspecifiedCarbs(table, alerts) {
   const f = table.fields.available_carbohydrates_g;
   const v = table.values;
   if (f?.note !== 'unspecified') return;
-  const idx = alerts.findIndex((a) => a.code === 'carbs_unspecified');
-  const data = { ...alerts[idx].data, chosen: 'available' };
-  if (v.dietary_fiber_g !== undefined && v.energy_kcal !== undefined && v.protein_g !== undefined && v.total_fat_g !== undefined && v.available_carbohydrates_g !== undefined) {
-    const base = 4 * v.protein_g + 9 * v.total_fat_g;
-    const withFiber = base + 4 * v.available_carbohydrates_g;
-    const withoutFiber = base + 4 * (v.available_carbohydrates_g - v.dietary_fiber_g);
-    if (Math.abs(withoutFiber - v.energy_kcal) < Math.abs(withFiber - v.energy_kcal)) {
-      v.available_carbohydrates_g = Math.round((v.available_carbohydrates_g - v.dietary_fiber_g) * 10) / 10;
-      f.value = v.available_carbohydrates_g;
-      f.note = 'unspecified_total_minus_fiber';
-      data.chosen = 'total';
-    }
-    Object.assign(data, { withFiber: Math.round(withFiber), withoutFiber: Math.round(withoutFiber), declared: v.energy_kcal });
+  if ([v.dietary_fiber_g, v.energy_kcal, v.protein_g, v.total_fat_g, v.available_carbohydrates_g].some((x) => x === undefined)) return;
+  const base = 4 * v.protein_g + 9 * v.total_fat_g;
+  const asPrinted = base + 4 * v.available_carbohydrates_g;
+  const minusFiber = base + 4 * (v.available_carbohydrates_g - v.dietary_fiber_g);
+  const tolerance = Math.max(0.1 * v.energy_kcal, 5);
+  if (Math.abs(asPrinted - v.energy_kcal) > tolerance && Math.abs(minusFiber - v.energy_kcal) <= tolerance) {
+    alerts.push(alert('carbs_maybe_total', { asPrinted: Math.round(asPrinted), minusFiber: Math.round(minusFiber), declared: v.energy_kcal, fields: ['available_carbohydrates_g'] }));
   }
-  alerts[idx] = alert('carbs_unspecified', data);
 }
 
 /** CONTIENE: the allergen that is the product itself first (maní in "maní con chocolate"), then in reading order. */

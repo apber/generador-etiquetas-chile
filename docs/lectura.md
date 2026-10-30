@@ -15,9 +15,10 @@ Código: [`src/reading/`](../src/reading). Prueba desde la terminal: [`scripts/r
 | Número de cada celda | Se toma del texto impreso (coma decimal, punto de miles); si no coincide con el número que dio la IA, el dato queda dudoso. «1.181» se lee como 1181 y queda marcado (miles o decimal) |
 | Fila → nutriente | Por el nombre de la fila (energía, proteínas, grasa saturada, mono, poli, trans, colesterol, H. de C., azúcares, fibra, sodio, sal) |
 | Unidades | Se llevan a las de la etiqueta (kcal, g, mg): sodio en g × 1000; energía solo en kJ ÷ 4,184; sal × 400 = sodio (con aviso) |
-| H. de C. | «Disponibles» se usa tal cual. «Totales» − fibra (con aviso). «H. de C.» sin aclarar: se elige la lectura con la que la energía calza mejor (con aviso) |
+| H. de C. | «Disponibles» (o «Disp.») se usa tal cual. «Totales» − fibra (con aviso). «H. de C.» sin aclarar: se usa tal como está impreso; si la energía calza claramente mejor restando la fibra, se pide revisarlo (nunca se cambia solo) |
 | **Doble lectura** | Cada valor por 100 g se compara con su valor por porción (valor × porción / 100, con el margen del redondeo de ambos). Si calzan, el dato queda confirmado aunque una de las dos celdas se leyera dudosa (p. ej. «1?,5» calza con 61,7 × 0,3). Si no calzan, el dato no se usa |
-| Valor por 100 g ilegible | Se calcula desde la porción (valor × 100 / porción), con aviso |
+| Valor por 100 g ilegible | Se calcula desde la porción (valor × 100 / porción), con aviso. Un valor dudoso que calza con la porción solo por el redondeo (1,2 con 0,3 de 30 g) no se da por bueno: se usa el que da la porción (1,0) |
+| Porción sin gramos | Si la columna por porción guarda una misma proporción con la de 100 g, se deduce la porción (confirmar); si no, la tabla no se usa |
 | Columna por porción calculada para otro peso | Si todas las filas guardan la misma proporción pero no la de la porción declarada, se avisa y se usan los valores por 100 g |
 | Sin columna por porción (páginas web) | Los valores quedan «sin verificar»: solo los revisan los chequeos de la tabla |
 | Chequeos de la tabla | Los de siempre ([`nutrients.js`](../src/nutrients.js)): energía ≈ 4·P + 4·HdC + 9·G, grasas parciales, azúcares ≤ H. de C., total ≤ 100 g |
@@ -37,6 +38,14 @@ Código: [`src/reading/`](../src/reading). Prueba desde la terminal: [`scripts/r
 
 En el nivel gratuito Google puede usar lo enviado para mejorar sus productos: enviar solo fotos de etiquetas, sin personas ni datos personales.
 
+### Modelo
+
+`gemini-3.6-flash` con razonamiento bajo (elegido el 30-10-2026). Si se acaba su cuota del día o está ocupado, `gemini-3.5-flash-lite`; esa lectura lleva un aviso que pide revisar todos los datos con la bolsa, porque ese modelo lee con seguridad lo que no está claro. [`readWithFallback`](../src/reading/gemini.js).
+
+### Foto de cerca de una sección
+
+Cuando una sección queda dudosa (frase de alérgenos, tabla o ingredientes), se pide una foto de cerca de **solo esa parte**. Se lee sola, con instrucciones que piden únicamente esa sección, y reemplaza esa sección en la lectura anterior; lo demás se conserva ([`merge.js`](../src/reading/merge.js)). Si la foto de cerca tampoco se lee, se revisa a mano con la bolsa.
+
 ### Frases de alérgenos
 
 No tienen una segunda columna con que compararlas y suelen ir en letra muy chica. Por eso: cada frase trae su legibilidad; una palabra dudosa, un alérgeno repetido en la misma frase («sésamo/sésamo», a menudo otra palabra mal leída) o una palabra que no es un alérgeno conocido («otras frutas secas») frenan el guardado hasta revisarla con la bolsa. Las listas de CONTIENE y PUEDE CONTENER sacadas de los ingredientes o de las frases de líneas compartidas se confirman siempre.
@@ -49,7 +58,9 @@ Con fotos de 720 × 1600 px. «Errores sin alerta» = dato mal leído que ningun
 |---|---|---|---|
 | gemini-3.6-flash (razonamiento bajo) | 4–18 s (una vez 60 s) | 0 | Marca lo que no lee |
 | gemini-3.8-flash (razonamiento bajo) | 73–127 s | 0 | Igual de cuidadoso, demasiado lento |
-| gemini-3.5-flash-lite | 3–8 s | 0 con las reglas actuales (antes 2) | Lee con seguridad lo que no está claro: inventa dígitos y palabras marcándolos como claros |
+| gemini-3.5-flash-lite | 3–8 s | 0–1 según la lectura | Lee con seguridad lo que no está claro: inventa dígitos y palabras marcándolos como claros |
+
+Segunda tanda (5 productos más, gemini-3.6-flash, 7–14 s): 0 errores sin alerta con las reglas actuales.
 
 ## Probar desde la terminal
 
