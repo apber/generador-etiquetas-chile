@@ -9,7 +9,7 @@ import { buildLabelData } from '../label-data.js';
 import { openRenderer } from './render-label.js';
 import { labelFontsCss } from './fonts.js';
 import { planSheet, fillPage } from '../sheet/plan.js';
-import { sheetPage } from '../sheet/page.js';
+import { sheetPage, calibrationCaptions } from '../sheet/page.js';
 
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
 
@@ -24,7 +24,8 @@ function inlineImages(html) {
 
 /**
  * entries: [{ id, copies }] in print order. options: { assets, ring: {id: hex}, barcode: {id: number}, paper,
- * marginMm, gapMm, fill (repeat the list until the page is full), paperType, gamma }.
+ * marginMm, gapMm, fill (repeat the list until the page is full), paperType, gamma, calibrate: [gammas] (color
+ * calibration sheet: the first product once per gamma, with captions) }.
  * Returns { pdf, html, plan, labels: { id: { lengthMm, variant, cut } }, skipped }.
  */
 export async function makeSheet(store, entries, options = {}) {
@@ -50,9 +51,13 @@ export async function makeSheet(store, entries, options = {}) {
   Object.keys(sheetOpts).forEach((k) => sheetOpts[k] === undefined && delete sheetOpts[k]);
   let list = ok.flatMap((e) => Array.from({ length: e.copies ?? 1 }, () => ({ id: e.id, cut: labels[e.id].cut })));
   if (options.fill) list = fillPage(ok.map((e) => ({ id: e.id, cut: labels[e.id].cut })), sheetOpts);
+  // Color calibration: the first product once per correction, each with its caption
+  const steps = options.calibrate;
+  if (steps?.length && ok.length) list = steps.map(() => ({ id: ok[0].id, cut: labels[ok[0].id].cut }));
   const plan = planSheet(list, sheetOpts);
   const html = sheetPage(plan, list.map((l) => labels[l.id].html), {
     fontsCss, paperType: options.paperType, gamma: options.gamma, title: options.title,
+    ...(steps?.length ? { itemGamma: steps, captions: calibrationCaptions(steps) } : {}),
   });
 
   const { chromium } = await import('playwright');

@@ -2,7 +2,9 @@
 // fit inside the margins (more pages if needed).
 // Usage: node scripts/print-sheet.mjs <folder> <id[:copies]>… [--out hoja.pdf] [--assets assets.json]
 //        [--paper letter|a4] [--margin mm] [--gap mm] [--fill] [--paper-type normal|fotografico] [--gamma n]
-//        [--ring id=#hex] [--barcode id=number] [--html]
+//        [--ring id=#hex] [--barcode id=number] [--html] [--calibrate g1,g2,…]
+// --calibrate: color test for a paper type: the first product once per gamma (1 = no correction), numbered.
+//   Values with a dot and separated by commas (1,0.75,0.6) or with a comma and separated by semicolons (1;0,75;0,6).
 // --fill: repeats the list in order until the page is full (ignores the copies).
 // Print the PDF at "actual size" / 100 % (no "fit to page").
 
@@ -24,6 +26,7 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--gap') opt.gapMm = Number(args[++i].replace(',', '.'));
   else if (a === '--fill') opt.fill = true;
   else if (a === '--html') opt.html = true;
+  else if (a === '--calibrate') { const v = args[++i]; opt.calibrate = (v.includes(';') ? v.split(';') : v.split(',')).map((x) => Number(x.trim().replace(',', '.'))); }
   else if (a === '--paper-type') opt.paperType = args[++i];
   else if (a === '--gamma') opt.gamma = Number(args[++i].replace(',', '.'));
   else if (a === '--ring' || a === '--barcode') { const [k, v] = args[++i].split('='); opt[a.slice(2)][k] = v; }

@@ -28,6 +28,8 @@ Con la etiqueta del sobre chico, en carta caben 5 de 51,7 mm con márgenes de ha
 
 En papel fotográfico brillante los colores se imprimen más oscuros. `--paper-type fotografico` aplica una curva gamma (0,85 por ahora; `--gamma` para probar otros valores): aclara los tonos medios y deja igual el negro y el blanco, así que el código de barras, el QR, la tabla y los sellos no cambian. Los colores del dibujo se corrigen en el HTML; las imágenes (logo, ícono de la firma, íconos de redes) se corrigen píxel a píxel en el navegador antes de imprimir, a su propia resolución. Los sellos (SVG en blanco y negro) no se tocan.
 
+**Calibrar un papel:** `npm run sheet -- <carpeta> <id> --calibrate 1,0.75,0.6,0.5,0.4 --assets …` arma una hoja con la etiqueta de ese producto una vez por valor, numerada bajo el frente («Prueba de color N.º 1 · Sin corrección», …). Se imprime en el papel a calibrar con el tipo de papel correcto en el diálogo de impresión, se compara con una hoja en papel normal y el número que más se parezca da el valor de `--gamma` (o el de `PAPER_TYPES` en [`page.js`](../src/sheet/page.js)).
+
 ## Precisión
 
 En la página las posiciones son exactas; al pasar a PDF, Chromium las redondea al píxel (±0,13 mm), bastante menos de lo que se mueve el papel en una impresora casera.

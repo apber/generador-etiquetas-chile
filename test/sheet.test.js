@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { planSheet, fillPage, labelBox, PAPERS } from '../src/sheet/plan.js';
-import { adjustColors, gammaChannel, sheetPage } from '../src/sheet/page.js';
+import { adjustColors, gammaChannel, sheetPage, calibrationCaptions } from '../src/sheet/page.js';
 import { cutFor } from '../src/template/geometry.js';
 
 const lab = (id, lengthMm) => ({ id, cut: cutFor(lengthMm) });
@@ -69,6 +69,16 @@ test('sheet page: paper size, one section per page, labels at real size', () => 
   assert.match(page, /@page \{ size: 215\.9mm 279\.4mm; margin: 0 \}/);
   assert.equal(page.match(/<section class="sheet">/g).length, 1);
   assert.match(page, /transform: scale\(0\.9994\d+\)/);
+});
+
+test('calibration sheet: one gamma and one caption per label', () => {
+  const plan = planSheet([lab('a', 50), lab('a', 50)]);
+  const steps = [1, 0.6];
+  const page = sheetPage(plan, ['<div style="color: #3A221A">A</div>', '<div style="color: #3A221A">A</div>'], { itemGamma: steps, captions: calibrationCaptions(steps) });
+  assert.match(page, /data-gamma="1"[^>]*><div style="color: #3A221A">/);
+  assert.match(page, /data-gamma="0.6"[^>]*><div style="color: #(?!3A221A)[0-9A-F]{6}">/);
+  assert.match(page, /Prueba de color N\.º 1<\/b><br>Sin corrección/);
+  assert.match(page, /Prueba de color N\.º 2<\/b><br>Corrección 0,6/);
 });
 
 const hasChromium = await (async () => {
