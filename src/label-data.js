@@ -187,7 +187,10 @@ export function buildLabelData(store, request, options = {}) {
     const chosen = product.recipe.components.map((c, order) => {
       const alt = variant[c.product];
       if (alt && !(c.alternatives ?? []).includes(alt)) throw new Error(`"${alt}" is not an alternative of "${c.product}" in "${product.id}"`);
-      return { recipeProduct: c.product, id: alt ?? c.product, g: c.g_per_100g, order };
+      // Origin of what was used: the component's own record unless told otherwise, at print time (request.origin)
+      // or in the recipe (country_of_origin of the component); a print-time value wins.
+      const originOverride = request.origin?.[c.product] ?? (alt ? null : c.country_of_origin ?? null);
+      return { recipeProduct: c.product, id: alt ?? c.product, g: c.g_per_100g, order, originOverride };
     });
     variantUsed = chosen.map((c) => ({ component: c.recipeProduct, used: c.id }));
     const missingComponents = chosen.filter((c) => !products.get(c.id));
@@ -200,7 +203,10 @@ export function buildLabelData(store, request, options = {}) {
     const parts = chosen
       .map((c) => ({ ...c, data: simpleData(products.get(c.id), true) }))
       .sort((a, b) => b.g - a.g || a.order - b.order);
-    for (const p of parts) alerts.push(...p.data.alerts);
+    for (const p of parts) {
+      // A component's missing origin does not count when the origin was given for the mix
+      alerts.push(...p.data.alerts.filter((a) => !(p.originOverride && a.code === `${p.id}/missing_origin`)));
+    }
 
     const mixed = mixValues(parts.map((p) => ({ id: p.id, values: p.data.values, g: p.g })));
     raw = mixed.values;
@@ -228,7 +234,7 @@ export function buildLabelData(store, request, options = {}) {
     // Origin of the ingredients, grouped by country
     const byCountry = new Map();
     for (const { p, name } of named) {
-      const country = p.data.comp.country_of_origin;
+      const country = p.originOverride ?? p.data.comp.country_of_origin;
       if (!country) continue;
       if (!byCountry.has(country)) byCountry.set(country, []);
       byCountry.get(country).push(name);

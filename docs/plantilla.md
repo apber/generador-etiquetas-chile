@@ -29,6 +29,7 @@ En el navegador (la futura app): `labelPage(datos, empresa, opciones)` de [`labe
 
 ## Reglas del reverso
 
+- **Secciones faltantes:** si falta un dato de una sección del panel de ingredientes (ingredientes, origen, alérgenos), la sección no se imprime; la alerta de impresión lo dice (opción `missingSections: 'placeholder'`: imprime el título con «[por confirmar]»). Si falta INGREDIENTES, la firma se alinea con la primera línea del párrafo que quede primero.
 - **Párrafos del panel de ingredientes**, con 2 px entre ellos: INGREDIENTES (con ORIGEN en línea propia), CONTIENE (con PUEDE CONTENER en línea nueva), conservación, instrucciones de uso y texto adicional si los hay, ENVASADO POR (con la resolución sanitaria en la línea siguiente) y las fechas de elaboración y vencimiento para escribir o timbrar.
 - **1 mm por párrafo:** un párrafo empieza 1 mm más a la izquierda solo si cabe completo sobre el escalón del reverso; desde el primero que no, ninguno se corre.
 - **Firma y código de barras** flotan a la derecha del texto; suben hasta que la cabeza del ícono de la firma quede a la altura del nombre del producto (si el nombre no llega a su columna o va arriba en una línea) o de la primera línea de ingredientes.

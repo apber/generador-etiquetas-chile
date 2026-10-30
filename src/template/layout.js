@@ -50,8 +50,12 @@ export async function layoutLabel(root, cfg) {
       } else if (nameT && (() => { const r = document.createRange(); r.selectNodeContents(nameT); return r.getClientRects().length === 1; })()) {
         target = firstTextTop(nameT) + MS_CAP * 8.5; how = 'nombre';
       } else {
-        const b = [...rev.querySelectorAll('.reg[data-key="ing"] .blk b')].find((e) => e.textContent.startsWith('INGREDIENTES'));
-        target = firstTextTop(b) + RC_CAP * 6.2; how = 'ingredientes';
+        // First line of the first text paragraph (INGREDIENTES, or what comes first if it is missing)
+        const p1 = rev.querySelector('.reg[data-key="ing"] .p1');
+        const tw = document.createTreeWalker(p1, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.textContent.trim() ? 1 : 3) });
+        const t = tw.nextNode();
+        const r = document.createRange(); r.selectNodeContents(t);
+        target = r.getClientRects()[0].top + RC_CAP * 6.2; how = 'ingredientes';
       }
       const d = (fr.top + PIC_TOP) - target;
       f.style.marginTop = `${-d}px`;

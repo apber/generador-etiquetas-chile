@@ -78,6 +78,21 @@ test('markup: texts of the back and front, all variants, escaped data', () => {
   assert.doesNotMatch(labelMarkup(evil, store.company).html, /<script>/);
 });
 
+test('missing sections of the ingredients panel are left out (placeholder as an option)', () => {
+  const store = loadFolder(DEMO_FOLDER);
+  const d = buildLabelData(store, { productId: 'mani-tostado' });
+  const noOrigin = { ...d, origin: { ...d.origin, text: null } };
+  const html = labelMarkup(noOrigin, store.company).html;
+  assert.doesNotMatch(html, /ORIGEN:/);
+  assert.doesNotMatch(html, /por confirmar/);
+  assert.match(html, /<div class="p1"><b>INGREDIENTES:<\/b>/);
+  assert.match(labelMarkup(noOrigin, store.company, { missingSections: 'placeholder' }).html, /<b>ORIGEN:<\/b> \[por confirmar\]\./);
+  const nothing = { ...noOrigin, ingredients: null };
+  const h2 = labelMarkup(nothing, store.company).html;
+  assert.doesNotMatch(h2, /INGREDIENTES:/);
+  assert.match(h2, /<div class="p1"><b>CONTIENE:<\/b>/);
+});
+
 // Layout in Chromium (Playwright). Skipped when the browser is not installed.
 let renderer = null;
 try {
@@ -105,5 +120,9 @@ test('layout in the browser: every demo label gets a length, nothing passes the 
         assert.ok(Math.abs(redes.right - colA.right) < 0.5, `${p.id}: social block not flush right (${redes.right} vs ${colA.right})`);
       }
     }
+    const d = buildLabelData(store, { productId: 'mani-tostado' });
+    const { result } = await r.render({ ...d, ingredients: null, origin: { ...d.origin, text: null } }, store.company);
+    assert.ok(result.signature && result.lengthMm > 30);
+    assert.ok(result.check <= 0.01);
   } finally { await r.close(); }
 });

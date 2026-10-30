@@ -67,11 +67,11 @@ const comp = (p) => (p.component ? ` (en ${p.componentName})` : '');
  */
 export const ALERT_TEXTS = {
   missing_origin: {
-    message: (p) => `Falta el país de origen${comp(p)}. Pídalo al proveedor.`,
-    detail: () => 'El país de origen es obligatorio (RSA art. 107 d). Envasar no cambia el origen: vale el del proveedor.',
+    message: (p) => `Falta el país de origen${comp(p)}. Pídalo al proveedor. Mientras tanto, la etiqueta sale sin ${p.component ? 'ese ingrediente en la línea ORIGEN' : 'la línea ORIGEN'}.`,
+    detail: () => 'El país de origen es obligatorio (RSA art. 107 d). Envasar no cambia el origen: vale el del proveedor. En una mezcla vale el de la ficha de cada ingrediente, salvo que se indique otro.',
   },
   missing_ingredients: {
-    message: (p) => `Falta la lista de ingredientes${comp(p)}. Suba una foto de la bolsa.`,
+    message: (p) => `Falta la lista de ingredientes${comp(p)}. Suba una foto de la bolsa. Mientras tanto, la etiqueta sale sin la línea INGREDIENTES.`,
     detail: () => 'La lista de ingredientes es obligatoria (RSA art. 107 g).',
   },
   missing_contains: {

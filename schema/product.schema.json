@@ -180,6 +180,10 @@
             "properties": {
               "product": { "$ref": "#/$defs/id" },
               "g_per_100g": { "type": "number", "exclusiveMinimum": 0, "maximum": 100 },
+              "country_of_origin": {
+                "description": "Origin of this component in the mix when it differs from its own record (by default the mix uses the origin of the component's record).",
+                "type": "string", "minLength": 1
+              },
               "alternatives": {
                 "description": "Products that may replace this one at print time (the recipe product is the default).",
                 "type": "array", "items": { "$ref": "#/$defs/id" }

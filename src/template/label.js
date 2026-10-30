@@ -18,6 +18,7 @@ export const DEFAULT_TEMPLATE_OPTIONS = {
   sealSize: '10mm',           // '15mm' = legal size (the user accepted the risk of 10 mm)
   medallion: 1.1,             // +10 % (39.6 mm)
   ringColor: '#6E421C',       // when the record has no ring color (alert missing_ring_color)
+  missingSections: 'omit',     // a missing ingredients-panel section is left out; 'placeholder' prints missingText
   missingText: '[por confirmar]',
 };
 

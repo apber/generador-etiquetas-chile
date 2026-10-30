@@ -47,9 +47,12 @@ const endDot = (t) => (/[.!?]$/.test(t.trim()) ? t.trim() : `${t.trim()}.`);
 
 /** Everything the back needs, as HTML fragments, from the label data (label-data.js) and the company record. */
 export function backContent(d, company, opts = {}) {
-  const missing = opts.missingText ?? '[por confirmar]';
+  // A missing section of the ingredients panel is left out (default since 30-10-2026); 'placeholder' prints
+  // its title with missingText instead. The print alert names it either way.
+  const placeholder = opts.missingSections === 'placeholder' ? (opts.missingText ?? '[por confirmar]') : null;
   const segs = d.ingredients?.segments;
-  const ing = segs ? endDot(segs.map((s) => (s.bold ? `<b>${esc(s.text)}</b>` : esc(s.text))).join('')) : missing;
+  const ing = segs ? endDot(segs.map((s) => (s.bold ? `<b>${esc(s.text)}</b>` : esc(s.text))).join('')) : placeholder;
+  const originText = d.origin.text ?? placeholder;
   const res = d.healthPermit;
   const m = res.match(/^(.*?)(N° \S+)\s*(– .*)$/);
   const resHtml = m ? `${esc(m[1])}<span style="white-space: nowrap">${esc(m[2])}</span> <span style="white-space: nowrap">${esc(m[3])}</span>` : esc(res);
@@ -65,7 +68,7 @@ export function backContent(d, company, opts = {}) {
     ring: d.front.ringColor,
     brand: esc((company.brand ?? '').toUpperCase()),
     ing,
-    origin: { title: esc(d.origin.title), text: esc(endDot(d.origin.text ?? missing)) },
+    origin: originText == null ? null : { title: esc(d.origin.title), text: esc(endDot(originText)) },
     contains: d.contains.text ? esc(endDot(d.contains.text)) : null,
     mayContain: d.mayContain.text ? esc(endDot(d.mayContain.text)) : null,
     storage: d.storage ? esc(d.storage) : null,
@@ -167,13 +170,16 @@ export function backVariantHtml(c, v) {
 
   const paras = [];
   if (v.name === 'top') paras.push(nameTop);
-  paras.push(`<div><b>INGREDIENTES:</b> ${c.ing}<br><b>${c.origin.title}</b> ${c.origin.text}</div>`);
-  paras[0] = float + paras[0];
+  const ingLines = [c.ing != null && `<b>INGREDIENTES:</b> ${c.ing}`, c.origin && `<b>${c.origin.title}</b> ${c.origin.text}`].filter(Boolean);
+  if (ingLines.length) paras.push(`<div class="p1">${ingLines.join('<br>')}</div>`);
+  const firstMark = ingLines.length ? '' : ' class="p1"';
   const cc = [c.contains && `<b>CONTIENE:</b> ${c.contains}`, c.mayContain && `<b>PUEDE CONTENER:</b> ${c.mayContain}`].filter(Boolean);
-  if (cc.length) paras.push(`<div>${cc.join('<br>')}</div>`);
-  if (c.storage) paras.push(`<div>${c.storage}</div>`);
-  for (const t of c.extra) paras.push(`<div>${t}</div>`);
-  paras.push(`<div><b>${c.packer.title}</b> ${c.packer.text}<br>${c.res}</div>`);
+  const mark = () => (paras.some((x) => x.includes('class="p1"')) ? '' : firstMark);
+  if (cc.length) paras.push(`<div${mark()}>${cc.join('<br>')}</div>`);
+  if (c.storage) paras.push(`<div${mark()}>${c.storage}</div>`);
+  for (const t of c.extra) paras.push(`<div${mark()}>${t}</div>`);
+  paras.push(`<div${mark()}><b>${c.packer.title}</b> ${c.packer.text}<br>${c.res}</div>`);
+  paras[0] = float + paras[0];
   let blocks = paras.map((p, i) => block(p, i === 0 ? 0 : BACK.gap)).join('');
   if (redesInPanel) {
     blocks += block(redesPanel(c), BACK.redesGap);

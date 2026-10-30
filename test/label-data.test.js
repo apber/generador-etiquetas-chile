@@ -91,6 +91,19 @@ test('mix: missing origin of a component is named, the rest is printed', () => {
   assert.match(d.alerts.find((a) => a.code === 'pasas-con-aceite/missing_origin').message, /\(en pasas\)/);
 });
 
+test('mix: origin given for a component (recipe or print time) replaces its record and clears its alert', () => {
+  const noOrigin = withProduct(demo(), 'pasas-con-aceite', (p) => { p.composition.country_of_origin = null; return p; });
+  const inRecipe = withProduct(noOrigin, 'mezcla-demo', (p) => { p.recipe.components[1].country_of_origin = 'Argentina'; return p; });
+  const a = build(inRecipe, 'mezcla-demo');
+  assert.equal(a.origin.text, 'Chile (maní); Argentina (pasas)');
+  assert.ok(!codes(a).includes('pasas-con-aceite/missing_origin'));
+  // print time wins over the recipe and over the record
+  const b = build(inRecipe, 'mezcla-demo', { origin: { 'mani-tostado': 'Argentina' } });
+  assert.equal(b.origin.text, 'Argentina');
+  // a print-time origin also covers a component whose record has none
+  assert.equal(build(noOrigin, 'mezcla-demo', { origin: { 'pasas-con-aceite': 'Chile' } }).origin.text, 'Chile');
+});
+
 test('mix: a variant must be a listed alternative, and a missing record stops the mix', () => {
   const store = withProduct(demo(), 'mezcla-demo', (p) => { p.recipe.components[1].alternatives = ['pasas-morenas']; return p; });
   assert.throws(() => build(store, 'mezcla-demo', { variant: { 'pasas-con-aceite': 'otra' } }));

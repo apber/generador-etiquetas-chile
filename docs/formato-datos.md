@@ -49,7 +49,7 @@ La ficha guarda **solo lo que se escribe o se lee del proveedor**. Todo lo deriv
 | `composition.usage_instructions` | Instrucciones de uso (opcional) |
 | `composition.extra_text` | Texto adicional (opcional) |
 | `composition.supplier_shelf_life` | Duración según el proveedor (no se imprime) |
-| `recipe.components[]` | Receta de una mezcla: `product`, `g_per_100g`, `alternatives` |
+| `recipe.components[]` | Receta de una mezcla: `product`, `g_per_100g`, `alternatives` y, solo si en la mezcla difiere del de su ficha, `country_of_origin` |
 | `nutrition.serving` | Porción: `g` y `household_measure` (medida casera) |
 | `nutrition.per_100g` | Tabla por 100 g; cada valor con su `source`. Si falta un dato, la clave no se incluye |
 | `confirmed_alerts[]` | Decisiones del usuario sobre alertas: `alert` (código), `decision`, `date`, `note`. Con una decisión, la alerta deja de frenar la impresión pero sigue a la vista. Quitar un sello que corresponde: `alert` = `remove_seal:<sello>` y `decision` = `remove_seal` |
@@ -84,7 +84,7 @@ Código: [`src/label-data.js`](../src/label-data.js) arma todo lo que necesita l
 | Eslogan | Con sellos que correspondan por norma, el eslogan "con sellos" (aunque se haya quitado uno por decisión) | `src/label-data.js` |
 | Contiene / puede contener | Mezclas: unión de los componentes, del más pesado al más liviano; primero el alérgeno que es el propio ingrediente (almendras, maní) y después los demás (sulfitos). Lo que está en contiene sale de puede contener | `src/allergens.js` |
 | Ingredientes de una mezcla | Orden decreciente por peso (empates en el orden de la receta). Un componente de un solo ingrediente aparece con su nombre como ingrediente; si tiene varios, "nombre (sus ingredientes)" | `src/ingredients.js` |
-| Envasador y origen | Simple: "ENVASADO POR:" + domicilio con el país + "ORIGEN: país". Mezcla: "ELABORADO Y ENVASADO POR:" + domicilio con el país + "ORIGEN:" agrupado por país (opciones: "ELABORADO Y ENVASADO EN CHILE POR:" con el domicilio sin el país, y "ORIGEN DE LOS INGREDIENTES:") | `src/label-data.js` |
+| Envasador y origen | Simple: "ENVASADO POR:" + domicilio con el país + "ORIGEN: país". Mezcla: "ELABORADO Y ENVASADO POR:" + domicilio con el país + "ORIGEN:" agrupado por país (opciones: "ELABORADO Y ENVASADO EN CHILE POR:" con el domicilio sin el país, y "ORIGEN DE LOS INGREDIENTES:"). En una mezcla, el origen de cada ingrediente es el de su ficha, salvo que se indique otro en la receta (`country_of_origin` del componente) o al imprimir (`origin: { componente: país }`, que gana). Si falta el de algún ingrediente, se imprimen los conocidos y queda la alerta; si no se conoce ninguno, la línea ORIGEN no se imprime | `src/label-data.js` |
 | Chequeos | Energía vs 4·P + 4·HdC + 9·G (10 %; con valores bajo 50 kcal, 5 kcal); grasas parciales ≤ totales; parciales bajo 80 % del total (posible fila mal leída); azúcares ≤ H. de C.; proteínas + grasas + H. de C. + fibra ≤ 100 g | `src/nutrients.js` |
 | Textos | Con sellos: sin palabras de salud (saludable, bienestar…) ni descriptores del mismo nutriente del sello. "Sin azúcar" no va si se añadió azúcar o si la porción tiene 0,5 g de azúcares o más; "sin sal" no va si se añadió sal | `src/claims.js` |
 
