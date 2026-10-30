@@ -2,7 +2,7 @@
 
 Herramienta para que una pyme de alimentos envasados registre sus productos y genere etiquetas que cumplen la normativa chilena de rotulado: tabla nutricional, sellos "ALTO EN", alérgenos, ingredientes, origen y código de barras.
 
-**Estado:** en desarrollo (v0.4). Listos: formato de los datos, cálculos (tabla nutricional, porciones, sellos, alérgenos, mezclas, chequeos), la plantilla de la etiqueta del sobre chico, que se maqueta sola por producto con el largo mínimo para su contenido, y la hoja de impresión en PDF; todo con pruebas automáticas. Siguiente: leer los datos desde fotos de la etiqueta del proveedor.
+**Estado:** en desarrollo (v0.5). Listos: formato de los datos, cálculos (tabla nutricional, porciones, sellos, alérgenos, mezclas, chequeos), la plantilla de la etiqueta del sobre chico, que se maqueta sola por producto con el largo mínimo para su contenido, y la hoja de impresión en PDF; todo con pruebas automáticas. Siguiente: leer los datos desde fotos de la etiqueta del proveedor.
 
 ## Qué hará cuando esté terminado
 

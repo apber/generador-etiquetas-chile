@@ -9,10 +9,15 @@
 
 import { MM } from '../template/geometry.js';
 
-/** Paper types: gamma applied to the colors (1 = unchanged; < 1 lighter). Values to adjust with print tests. */
+/**
+ * Paper types: gamma applied to the colors (1 = unchanged; < 1 lighter). Chosen with a calibration sheet
+ * (--calibrate): the value whose print on that paper looks most like the plain-paper print.
+ * fotografico: 0.45, between tests 0.5 and 0.4 (30-10-2026; Epson L375, glossy photo paper, driver set to the
+ * glossy photo paper type). Another printer or paper may need another value.
+ */
 export const PAPER_TYPES = {
   normal: { name: 'Papel normal o adhesivo mate', gamma: 1 },
-  fotografico: { name: 'Papel fotográfico brillante', gamma: 0.85 },
+  fotografico: { name: 'Papel fotográfico brillante', gamma: 0.45 },
 };
 
 const CSS_PX_PER_MM = 96 / 25.4;
