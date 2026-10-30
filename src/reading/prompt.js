@@ -1,7 +1,7 @@
 // Instructions sent to the AI together with the photos (stage 7e).
 // The AI transcribes; it does not calculate, complete or correct. See schema.js.
 
-export const PROMPT_VERSION = 1;
+export const PROMPT_VERSION = 2;
 
 export function readingPrompt({ productHint = null, imageCount = 1 } = {}) {
   const hint = productHint ? `\nEl usuario dice que el producto es: «${productHint}». Úsalo solo para orientarte; transcribe lo que está impreso.` : '';
@@ -25,7 +25,8 @@ Tabla nutricional ("nutrition_table"):
 Otros datos:
 - "ingredients": la lista de ingredientes completa, sin el título "Ingredientes:".
 - "contains_statement": lo que sigue a "Contiene" (alérgenos), sin el título. "may_contain_statement": lo que sigue a "Puede contener" o "Contiene trazas de", sin el título.
-- "other_allergen_statements": otras frases sobre alérgenos o líneas compartidas (p. ej. "Elaborado en líneas que también procesan frutos secos"), completas.
+- "other_allergen_statements": otras frases sobre alérgenos o líneas compartidas (p. ej. "Elaborado en líneas que también procesan frutos secos"), completas, cada una con su "legibility".
+- Las frases de alérgenos suelen ir en letra muy chica: cópialas palabra por palabra. Si una palabra no se distingue bien, no la deduzcas por el contexto ni repitas otra: escribe "?" y marca "doubtful".
 - "origin": solo si la etiqueta DICE el origen ("Origen: Chile", "Hecho en Chile", "Producto de Argentina", "Made in USA"). "text" es la frase completa, "country" el país en español y "explicit": true. Si solo hay una dirección en un país, copia la dirección en "supplier" y deja "origin" en null.
 - "storage": la frase de conservación completa. "usage_instructions": instrucciones de preparación o uso, si las hay.
 - "shelf_life_text": la duración si aparece (p. ej. "12 meses"). "production_date" y "expiry_date": las fechas tal cual.

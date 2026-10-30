@@ -28,6 +28,13 @@ export function parseNumber(text) {
   if (!raw || out.unreadable) return out;
   const q = raw.match(/^(<|>|≤|≥|menos de|aprox\.?|~)/i);
   if (q) out.qualifier = q[1].toLowerCase().startsWith('menos') ? '<' : q[1];
+  // "9 4g": a worn comma between digits (old or rubbed labels) → read as decimal, marked ambiguous.
+  const worn = raw.match(/^\D*?(\d{1,3})\s+(\d{1,2})\s*[a-zµ]*\s*$/i);
+  if (worn) {
+    out.value = Number(`${worn[1]}.${worn[2]}`);
+    out.ambiguous = true;
+    return out;
+  }
   const m = raw.replace(/\s/g, '').match(/\d[\d.,]*/);
   if (!m) return out;
   let s = m[0].replace(/[.,]$/, '');
@@ -67,13 +74,13 @@ export function rowKey(label, unit) {
   if (/mono-? ?insat|monoins/.test(l)) return 'monounsaturated_fat_g';
   if (/poli-? ?insat|poliins|polins/.test(l)) return 'polyunsaturated_fat_g';
   if (/satur/.test(l)) return 'saturated_fat_g';
-  if (/\btrans\b/.test(l)) return 'trans_fat_g';
   if (/colest/.test(l)) return 'cholesterol_mg';
+  if (/\btrans\b/.test(l)) return 'trans_fat_g';
   if (/azucar/.test(l)) return /anadid|agregad/.test(l) ? 'added_sugars_g' : 'total_sugars_g';
   if (/fibra/.test(l)) return 'dietary_fiber_g';
   if (/sodio/.test(l)) return 'sodium_mg';
   if (/^sal\b/.test(l)) return 'salt_g';
-  if (/h\.? ?de ?c\b|h\. ?de ?c\.|hidratos|carbohidrat/.test(l)) {
+  if (/h\.? ?de ?c\b|h\. ?de ?c\.|hidrato|carbohidrat|\bde carbono\b/.test(l)) {
     if (/disponib/.test(l)) return 'available_carbohydrates_g';
     if (/total/.test(l)) return 'carbohydrates_total_g';
     return 'carbohydrates_unspecified_g';
@@ -224,6 +231,27 @@ export function readTable(table) {
     }
   }
 
+  // Serving column without a known serving weight: its values must keep one proportion with the 100 g column.
+  // If they do not, the reading of the table is not reliable (e.g. a worn label read with confidence).
+  if (!serving.g && hasServingColumn) {
+    const ratios = Object.entries(byKey)
+      .filter(([, r]) => r.per100?.value > 0 && r.perServing?.value > 0)
+      .map(([k, r]) => ({ k, x: r.perServing.value / r.per100.value }));
+    if (ratios.length >= 2) {
+      const sorted = ratios.map((r) => r.x).sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      const off = ratios.filter((r) => Math.abs(r.x - median) > 0.1 * median + 0.02);
+      if (off.length) {
+        issues.push({ code: 'columns_disagree_no_serving', keys: ratios.map((r) => r.k) });
+        for (const k of Object.keys(decided)) decided[k] = { ...decided[k], status: 'mismatch', note: 'columns_disagree_no_serving' };
+      } else {
+        serving.g = Math.round(median * 100);
+        serving.inferred = true;
+        issues.push({ code: 'serving_inferred', g: serving.g });
+      }
+    }
+  }
+
   // Energy in kJ only
   if (!decided.energy_kcal && decided.energy_kj?.value !== undefined && decided.energy_kj.value !== null) {
     const kj = decided.energy_kj;
@@ -250,7 +278,7 @@ export function readTable(table) {
         issues.push({ code: 'carbs_total_no_fiber', total: total.value });
       }
     } else if (unspecified) {
-      decided.available_carbohydrates_g = { ...unspecified, note: 'unspecified' };
+      decided.available_carbohydrates_g = { ...unspecified, note: unspecified.status === 'mismatch' ? unspecified.note : 'unspecified' };
       issues.push({ code: 'carbs_unspecified', label: byKey.carbohydrates_unspecified_g.label });
     }
   }

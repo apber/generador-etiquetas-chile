@@ -85,6 +85,7 @@ test('numbers: comma decimals, dot thousands, qualifiers and unreadable digits',
   assert.equal(parseNumber('-').value, null);
   assert.equal(parseNumber('1?,5').value, null);
   assert.equal(parseNumber('1?,5').unreadable, true);
+  assert.deepEqual([parseNumber('9 4g').value, parseNumber('9 4g').ambiguous], [9.4, true]);
 });
 
 test('rows: names and units of supplier tables', () => {
@@ -99,6 +100,9 @@ test('rows: names and units of supplier tables', () => {
   assert.equal(rowKey('Azúcares totales', 'g'), 'total_sugars_g');
   assert.equal(rowKey('Sal', 'g'), 'salt_g');
   assert.equal(rowKey('Vitamina E', 'mg'), null);
+  assert.equal(rowKey('Colesterol / Trans Fatty acids', 'g'), 'cholesterol_mg');
+  assert.equal(rowKey('Hidrato de carbono disponible', 'g'), 'available_carbohydrates_g');
+  assert.equal(rowKey('H de carbono', 'g'), 'carbohydrates_unspecified_g');
   assert.equal(rowUnit('Sodio (mg)', null), 'mg');
 });
 
@@ -179,6 +183,19 @@ test('table: only the 100 g column (web pages) gives unverified values', () => {
   assert.ok(r.issues.some((i) => i.code === 'no_serving_column'));
 });
 
+test('table: serving column without serving weight must keep one proportion', () => {
+  const t = demoTable({ serving_text: null, serving_g: null, household_measure: null });
+  const r = readTable(t);
+  assert.equal(r.serving.g, 30);
+  assert.ok(r.issues.some((i) => i.code === 'serving_inferred'));
+  const bad = demoTable({ serving_text: null, serving_g: null, household_measure: null });
+  bad.rows[1] = row('Proteínas', 'g', '9', '49');
+  bad.rows[2] = row('Grasa Total', 'g', '4', '9');
+  const rb = readTable(bad);
+  assert.ok(rb.issues.some((i) => i.code === 'columns_disagree_no_serving'));
+  assert.equal(rb.values.protein_g, undefined);
+});
+
 test('serving line and household measure', () => {
   assert.equal(parseServingGrams('Porción: 1/4 taza (30 g)'), 30);
   assert.equal(normalizeMeasure('1/4 taza (30 g)'), '¼ taza');
@@ -204,6 +221,7 @@ test('ingredients: supplier capitals become allergen marks; otherwise allergens 
   assert.equal(formatIngredients('pasa, aceite de maravilla, dióxido de azufre', catalog), 'pasa, aceite de maravilla, {dióxido de azufre}');
   assert.equal(formatIngredients('MANÍ, SAL', catalog), '{maní}, sal');
   assert.equal(formatIngredients('nuez moscada, almendras', catalog), 'nuez moscada, {almendras}');
+  assert.equal(formatIngredients('Avena', catalog), '{avena}');
 });
 
 test('added sugar, fat and salt in an ingredient list', () => {
@@ -221,6 +239,9 @@ test('added sugar, fat and salt in an ingredient list', () => {
 
 test('storage and shelf life', () => {
   assert.equal(formatStorage('conservar en lugar fresco y seco'), 'Conservar en lugar fresco y seco.');
+  assert.equal(formatStorage('CONSERVAR EN LUGAR FRESCO Y SECO'), 'Conservar en lugar fresco y seco.');
+  assert.equal(formatStorage('Conservar en un lugar fresco y seco Se recomienda mantener refrigerado'), 'Conservar en un lugar fresco y seco. Se recomienda mantener refrigerado.');
+  assert.equal(formatStorage('Condiciones Almacenamiento: Mantener en lugar fresco y seco'), 'Mantener en lugar fresco y seco.');
   assert.deepEqual(shelfLife('Duración: 12 meses'), { amount: 12, unit: 'months', from: 'text' });
   assert.deepEqual(shelfLife(null, '29-07-2026', '29-01-2028'), { amount: 18, unit: 'months', from: 'dates' });
 });
@@ -254,6 +275,19 @@ test('draft: missing origin, allergen line from shared-lines sentence, seals com
   // 15 g saturated fat with added fat: the calculation also gives ALTO EN GRASAS SATURADAS
   assert.ok(codes.includes('seals_differ'));
   assert.equal(r.summary.ready, false);
+});
+
+test('draft: a repeated or doubtful allergen word asks for review', () => {
+  const r = transcriptionToDraft(demoTranscription({
+    may_contain_statement: null,
+    other_allergen_statements: [{ text: 'Elaborado en líneas que también procesan maní, soya, sésamo/sésamo, otros frutos secos y mostaza.', legibility: 'clear' }],
+  }), options);
+  const a = r.alerts.find((x) => x.code === 'allergen_statement_doubtful');
+  assert.ok(a && a.blocking);
+  assert.deepEqual(a.data.repeated, ['sésamo']);
+  // A group word that repeats an allergen named before ("maní … otros frutos secos") is fine
+  const ok = transcriptionToDraft(demoTranscription({ may_contain_statement: { text: 'maní, otros frutos secos', legibility: 'clear' } }), options);
+  assert.ok(!ok.alerts.some((x) => x.code === 'allergen_statement_doubtful'));
 });
 
 test('draft: unreadable and inconsistent tables block saving', () => {

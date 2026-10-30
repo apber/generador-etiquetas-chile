@@ -65,6 +65,16 @@ export const READING_ALERTS = {
     message: (p) => `La columna por porción del proveedor está calculada para ${fmt(p.computed)} g, no para ${fmt(p.declared)} g. Se usan los valores por 100 g; confirme la porción.`,
     detail: () => 'Todos los valores por porción están en la misma proporción con los de 100 g, pero esa proporción no es la porción declarada. Los valores por porción de la etiqueta se recalculan desde los de 100 g.',
   },
+  columns_disagree_no_serving: {
+    action: 'retake',
+    message: () => 'Los números de la tabla no calzan entre sí. Saque otra foto de la tabla, de cerca y con buena luz.',
+    detail: () => 'La tabla no dice la porción y los valores por porción no guardan una misma proporción con los de 100 g: la lectura no es confiable.',
+  },
+  serving_inferred: {
+    action: 'confirm',
+    message: (p) => `La tabla no dice los gramos de la porción; por sus números son ${fmt(p.g)} g. Confirme.`,
+    detail: () => 'Calculado con la proporción entre la columna por porción y la de 100 g.',
+  },
   energy_from_kj: {
     action: 'confirm',
     message: (p) => `La energía venía solo en kJ (${fmt(p.kj)}). Se pasó a kcal; confirme.`,
@@ -93,11 +103,11 @@ export const READING_ALERTS = {
       : 'Se tomaron como disponibles.',
   },
   row_missing: {
-    action: 'retake',
-    message: (p) => `No encontré ${listY(p.keys.map(nutrientName))} en la tabla. Saque una foto de la tabla completa.`,
+    action: 'fallback',
+    message: (p) => `No encontré ${listY(p.keys.map(nutrientName))} en la tabla. Si la foto corta la tabla, saque otra; si el proveedor no lo informa, complételo con una tabla reconocida.`,
     detail: (p) => (p.becauseFat.length
       ? `${cap(listY(p.becauseFat.map(nutrientName)))}: obligatorio porque la porción tiene 3 g de grasa o más (RSA art. 115). `
-      : '') + 'Si el proveedor no lo informa, completar con una tabla reconocida del mismo alimento.',
+      : '') + 'Dato obligatorio de la tabla (RSA art. 115).',
   },
   no_serving_column: {
     action: 'none',
@@ -149,6 +159,11 @@ export const READING_ALERTS = {
     message: (p) => `No reconozco «${p.phrase}» como alérgeno. Revíselo.`,
     detail: (p) => `En: «${p.statement}».`,
   },
+  allergen_statement_doubtful: {
+    action: 'review',
+    message: (p) => `Revise la frase de alérgenos: «${p.statement}». Puede faltar un alérgeno; compárela con la bolsa.`,
+    detail: (p) => (p.repeated.length ? `Se repite: ${p.repeated.join(', ')} (puede ser otra palabra mal leída). ` : '') + 'La letra de los alérgenos suele ser muy chica; una palabra mal leída cambia PUEDE CONTENER.',
+  },
   may_contain_from_statement: {
     action: 'confirm',
     message: (p) => `«Puede contener» sale de la frase del proveedor «${p.statement}». Confirme.`,
@@ -190,7 +205,7 @@ export const READING_ALERTS = {
     detail: (p) => p.list.map((i) => `Foto ${i.index}: ${i.problems.map((x) => IMAGE_PROBLEMS[x] ?? x).join(', ')}`).join('. '),
   },
   remarks: {
-    action: 'review',
+    action: 'none',
     message: (p) => `Nota de la lectura: ${p.text}`,
     detail: () => '',
   },

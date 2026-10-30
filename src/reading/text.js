@@ -54,13 +54,18 @@ export function allergensInStatement(text, catalog) {
   const parts = cleaned.split(/,|\by\b|\be\b|\/|\bo\b/).map((s) => s.trim()).filter(Boolean);
   const ids = [];
   const unknown = [];
+  const repeated = [];
   for (const part of parts) {
     const found = matchAll(part, aliases);
+    for (const id of found) if (ids.includes(id) && !repeated.includes(id) && !isGroup(part)) repeated.push(id);
     if (found.length) found.forEach((id) => ids.includes(id) || ids.push(id));
     else if (!/^(otros?|sus|y|de|del|la|el|los|las|a|en|lineas?|productos?|derivados?|mismas?|instalaciones)$/.test(part)) unknown.push(part);
   }
-  return { ids, unknown };
+  return { ids, unknown, repeated };
 }
+
+/** Group words ("frutos secos") may repeat ids already named one by one (maní); that is not a reading error. */
+const isGroup = (part) => /frutos|cereales|lacteos|derivados/.test(part);
 
 function matchAll(phrase, aliases) {
   const ids = [];
@@ -124,7 +129,8 @@ export function formatIngredients(text, catalog) {
   const letters = t.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü]/g, '');
   const upper = letters.replace(/[^A-ZÁÉÍÓÚÑÜ]/g, '').length;
   const allCaps = letters.length > 0 && upper / letters.length > 0.6;
-  if (!allCaps && upper > 0) {
+  const hasCapsRun = /[A-ZÁÉÍÓÚÑÜ]{2,}/.test(t);
+  if (!allCaps && hasCapsRun) {
     // Runs of capital words (2+ letters) are the supplier's marks.
     const marked = t.replace(/(?<!\p{L})([A-ZÁÉÍÓÚÑÜ]{2,}(?:\s+(?:DE\s+)?[A-ZÁÉÍÓÚÑÜ]{2,})*)(?!\p{L})/gu, (m) => `{${m.toLowerCase()}}`);
     const rest = marked.replace(/(^|\})([^{]*)/g, (m, a, b) => a + b.toLowerCase());
@@ -174,8 +180,13 @@ export function addedFromIngredients(text) {
 /** Storage sentence: capital first letter and final period. */
 export function formatStorage(text) {
   if (!text) return null;
-  let t = String(text).replace(/\s+/g, ' ').trim().replace(/^(conservaci[oó]n|almacenamiento)\s*:\s*/i, '');
+  let t = String(text).replace(/\s+/g, ' ').trim()
+    .replace(/^(condiciones( de)?\s+)?(conservaci[oó]n|almacenamiento)\s*:\s*/i, '');
   if (!t) return null;
+  const letters = t.replace(/[^\p{L}]/gu, '');
+  if (letters && letters === letters.toUpperCase()) t = t.toLowerCase();
+  // Two sentences printed on separate lines without a period ("…y seco Se recomienda…")
+  t = t.replace(/([a-záéíóúñ])\s+(?=[A-ZÁÉÍÓÚÑ][a-záéíóúñ])/g, '$1. ');
   t = t[0].toUpperCase() + t.slice(1);
   return /[.!]$/.test(t) ? t : `${t}.`;
 }

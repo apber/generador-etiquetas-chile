@@ -31,8 +31,11 @@ export function scoreReading(expected, result) {
   const comp = result.draft.composition;
   if (expected.ingredients !== undefined) texts.push({ field: 'ingredients', similarity: similarity(plain(expected.ingredients), plain(comp.ingredients)), want: expected.ingredients, got: comp.ingredients });
   if (expected.ingredients !== undefined) texts.push({ field: 'ingredient_marks', ok: sameList(marks(expected.ingredients), marks(comp.ingredients)), want: marks(expected.ingredients), got: marks(comp.ingredients) });
+  const allergenFlagged = result.alerts.some((a) => a.blocking && /allergen|ingredients/.test(a.code));
   for (const f of ['contains', 'may_contain']) {
-    if (expected[f] !== undefined) texts.push({ field: f, ok: sameSet(expected[f], comp[f]), want: expected[f], got: comp[f], order: f === 'contains' ? sameList(expected[f], comp[f]) : null });
+    if (expected[f] === undefined) continue;
+    const ok = sameSet(expected[f], comp[f]);
+    texts.push({ field: f, ok, flagged: !ok && allergenFlagged, want: expected[f], got: comp[f], order: f === 'contains' ? sameList(expected[f], comp[f]) : null });
   }
   if (expected.country_of_origin !== undefined) texts.push({ field: 'country_of_origin', ok: normalize(expected.country_of_origin) === normalize(comp.country_of_origin), want: expected.country_of_origin, got: comp.country_of_origin });
   if (expected.serving) {
@@ -41,7 +44,11 @@ export function scoreReading(expected, result) {
   }
   if (expected.added !== undefined) texts.push({ field: 'added', ok: sameSet(expected.added.map((a) => a.nutrient), comp.added.map((a) => a.nutrient)), want: expected.added, got: comp.added });
 
+  const originFlagged = result.alerts.some((a) => a.blocking && /origin/.test(a.code));
+  for (const t of texts) if (t.field === 'country_of_origin' && !t.ok) t.flagged = originFlagged;
+  const silentTexts = texts.filter((t) => t.ok === false && !t.flagged && ['contains', 'may_contain', 'country_of_origin'].includes(t.field)).map((t) => t.field);
   return {
+    silent_texts: silentTexts,
     nutrients: { right: count('right'), wrong_flagged: count('wrong_flagged'), wrong_silent: count('wrong_silent'), missing: count('missing'), extra: count('extra'), rows },
     texts,
     alerts: result.alerts.filter((a) => a.action !== 'none').map((a) => `${a.action}: ${a.code}`),

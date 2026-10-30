@@ -99,7 +99,7 @@ export const TRANSCRIPTION_SCHEMA = {
     ingredients: textBlock,
     contains_statement: textBlock,
     may_contain_statement: textBlock,
-    other_allergen_statements: { type: 'ARRAY', items: STRING },
+    other_allergen_statements: { type: 'ARRAY', items: { ...textBlock, nullable: false } },
     origin: {
       type: 'OBJECT',
       nullable: true,

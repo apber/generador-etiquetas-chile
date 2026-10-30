@@ -37,14 +37,28 @@ Código: [`src/reading/`](../src/reading). Prueba desde la terminal: [`scripts/r
 
 En el nivel gratuito Google puede usar lo enviado para mejorar sus productos: enviar solo fotos de etiquetas, sin personas ni datos personales.
 
+### Frases de alérgenos
+
+No tienen una segunda columna con que compararlas y suelen ir en letra muy chica. Por eso: cada frase trae su legibilidad; una palabra dudosa, un alérgeno repetido en la misma frase («sésamo/sésamo», a menudo otra palabra mal leída) o una palabra que no es un alérgeno conocido («otras frutas secas») frenan el guardado hasta revisarla con la bolsa. Las listas de CONTIENE y PUEDE CONTENER sacadas de los ingredientes o de las frases de líneas compartidas se confirman siempre.
+
+### Primeras pruebas (6 productos reales, 30-10-2026)
+
+Con fotos de 720 × 1600 px. «Errores sin alerta» = dato mal leído que ninguna alerta marca.
+
+| Modelo | Tiempo por producto | Errores sin alerta | Comentario |
+|---|---|---|---|
+| gemini-3.6-flash (razonamiento bajo) | 4–18 s (una vez 60 s) | 0 | Marca lo que no lee |
+| gemini-3.8-flash (razonamiento bajo) | 73–127 s | 0 | Igual de cuidadoso, demasiado lento |
+| gemini-3.5-flash-lite | 3–8 s | 0 con las reglas actuales (antes 2) | Lee con seguridad lo que no está claro: inventa dígitos y palabras marcándolos como claros |
+
 ## Probar desde la terminal
 
 ```
 GEMINI_API_KEY=… node scripts/read-photos.mjs --list-models
-GEMINI_API_KEY=… node scripts/read-photos.mjs --model <modelo> --hint "Maní con chocolate" foto1.jpg foto2.jpg
+GEMINI_API_KEY=… node scripts/read-photos.mjs --model gemini-3.6-flash --thinking low --hint "Maní con chocolate" foto1.jpg foto2.jpg
 node scripts/read-photos.mjs --transcription lecturas/<nombre>.transcription.json --hint "…"   # sin gastar una lectura
 ```
 
-Opciones: `--kind web_capture` (capturas de una página), `--force` (leer aunque una foto no pase la revisión), `--out <carpeta>` (por defecto `lecturas/`), `--expect esperado.json --id <id>` (compara con lo esperado y cuenta los **errores sin alerta**: un dato mal leído que ninguna alerta marca).
+Opciones: `--thinking low` (razonamiento), `--media high|medium|low` (resolución de imagen), `--kind web_capture` (capturas de una página), `--force` (leer aunque una foto no pase la revisión), `--out <carpeta>` (por defecto `lecturas/`), `--expect esperado.json --id <id>` (compara con lo esperado y cuenta los **errores sin alerta**: un dato mal leído que ninguna alerta marca).
 
-Las fotos y las lecturas de una empresa real no van al repositorio (`lecturas/` está en `.gitignore`).
+Las fotos y las lecturas de una empresa real no van al repositorio (`lecturas/` está en `.gitignore`). En Node, si hay un proxy, usar `NODE_USE_ENV_PROXY=1`.

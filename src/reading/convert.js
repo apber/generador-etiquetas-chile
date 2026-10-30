@@ -60,7 +60,7 @@ export function transcriptionToDraft(t, options) {
   for (const [key, f] of Object.entries(table.fields)) {
     const item = { key, text100: f.per100?.text, textServing: f.perServing?.text, servingG: table.serving?.g };
     if (f.status === 'doubtful') byStatus.doubtful.push(item);
-    if (f.status === 'mismatch') byStatus.mismatch.push({ ...item, expected: Math.round(((f.per100.value * table.serving.g) / 100) * 100) / 100 });
+    if (f.status === 'mismatch' && f.note !== 'columns_disagree_no_serving') byStatus.mismatch.push({ ...item, expected: Math.round(((f.per100.value * table.serving.g) / 100) * 100) / 100 });
     if (f.status === 'derived') alerts.push(alert('value_derived', { ...item, value: f.value }));
   }
   for (const [status, items] of Object.entries(byStatus)) {
@@ -80,6 +80,16 @@ export function transcriptionToDraft(t, options) {
   const index = catalogIndex(catalog);
   const names = (ids) => ids.map((id) => index.get(id)?.name.es ?? id).join(', ');
   const inIngredients = containsIds([...new Set(allergensInIngredients(ingredientsText ?? '', catalog).map((h) => h.id))]);
+  // Allergen sentences are often in tiny print: a doubtful or repeated word may hide a missing allergen.
+  const checkStatement = (block) => {
+    if (!block?.text) return;
+    const st = allergensInStatement(block.text, catalog);
+    if (block.legibility !== 'clear' || block.text.includes('?') || st.repeated.length) {
+      alerts.push(alert('allergen_statement_doubtful', { statement: block.text, repeated: st.repeated.map((id) => index.get(id)?.name.es ?? id) }));
+    }
+  };
+  const others = (t.other_allergen_statements ?? []).map((x) => (typeof x === 'string' ? { text: x, legibility: 'clear' } : x));
+  [t.contains_statement, t.may_contain_statement, ...others].forEach(checkStatement);
   const containsSt = allergensInStatement(t.contains_statement?.text, catalog);
   for (const phrase of containsSt.unknown) alerts.push(alert('allergen_unknown', { phrase, statement: t.contains_statement.text }));
   let contains;
@@ -91,7 +101,7 @@ export function transcriptionToDraft(t, options) {
       alerts.push(alert('contains_added_from_ingredients', { ids: extra, names: names(extra) }));
     }
   } else {
-    contains = inIngredients;
+    contains = mainFirst(inIngredients, options.productName, catalog);
     if (contains.length) alerts.push(alert('contains_from_ingredients', { ids: contains, names: names(contains) }));
   }
   contains = mainFirst(contains, options.productName, catalog);
@@ -102,8 +112,9 @@ export function transcriptionToDraft(t, options) {
     for (const phrase of st.unknown) alerts.push(alert('allergen_unknown', { phrase, statement: t.may_contain_statement.text }));
     mayContain = st.ids;
   }
-  for (const statement of t.other_allergen_statements ?? []) {
+  for (const { text: statement } of others) {
     const st = allergensInStatement(statement, catalog);
+    for (const phrase of st.unknown) alerts.push(alert('allergen_unknown', { phrase, statement }));
     if (!st.ids.length) continue;
     mayContain = [...new Set([...(mayContain ?? []), ...st.ids])];
     alerts.push(alert('may_contain_from_statement', { statement, ids: st.ids }));

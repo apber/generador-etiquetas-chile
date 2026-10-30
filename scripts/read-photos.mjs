@@ -2,7 +2,7 @@
 //
 // Usage:
 //   GEMINI_API_KEY=… node scripts/read-photos.mjs --model <model> [--hint "Maní con chocolate"]
-//       [--kind label_photo|web_capture] [--out dir] [--force] [--expect expected.json --id <id>] photo1 [photo2 …]
+//       [--kind label_photo|web_capture] [--thinking minimal|low|medium|high] [--media high|medium|low|none] [--out dir] [--force] [--expect expected.json --id <id>] photo1 [photo2 …]
 //   node scripts/read-photos.mjs --transcription saved.json [--hint …] [--expect … --id …]   (no API call)
 //   GEMINI_API_KEY=… node scripts/read-photos.mjs --list-models
 //
@@ -20,7 +20,7 @@ import { QUALITY_REASON_TEXT } from '../src/reading/image-quality.js';
 import { PROMPT_VERSION } from '../src/reading/prompt.js';
 
 const args = process.argv.slice(2);
-const opt = { model: null, hint: null, kind: 'label_photo', out: 'lecturas', force: false, expect: null, id: null, transcription: null, list: false, name: null, json: false };
+const opt = { model: null, hint: null, kind: 'label_photo', out: 'lecturas', force: false, expect: null, id: null, transcription: null, list: false, name: null, json: false, thinking: null, media: undefined };
 const photos = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
@@ -35,6 +35,8 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--transcription') opt.transcription = args[++i];
   else if (a === '--list-models') opt.list = true;
   else if (a === '--json') opt.json = true;
+  else if (a === '--thinking') opt.thinking = args[++i];
+  else if (a === '--media') opt.media = args[++i] === 'none' ? null : args[i];
   else photos.push(a);
 }
 const apiKey = process.env.GEMINI_API_KEY;
@@ -71,7 +73,7 @@ if (opt.transcription) {
   if (stop && !opt.force) { console.log('\nAlguna foto no sirve: en la app se pediría otra. Use --force para leer igual.'); process.exit(2); }
   const t0 = Date.now();
   try {
-    reading = await readWithGemini(prepared.map((r) => r.image), { apiKey, model: opt.model, productHint: opt.hint });
+    reading = await readWithGemini(prepared.map((r) => r.image), { apiKey, model: opt.model, productHint: opt.hint, thinkingLevel: opt.thinking, mediaResolution: opt.media });
   } catch (e) {
     if (e instanceof ReadingError) { console.error(`${e.code}: ${e.message}`); console.error(JSON.stringify(e.info?.body ?? e.info, null, 1)?.slice(0, 1500)); process.exit(3); }
     throw e;
@@ -120,11 +122,11 @@ if (opt.expect) {
   if (!exp) { console.error(`\nNo hay datos esperados para «${opt.id}».`); process.exit(1); }
   const sc = scoreReading(exp, result);
   const n = sc.nutrients;
-  console.log(`\nComparación con lo esperado (${opt.id}): ${n.right} bien · ${n.wrong_flagged} mal con alerta · ${n.wrong_silent} MAL SIN ALERTA · ${n.missing} faltan`);
+  console.log(`\nComparación con lo esperado (${opt.id}): ${n.right} bien · ${n.wrong_flagged} mal con alerta · ${n.wrong_silent} MAL SIN ALERTA · ${n.missing} faltan${sc.silent_texts.length ? ` · TEXTOS MAL SIN ALERTA: ${sc.silent_texts.join(', ')}` : ''}`);
   for (const r of n.rows.filter((x) => x.outcome !== 'right')) console.log(`  ${r.key}: esperado ${r.want ?? '—'}, leído ${r.got ?? '—'} (${r.status}) → ${r.outcome}`);
   for (const t of sc.texts) {
     const ok = t.similarity !== undefined ? `${Math.round(t.similarity * 100)} %` : t.ok ? 'bien' : 'distinto';
-    console.log(`  ${t.field}: ${ok}${t.order === false ? ' (orden distinto)' : ''}${t.ok === false || (t.similarity ?? 1) < 1 ? `\n    esperado: ${JSON.stringify(t.want)}\n    leído:    ${JSON.stringify(t.got)}` : ''}`);
+    console.log(`  ${t.field}: ${ok}${t.flagged ? ' (con alerta)' : ''}${t.order === false ? ' (orden distinto)' : ''}${t.ok === false || (t.similarity ?? 1) < 1 ? `\n    esperado: ${JSON.stringify(t.want)}\n    leído:    ${JSON.stringify(t.got)}` : ''}`);
   }
   writeFileSync(join(opt.out, `${name}.score.json`), JSON.stringify(sc, null, 2));
 }
