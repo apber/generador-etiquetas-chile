@@ -71,8 +71,8 @@ export function rowKey(label, unit) {
   const u = normalize(unit);
   if (/energ|calor|valor energ/.test(l)) return /kj/.test(u) || /\bkj\b/.test(l) ? 'energy_kj' : 'energy_kcal';
   if (/prote/.test(l)) return 'protein_g';
-  if (/mono-? ?insat|monoins/.test(l)) return 'monounsaturated_fat_g';
-  if (/poli-? ?insat|poliins|polins/.test(l)) return 'polyunsaturated_fat_g';
+  if (/\bmono|monoins|mono-/.test(l)) return 'monounsaturated_fat_g';
+  if (/\bpoli|\bpoly|poliins|polins/.test(l)) return 'polyunsaturated_fat_g';
   if (/satur/.test(l)) return 'saturated_fat_g';
   if (/colest/.test(l)) return 'cholesterol_mg';
   if (/\btrans\b/.test(l)) return 'trans_fat_g';

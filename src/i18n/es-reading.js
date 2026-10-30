@@ -97,7 +97,7 @@ export const READING_ALERTS = {
   },
   carbs_total_no_fiber: {
     action: 'fallback',
-    message: () => 'El proveedor da los H. de C. totales y no la fibra. Falta un dato para calcular los disponibles.',
+    message: () => 'El proveedor da los H. de C. totales y no la fibra. Toque «Completar automáticamente» o «Escribir el dato».',
     detail: () => 'La etiqueta chilena declara H. de C. disponibles (totales − fibra). Completar con una tabla reconocida del mismo alimento.',
   },
   carbs_unspecified: {
@@ -112,15 +112,15 @@ export const READING_ALERTS = {
   },
   no_household_measure: {
     action: 'review',
-    message: (p) => `Falta la medida casera de la porción de ${fmt(p.g)} g (p. ej. «¼ taza» o «5 unidades»). Escríbala.`,
+    message: (p) => `Falta la medida casera de la porción de ${fmt(p.g)} g (p. ej. «¼ taza» o «5 unidades»). Toque «Completar automáticamente» o «Escribir el dato».`,
     detail: () => 'La porción se declara en gramos y en medida casera (RSA art. 115).',
   },
   row_missing: {
     action: 'fallback',
-    message: (p) => `No encontré ${listY(p.keys.map(nutrientName))} en la tabla. Si la foto corta la tabla, saque otra; si el proveedor no lo informa, use «Completar con datos de referencia».`,
+    message: (p) => `No encontré ${listY(p.keys.map(nutrientName))} en la tabla. Si la foto corta la tabla, saque otra; si el proveedor no lo informa, toque «Completar automáticamente» o «Escribir el dato».`,
     detail: (p) => (p.becauseFat.length
       ? `${cap(listY(p.becauseFat.map(nutrientName)))}: obligatorio porque la porción tiene 3 g de grasa o más (RSA art. 115). `
-      : '') + 'Dato obligatorio de la tabla (RSA art. 115). Datos de referencia: tabla reconocida del mismo alimento (USDA), consenso de varias marcas o el mismo fabricante en otro país; quedan marcados como referencia.',
+      : '') + 'Dato obligatorio de la tabla (RSA art. 115). «Completar automáticamente» busca el dato en internet (tabla reconocida del mismo alimento como USDA, consenso de varias marcas o el mismo fabricante en otro país) o lo calcula; queda marcado como dato de referencia.',
   },
   no_serving_column: {
     action: 'none',

@@ -49,6 +49,9 @@ export function allergensInStatement(text, catalog) {
   if (!text) return { ids: [], unknown: [] };
   const aliases = aliasTable(catalog);
   const cleaned = normalize(text)
+    // Shared-lines preamble: "Envasado en líneas donde se procesan y envasan productos con …"
+    .replace(/^.*?\b(procesan|procesa|procesas|elaboran|envasan|manipulan|contienen)\b((\s+(y|o)\s+\w+)*)(\s+(productos|alimentos)(\s+(que\s+contienen|con|de))?)?/, ',')
+    .replace(/\b(sus|y sus|otros|y otros) derivados\b/g, ',')
     .replace(/\b(puede contener|contiene|trazas de|restos de|y\/o|derivados de|productos que contienen|elaborado en lineas que tambien procesan|que tambien procesan|se procesan|y otros derivados|otros derivados)\b/g, ',')
     .replace(/[()[\].;:]/g, ',');
   const parts = cleaned.split(/,|\by\b|\be\b|\/|\bo\b/).map((s) => s.trim()).filter(Boolean);

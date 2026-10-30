@@ -1,7 +1,7 @@
 // Instructions sent to the AI together with the photos (stage 7e).
 // The AI transcribes; it does not calculate, complete or correct. See schema.js.
 
-export const PROMPT_VERSION = 3;
+export const PROMPT_VERSION = 4;
 
 /** Sections that can be read again from a close-up photo. */
 export const FOCUS_SECTIONS = {
@@ -12,7 +12,7 @@ export const FOCUS_SECTIONS = {
 
 export function readingPrompt({ productHint = null, imageCount = 1, focus = null } = {}) {
   let hint = productHint ? `\nEl usuario dice que el producto es: «${productHint}». Úsalo solo para orientarte; transcribe lo que está impreso.` : '';
-  if (focus) hint += `\nIMPORTANTE: esta(s) imagen(es) son un acercamiento para aclarar SOLO ${FOCUS_SECTIONS[focus]}. Transcribe solo esa parte, con el mismo cuidado; deja todo lo demás en null o en listas vacías.`;
+  if (focus) hint += `\nIMPORTANTE: esta(s) imagen(es) son un acercamiento para aclarar SOLO ${FOCUS_SECTIONS[focus]} (puede ser solo una parte: una frase, una o varias filas o un número). Transcribe solo lo que se ve, con el mismo cuidado; si es una parte de la tabla, copia solo esas filas con su nombre; deja todo lo demás en null o en listas vacías.`;
   return `Eres un transcriptor de etiquetas de alimentos chilenos. Recibes ${imageCount} imagen(es) de la etiqueta, la ficha técnica o la página web de UN producto de un proveedor (fotos de bolsas o cajas, o capturas de pantalla).${hint}
 
 Tu trabajo es COPIAR lo que está impreso, no interpretarlo:

@@ -102,6 +102,8 @@ test('rows: names and units of supplier tables', () => {
   assert.equal(rowKey('Sal', 'g'), 'salt_g');
   assert.equal(rowKey('Vitamina E', 'mg'), null);
   assert.equal(rowKey('Colesterol / Trans Fatty acids', 'g'), 'cholesterol_mg');
+  assert.equal(rowKey('Grasas Monounsaturadas (g)', 'g'), 'monounsaturated_fat_g');
+  assert.equal(rowKey('Grasas Poliinsaturadas (g)', 'g'), 'polyunsaturated_fat_g');
   assert.equal(rowKey('Hidrato de carbono disponible', 'g'), 'available_carbohydrates_g');
   assert.equal(rowKey('H de carbono', 'g'), 'carbohydrates_unspecified_g');
   assert.equal(rowUnit('Sodio (mg)', null), 'mg');
@@ -221,6 +223,8 @@ test('allergen statements → catalog ids (strict: "frutos secos" = tree nuts + 
   assert.deepEqual(allergensInStatement('Elaborado en líneas que también procesan frutos secos, lácteos, soya y otros derivados', catalog).ids,
     ['tree_nuts', 'peanut', 'milk', 'soy']);
   assert.deepEqual(allergensInStatement('dióxido de azufre', catalog).ids, ['sulphites']);
+  const st = allergensInStatement('Envasado en líneas donde se procesan y envasan productos con sulfitos, almendras, nueces y sus derivados.', catalog);
+  assert.deepEqual([st.ids, st.unknown], [['sulphites', 'almond', 'walnut'], []]);
   assert.deepEqual(allergensInStatement('apio', catalog).unknown, ['apio']);
 });
 
@@ -386,4 +390,17 @@ test('fallback model when the main one has no quota; its readings are reviewed i
   assert.ok(d.alerts.some((a) => a.code === 'fallback_model' && a.blocking));
   const body = buildRequest([], { focus: 'allergens' });
   assert.match(body.contents[0].parts[0].text, /SOLO las frases de alérgenos/);
+});
+
+test('close-up of one row or one number replaces only that row', () => {
+  const base = demoTranscription();
+  base.nutrition_table.rows[1] = { label: 'Proteínas', unit: 'g', per_100: { text: '1?,0', value: null, legibility: 'doubtful' }, per_serving: { text: '3,?', value: null, legibility: 'doubtful' } };
+  const close = { images: [], nutrition_table: { serving_text: null, serving_g: null, household_measure: null, per_100_header: null, per_serving_header: null,
+    rows: [row('Proteínas', 'g', '12,0', '3,6')] }, ingredients: null, contains_statement: null, may_contain_statement: null, other_allergen_statements: [] };
+  const m = mergeCloseUp(base, close, 'table');
+  assert.equal(m.transcription.nutrition_table.rows.length, 12);
+  assert.equal(m.transcription.nutrition_table.serving_g, 30);
+  const r = transcriptionToDraft(m.transcription, options);
+  assert.equal(r.fields.protein_g.status, 'ok');
+  assert.equal(r.values?.protein_g ?? r.draft.nutrition.per_100g.protein_g.value, 12);
 });

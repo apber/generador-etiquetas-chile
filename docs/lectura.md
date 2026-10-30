@@ -44,7 +44,13 @@ En el nivel gratuito Google puede usar lo enviado para mejorar sus productos: en
 
 ### Foto de cerca de una sección
 
-Cuando una sección queda dudosa (frase de alérgenos, tabla o ingredientes), se pide una foto de cerca de **solo esa parte**. Se lee sola, con instrucciones que piden únicamente esa sección, y reemplaza esa sección en la lectura anterior; lo demás se conserva ([`merge.js`](../src/reading/merge.js)). Si la foto de cerca tampoco se lee, se revisa a mano con la bolsa.
+Cuando algo queda dudoso, se pide una foto de cerca de **solo esa parte**: una sección (frase de alérgenos, tabla, ingredientes), una frase, una o varias filas o un solo número. Se lee sola y reemplaza solo lo que muestra (las filas de la tabla se emparejan por nutriente); lo demás se conserva ([`merge.js`](../src/reading/merge.js)). Si la foto de cerca tampoco se lee, se revisa a mano con la bolsa.
+
+### Datos que faltan
+
+Dos salidas en cada aviso de dato faltante: **«Completar automáticamente»** (el sistema lo calcula —p. ej. desde la columna por porción— o lo busca en internet: tabla reconocida del mismo alimento, consenso de varias marcas, el mismo fabricante en otro país; queda marcado como referencia) y **«Escribir el dato»**. Nombres de los botones por confirmar con las maquetas (etapa 7f).
+
+Tercera tanda (linaza, maravilla, pasas morenas con más fotos, caja de pistachos): 0 errores sin alerta. La maravilla trae grasas por porción que no calzan con las de 100 g (error del proveedor): el sistema lo marca; tras otra foto, la persona puede confirmar que la etiqueta dice eso.
 
 ### Frases de alérgenos
 
