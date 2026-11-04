@@ -2,7 +2,7 @@
 
 Herramienta para que una pyme de alimentos envasados registre sus productos y genere etiquetas que cumplen la normativa chilena de rotulado: tabla nutricional, sellos "ALTO EN", alérgenos, ingredientes, origen y código de barras.
 
-**Estado:** en desarrollo (v0.5). Listos: formato de los datos, cálculos (tabla nutricional, porciones, sellos, alérgenos, mezclas, chequeos), la plantilla de la etiqueta del sobre chico, que se maqueta sola por producto con el largo mínimo para su contenido, y la hoja de impresión en PDF; todo con pruebas automáticas. En curso: leer los datos desde fotos de la etiqueta del proveedor (lectura con IA, validaciones y alertas).
+**Estado:** en desarrollo (v0.6). Listos: formato de los datos, cálculos (tabla nutricional, porciones, sellos, alérgenos, mezclas, chequeos), la plantilla de la etiqueta del sobre chico, que se maqueta sola por producto con el largo mínimo para su contenido, la hoja de impresión en PDF con corrección de color para papel fotográfico, y la lectura de los datos desde fotos o capturas de la información del proveedor (IA que solo transcribe, validaciones con reglas fijas y avisos que recomiendan cómo comprobar), con una página de pruebas para el celular; todo con pruebas automáticas. Siguiente: la app (pantallas, datos en OneDrive).
 
 ## Qué hará cuando esté terminado
 
@@ -11,7 +11,7 @@ Herramienta para que una pyme de alimentos envasados registre sus productos y ge
 - ✅ Arma mezclas a partir de las fichas de sus ingredientes.
 - ✅ Genera la etiqueta de cada producto (frente y reverso, con el largo justo para su contenido).
 - ✅ Arma la hoja de impresión en PDF (varios productos, tantas etiquetas como quepan, corrección de color para papel fotográfico).
-- ⏳ Lee los datos desde fotos de la etiqueta del proveedor, con doble lectura de la tabla y alertas (en curso).
+- ✅ Lee los datos desde fotos o capturas de la información del proveedor, con doble lectura de la tabla, lector de respaldo y avisos (probado con fotos reales; página de pruebas para el celular).
 - ⏳ App para celular y programa para PC, con los datos en una carpeta de OneDrive.
 
 ✅ listo · ⏳ pendiente
@@ -40,9 +40,6 @@ node scripts/read-photos.mjs …        # lectura de fotos (ver docs/lectura.md)
 ```
 
 Página de pruebas de la lectura en el celular: [apber.github.io/generador-etiquetas-chile/lectura/](https://apber.github.io/generador-etiquetas-chile/lectura/) (cada persona usa su propia clave de Gemini).
-
-```
-```
 
 Detalle de los datos y de los cálculos: [docs/formato-datos.md](docs/formato-datos.md). La plantilla: [docs/plantilla.md](docs/plantilla.md). La hoja de impresión: [docs/hoja.md](docs/hoja.md). La lectura de fotos: [docs/lectura.md](docs/lectura.md).
 
