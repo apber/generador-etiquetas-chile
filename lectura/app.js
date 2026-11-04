@@ -19,7 +19,7 @@ import { compareDrafts } from '../src/reading/compare.js';
 import { queueStore } from './queue-store.js';
 import { groupBatch, hintOf } from './batch.js';
 
-export const PAGE_VERSION = '0.6.5';
+export const PAGE_VERSION = '0.6.6';
 
 const KEY_STORE = 'lectura.geminiKey';
 const HISTORY_STORE = 'lectura.history';
@@ -448,11 +448,8 @@ async function notifyReady(rec, left = 0) {
   const rest = left ? ` Quedan ${left} en espera.` : '';
   try {
     if (store.get(NOTIFY_STORE, false) && 'Notification' in window && Notification.permission === 'granted') {
-      const reg = await navigator.serviceWorker?.getRegistration();
       // One notification for the whole queue (same tag): it is replaced, not piled up.
-      const body = `Se leyó con el lector normal.${diff}${rest}`;
-      if (reg) await reg.showNotification(`Lectura lista: ${name}`, { body, tag: 'lectura-cola', renotify: true });
-      else new Notification(`Lectura lista: ${name}`, { body, tag: 'lectura-cola' });
+      await showNotification(`Lectura lista: ${name}`, { body: `Se leyó con el lector normal.${diff}${rest}`, tag: 'lectura-cola', renotify: true });
     }
   } catch { /* the page still shows it */ }
   const box = $('error');
@@ -462,23 +459,52 @@ async function notifyReady(rec, left = 0) {
     h('button', { class: 'btn small', type: 'button', onclick: () => { box.hidden = true; openHistory(rec.id); } }, 'Abrir'));
 }
 // ---------- Notifications (setting) ----------
+// The checkbox keeps what the person chose; the phone's permission is shown apart (on 04-11 the checkbox
+// unchecked itself on Android when the permission was not granted, with no explanation).
+const PERMISSION_TEXT = {
+  granted: 'Permiso del teléfono: concedido. Los avisos están activos.',
+  default: 'Falta el permiso del teléfono. Apriete «Pedir permiso» y elija «Permitir». Si no aparece la pregunta, Chrome la ocultó: toque el candado (o los ajustes del sitio) junto a la dirección → Notificaciones → Permitir.',
+  denied: 'El teléfono bloqueó las notificaciones de esta página. Para permitirlas: en Chrome, toque el candado (o los ajustes del sitio) junto a la dirección → Notificaciones → Permitir, y vuelva a abrir la página.',
+};
 function showNotifySetting() {
   const supported = 'Notification' in window;
   const on = store.get(NOTIFY_STORE, false);
   $('notify').disabled = !supported;
-  $('notify').checked = supported && on && Notification.permission === 'granted';
-  const msg = !supported ? 'Este navegador no muestra notificaciones.'
-    : on && Notification.permission === 'denied' ? 'El teléfono bloqueó las notificaciones de esta página: hay que permitirlas en los ajustes del navegador.' : '';
-  $('notify-status').hidden = !msg;
-  $('notify-status').textContent = msg;
+  $('notify').checked = supported && on;
+  const perm = supported ? Notification.permission : null;
+  $('notify-status').hidden = !on && supported;
+  $('notify-status').textContent = !supported ? 'Este navegador no muestra notificaciones.' : `${PERMISSION_TEXT[perm] ?? `Permiso: ${perm}.`}`;
+  $('notify-ask').hidden = !on || !supported || perm === 'granted';
+  $('notify-test').hidden = !on || perm !== 'granted';
+}
+async function askPermission() {
+  try {
+    const r = await Notification.requestPermission();
+    if (r === 'default') $('notify-status').textContent = PERMISSION_TEXT.default;
+  } catch { /* old browsers */ }
+  showNotifySetting();
 }
 async function toggleNotify() {
   const on = $('notify').checked;
   store.set(NOTIFY_STORE, on);
-  if (on && Notification.permission === 'default') {
-    try { await Notification.requestPermission(); } catch { /* old browsers */ }
+  if (on && Notification.permission === 'default') await askPermission();
+  else showNotifySetting();
+}
+/** Shows a notification: through the service worker (Android does not allow new Notification()). */
+async function showNotification(title, options) {
+  const ready = navigator.serviceWorker
+    ? await Promise.race([navigator.serviceWorker.ready, new Promise((r) => setTimeout(() => r(null), 3000))])
+    : null;
+  if (ready) return ready.showNotification(title, options);
+  return new Notification(title, options);
+}
+async function testNotify() {
+  try {
+    await showNotification('Prueba de aviso', { body: 'Así llega el aviso cuando termina una lectura en espera.', tag: 'lectura-cola' });
+    $('notify-status').textContent = `${PERMISSION_TEXT.granted} Aviso de prueba enviado: debería verse arriba en el teléfono.`;
+  } catch (e) {
+    $('notify-status').textContent = `No se pudo mostrar el aviso: ${e.message}`;
   }
-  showNotifySetting();
 }
 
 // ---------- Batch of photos of several products ----------
@@ -839,6 +865,8 @@ async function start() {
   navigator.serviceWorker?.register('sw.js').catch(() => {});
   showNotifySetting();
   $('notify').addEventListener('change', toggleNotify);
+  $('notify-ask').addEventListener('click', askPermission);
+  $('notify-test').addEventListener('click', testNotify);
   $('queue-clear').addEventListener('click', clearQueue);
   $('batch-pick').addEventListener('click', () => $('batch-input').click());
   $('batch-input').addEventListener('change', (e) => { pickBatch(e.target.files); e.target.value = ''; });

@@ -334,3 +334,27 @@ test('test page: a batch of photos of several products, each reading named by th
     server.close();
   }
 });
+
+test('test page: the notification setting keeps the choice and explains a missing permission', { skip: !chromium && 'Chromium not installed (npx playwright install chromium)' }, async () => {
+  const server = await serve();
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 400, height: 860 } });
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.goto(`http://127.0.0.1:${server.address().port}/lectura/`);
+    await page.waitForSelector('html[data-ready="true"]');
+    await page.click('#settings-title');
+    await page.check('#notify'); // headless: the permission is not granted
+    assert.equal(await page.isChecked('#notify'), true, 'the checkbox does not uncheck itself');
+    assert.match(await page.textContent('#notify-status'), /permi/i);
+    await page.reload();
+    await page.waitForSelector('html[data-ready="true"]');
+    assert.equal(await page.isChecked('#notify'), true, 'the choice is remembered');
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
