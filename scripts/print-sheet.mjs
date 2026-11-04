@@ -16,7 +16,8 @@ import { loadAssets } from '../src/node/render-label.js';
 import { makeSheet } from '../src/node/sheet-pdf.js';
 import { PAPER_TYPES } from '../src/sheet/page.js';
 
-// A correction: a number (gamma on each channel) or 'L0.5' / 'L0.5S1.25' (lightness only, and colorfulness).
+// A correction: a number (gamma on each channel) or 'L0.5' / 'L0.5S1.25' (lightness only, and colorfulness);
+// 'L0.475S1.2/L0.5' = one for the drawing and another for the images.
 const spec = (x) => { const t = x.trim().replace(/,/g, '.'); return /^[0-9.]+$/.test(t) ? Number(t) : t.toUpperCase(); };
 const args = process.argv.slice(2);
 const opt = { out: 'hoja.pdf', assets: null, ring: {}, barcode: {}, fill: false, html: false };

@@ -85,6 +85,16 @@ test('color by lightness only: keeps black, white and the hue; a number is still
   assert.equal(correctionName('L0.5S1.25'), 'Luminosidad 0,5 · saturación ×1,25');
 });
 
+test('separate corrections for the drawing and the images ("drawing/images")', () => {
+  const split = 'L0.475S1.2/L0.5';
+  assert.deepEqual(colorCorrector(split)(0x3a, 0x22, 0x1a), colorCorrector('L0.475S1.2')(0x3a, 0x22, 0x1a));
+  assert.deepEqual(colorCorrector(split, 'images')(0xd0, 0x20, 0x30), colorCorrector('L0.5')(0xd0, 0x20, 0x30));
+  assert.deepEqual(colorCorrector('L0.5', 'images')(0xd0, 0x20, 0x30), colorCorrector('L0.5')(0xd0, 0x20, 0x30), 'without "/" both parts use the same');
+  assert.equal(colorCorrector('L0.5/1', 'images'), null);
+  assert.equal(adjustColors('<b style="color: #3A221A">', split), adjustColors('<b style="color: #3A221A">', 'L0.475S1.2'));
+  assert.equal(correctionName(split), 'Dibujo: Luminosidad 0,475 · saturación ×1,2<br>Imágenes: Luminosidad 0,5');
+});
+
 test('sheet page: paper size, one section per page, labels at real size', () => {
   const plan = planSheet([lab('a', 51.7), lab('b', 48.4)]);
   const page = sheetPage(plan, ['<div class="label">A</div>', '<div class="label">B</div>']);

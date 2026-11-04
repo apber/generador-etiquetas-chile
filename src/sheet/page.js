@@ -33,11 +33,15 @@ const hex2 = (v) => v.toString(16).padStart(2, '0').toUpperCase();
  *   (the WhatsApp green turns mint) and dark browns turn greyish.
  * - 'L0.5': gamma on the lightness only (OKLab L), keeping hue and colorfulness (a, b); added 04-11-2026.
  * - 'L0.5S1.25': the same, with the colorfulness (chroma) × 1.25, for colors that print dull.
+ * - 'L0.475S1.2/L0.5': one correction for the drawing (colors of the HTML: ring, texts, inline icons) and
+ *   another for the raster images (logo with the hibiscus, signature icon); added 04-11-2026, so the ring can
+ *   take more color without clipping the red of the hibiscus. Without '/', both use the same.
  * Black and white never change. Returns a function (r, g, b) → [r, g, b], or null when nothing changes.
- * Self-contained (inlined in the sheet page with toString).
+ * Self-contained (inlined in the sheet page with toString). part: 'drawing' (default) or 'images'.
  */
-export function colorCorrector(spec) {
-  const text = String(spec ?? 1).trim().replace(/,/g, '.');
+export function colorCorrector(spec, part = 'drawing') {
+  const both = String(spec ?? 1).split('/');
+  const text = (part === 'images' && both.length > 1 ? both[1] : both[0]).trim().replace(/,/g, '.');
   const m = /^L\s*([0-9.]+)(?:\s*S\s*([0-9.]+))?$/i.exec(text);
   const clamp255 = (v) => Math.max(0, Math.min(255, Math.round(v)));
   if (!m) {
@@ -98,7 +102,7 @@ export async function correctImages() {
   const done = new Map();
   for (const wrap of document.querySelectorAll('[data-correction]')) {
     const spec = wrap.dataset.correction;
-    const fix = colorCorrector(spec);
+    const fix = colorCorrector(spec, 'images');
     if (!fix) continue;
     const imgs = [...wrap.querySelectorAll('img')].filter((i) => /^data:image\/(png|jpe?g)/.test(i.getAttribute('src') ?? ''));
     for (const img of imgs) {
@@ -170,6 +174,8 @@ export const calibrationCaptions = (specs) => specs.map((g, i) => `<b>Prueba de 
 
 /** Spanish name of a correction spec ("Sin corrección", "Corrección 0,45 por canal", "Luminosidad 0,5 · saturación ×1,25"). */
 export function correctionName(spec) {
+  const both = String(spec ?? 1).split('/');
+  if (both.length > 1) return `Dibujo: ${correctionName(both[0])}<br>Imágenes: ${correctionName(both[1])}`;
   const text = String(spec ?? 1).trim().replace(/,/g, '.');
   const m = /^L\s*([0-9.]+)(?:\s*S\s*([0-9.]+))?$/i.exec(text);
   if (!m) return Number(text) === 1 ? 'Sin corrección' : `Corrección ${fmt(Number(text))} por canal`;
