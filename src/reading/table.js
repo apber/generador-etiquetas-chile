@@ -106,6 +106,9 @@ export function rowUnit(label, unit) {
   return u;
 }
 
+/** Highest believable amount per 100 g after a unit conversion (above it the printed unit is doubted). */
+const PLAUSIBLE_MAX = { sodium_mg: 5000, cholesterol_mg: 1500 };
+
 /** Factor to bring a printed unit to the label unit (null if it cannot be converted). */
 function unitFactor(key, printed) {
   const target = CANONICAL_UNIT[key];
@@ -251,6 +254,27 @@ export function readTable(table) {
           if (decided[k].status === 'mismatch' && byKey[k].per100?.legible) decided[k] = { ...decided[k], status: 'unverified', note: 'serving_column_other_weight' };
         }
       }
+    }
+  }
+
+  // A clear pair that disagrees puts the declared serving weight in doubt: a value per 100 g that only stands
+  // because the serving column confirmed or produced it is not trusted then (04-11-2026: a misread «20 g»
+  // made doubtful 3 and 1,5 look confirmed when the label said 2 and 1 for 30 g).
+  if (Object.values(decided).some((d) => d.status === 'mismatch' && d.note === 'columns_disagree')) {
+    for (const [k, d] of Object.entries(decided)) {
+      const leansOnServing = ['derived_doubtful_per100', 'derived_from_serving', 'per100_fits'].includes(d.note)
+        || (d.note === 'confirmed_by_other_column' && !byKey[k].per100?.legible);
+      if (leansOnServing) decided[k] = { status: 'doubtful', value: byKey[k].per100?.value ?? null, note: 'serving_in_doubt' };
+    }
+  }
+
+  // Unit converted to an impossible amount (e.g. «Sodio (g) 15g» = 15 000 mg per 100 g): the printed unit is
+  // probably a typo of the supplier, and the value is not used until someone checks the bag.
+  for (const [k, max] of Object.entries(PLAUSIBLE_MAX)) {
+    const conv = issues.find((i) => i.code === 'unit_converted' && i.key === k);
+    if (conv && decided[k]?.value > max) {
+      issues.push({ code: 'unit_doubtful', key: k, text: byKey[k].per100?.text ?? null, from: conv.from, to: conv.to, value: decided[k].value });
+      decided[k] = { status: 'doubtful', value: decided[k].value, note: 'unit_doubtful' };
     }
   }
 

@@ -57,6 +57,11 @@ export const READING_ALERTS = {
     message: (p) => `Revise la unidad de «${p.label}».`,
     detail: (p) => `Unidad leída: «${p.unit}».`,
   },
+  unit_doubtful: {
+    action: 'review',
+    message: (p) => `${cap(nutrientName(p.key))}: la tabla dice «${p.text ?? '?'}» en ${p.from} por 100 g, que serían ${fmt(p.value)} ${p.to}: no es posible. Lo más probable es que sean ${p.to}. Revise la bolsa y escriba el dato.`,
+    detail: () => 'Unidad impresa dudosa: el valor no se usa hasta revisarlo.',
+  },
   unit_converted: {
     action: 'none',
     message: () => '',

@@ -17,10 +17,16 @@ export const DEFAULT_THINKING = 'low';
 export const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 
 /**
- * Longest wait for one answer. The main model answered in 4-18 s in the tests; on 04-11-2026 a call
- * with the service overloaded stayed open for more than 7 minutes, so each attempt has a limit.
+ * Longest wait for one answer, by number of images (each one adds ≈1 100 tokens to read). On 04-11-2026 the
+ * main model took 6-65 s for 2-4 photos (the slowest, 65 s with 4) and a call with the service overloaded
+ * stayed open for more than 7 minutes, so each attempt has a limit: 45 s + 15 s per image, at most 180 s.
  */
-export const TIMEOUT_MS = 90_000;
+export const TIMEOUT_BASE_MS = 45_000;
+export const TIMEOUT_PER_IMAGE_MS = 15_000;
+export const TIMEOUT_MAX_MS = 180_000;
+export function timeoutFor(imageCount) {
+  return Math.min(TIMEOUT_MAX_MS, TIMEOUT_BASE_MS + TIMEOUT_PER_IMAGE_MS * Math.max(1, imageCount));
+}
 
 /**
  * images: [{ mimeType, base64 }].
@@ -52,10 +58,10 @@ export class ReadingError extends Error {
  * Calls Gemini and returns { transcription, usage, model, promptVersion, raw }.
  * Errors: ReadingError with code quota | overloaded | timeout | blocked | bad_key | bad_response | network | http.
  * signal: cancels the reading (the person pressed Cancel) -> the AbortError is thrown as is.
- * timeoutMs: limit for each attempt -> ReadingError 'timeout'.
+ * timeoutMs: limit for each attempt (default timeoutFor(images.length)) -> ReadingError 'timeout'.
  * onAttempt({ model, attempt }): called before each call (to show progress).
  */
-export async function readWithGemini(images, { apiKey, model = DEFAULT_MODEL, fetchImpl = fetch, retries = 1, signal, timeoutMs = TIMEOUT_MS, onAttempt, ...options }) {
+export async function readWithGemini(images, { apiKey, model = DEFAULT_MODEL, fetchImpl = fetch, retries = 1, signal, timeoutMs = timeoutFor(images.length), onAttempt, ...options }) {
   if (!apiKey) throw new ReadingError('bad_key', 'Falta la clave de Gemini.');
   if (model === DEFAULT_MODEL && options.thinkingLevel === undefined) options.thinkingLevel = DEFAULT_THINKING;
   const body = JSON.stringify(buildRequest(images, options));

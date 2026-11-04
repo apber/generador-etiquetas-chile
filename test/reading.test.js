@@ -8,7 +8,7 @@ import { parseNumber, rowKey, rowUnit, readTable, fitsPattern, normalizeMeasure,
 import { allergensInStatement, formatIngredients, addedFromIngredients, formatStorage, shelfLife } from '../src/reading/text.js';
 import { transcriptionToDraft } from '../src/reading/convert.js';
 import { measureImage, judgeImage } from '../src/reading/image-quality.js';
-import { buildRequest, readWithGemini, readWithFallback, parseResponse, DEFAULT_MODEL, FALLBACK_MODEL } from '../src/reading/gemini.js';
+import { buildRequest, readWithGemini, readWithFallback, parseResponse, timeoutFor, DEFAULT_MODEL, FALLBACK_MODEL } from '../src/reading/gemini.js';
 import { mergeCloseUp, focusFor } from '../src/reading/merge.js';
 import { scoreReading } from '../src/reading/score.js';
 
@@ -439,4 +439,45 @@ test('cancelling a reading stops it at once and is not turned into a fallback re
   const hang = (url, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))));
   setTimeout(() => ctrl.abort(), 10);
   await assert.rejects(readWithFallback([], { apiKey: 'k', fetchImpl: hang, signal: ctrl.signal }), { name: 'AbortError' });
+});
+
+const pcell = (text, legibility = 'clear') => ({ text, value: parseNumber(text), legibility });
+const prow = (label, unit, a, b) => ({ label, unit, per_100: a, per_serving: b });
+
+test('a clear pair that disagrees puts the serving in doubt: doubtful values it "confirmed" are not trusted', () => {
+  // Raisins read with the fallback model (04-11-2026): «Porción: 20 g» misread (the label says 30 g).
+  const r = readTable({
+    serving_text: { text: 'Porción: 20 g', legibility: 'clear' }, serving_g: 20, per_100_header: '100 g',
+    rows: [
+      prow('Energía', 'kcal', pcell('391', 'doubtful'), pcell('78')),
+      prow('Proteínas', 'g', pcell('3', 'doubtful'), pcell('0,6')),
+      prow('Grasas Totales', 'g', pcell('1,5', 'doubtful'), pcell('0,3')),
+      prow('Carbohidratos Disp.', 'g', pcell('87'), pcell('20,1')),
+      prow('Azúcares Totales', 'g', pcell('59,2'), pcell('18')),
+      prow('Sodio', 'mg', pcell('12'), pcell('36', 'doubtful')),
+    ],
+  });
+  for (const k of ['energy_kcal', 'protein_g', 'total_fat_g']) assert.equal(r.fields[k].status, 'doubtful', k);
+  assert.equal(r.fields.total_sugars_g.status, 'mismatch');
+  assert.equal(r.fields.sodium_mg.status, 'ok');
+});
+
+test('a unit converted to an impossible amount is doubted and asks for a review', () => {
+  // Maíz curahua: «Sodio (g) 15g» would be 15 000 mg per 100 g.
+  const t = { serving_text: null, serving_g: null, per_100_header: '100g',
+    rows: [prow('Energia (kCal)', 'kCal', pcell('365'), null), prow('Sodio (g)', 'g', pcell('15g'), null), prow('Colesterol', 'g', pcell('0,0'), null)] };
+  const r = readTable(t);
+  assert.equal(r.fields.sodium_mg.status, 'doubtful');
+  assert.equal(r.fields.cholesterol_mg.status !== 'doubtful', true);
+  const d = transcriptionToDraft({ nutrition_table: t, images: [] }, options);
+  const a = d.alerts.find((x) => x.code === 'unit_doubtful');
+  assert.ok(a && a.blocking && a.action === 'review');
+  assert.match(a.message, /Sodio: la tabla dice «15g» en g/);
+  assert.ok(!d.alerts.some((x) => x.code === 'value_doubtful'));
+});
+
+test('the time limit grows with the number of images', () => {
+  assert.equal(timeoutFor(1), 60_000);
+  assert.equal(timeoutFor(4), 105_000);
+  assert.equal(timeoutFor(20), 180_000);
 });

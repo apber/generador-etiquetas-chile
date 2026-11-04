@@ -62,7 +62,7 @@ export function transcriptionToDraft(t, options) {
   const byStatus = { doubtful: [], mismatch: [], derived: [] };
   for (const [key, f] of Object.entries(table.fields)) {
     const item = { key, text100: f.per100?.text, textServing: f.perServing?.text, servingG: table.serving?.g };
-    if (f.status === 'doubtful') byStatus.doubtful.push(item);
+    if (f.status === 'doubtful' && f.note !== 'unit_doubtful') byStatus.doubtful.push(item);
     if (f.status === 'mismatch' && f.note !== 'columns_disagree_no_serving') byStatus.mismatch.push({ ...item, expected: Math.round(((f.per100.value * table.serving.g) / 100) * 100) / 100 });
     if (f.status === 'derived') byStatus.derived.push({ ...item, value: f.value });
   }

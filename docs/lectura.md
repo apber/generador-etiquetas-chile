@@ -34,7 +34,7 @@ Código: [`src/reading/`](../src/reading). Prueba desde la terminal: [`scripts/r
 
 ## Gemini
 
-[`gemini.js`](../src/reading/gemini.js) llama a la API de Gemini con salida JSON (`responseSchema`) y resolución alta de imagen. En la app la llamada pasa por un servidor que guarda la clave; para las pruebas se usa la clave de quien desarrolla (`GEMINI_API_KEY`). Errores con mensaje simple: cuota agotada, servicio ocupado (un reintento), sin respuesta a tiempo (90 s por intento, `TIMEOUT_MS`), clave inválida, respuesta incompleta. Cancelar corta la lectura de inmediato.
+[`gemini.js`](../src/reading/gemini.js) llama a la API de Gemini con salida JSON (`responseSchema`) y resolución alta de imagen. En la app la llamada pasa por un servidor que guarda la clave; para las pruebas se usa la clave de quien desarrolla (`GEMINI_API_KEY`). Errores con mensaje simple: cuota agotada, servicio ocupado (un reintento), sin respuesta a tiempo (por intento: 45 s + 15 s por imagen, máximo 180 s; `timeoutFor`), clave inválida, respuesta incompleta. Cancelar corta la lectura de inmediato.
 
 En el nivel gratuito Google puede usar lo enviado para mejorar sus productos: enviar solo fotos de etiquetas, sin personas ni datos personales.
 
