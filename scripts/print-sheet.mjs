@@ -3,7 +3,9 @@
 // Usage: node scripts/print-sheet.mjs <folder> <id[:copies]>… [--out hoja.pdf] [--assets assets.json]
 //        [--paper letter|a4] [--margin mm] [--gap mm] [--fill] [--paper-type normal|fotografico] [--gamma n]
 //        [--ring id=#hex] [--barcode id=number] [--html] [--calibrate g1,g2,…]
-// --calibrate: color test for a paper type: the first product once per gamma (1 = no correction), numbered.
+// --calibrate: color test for a paper type: the first product once per correction (1 = none; 0.45 = gamma per
+//   channel; L0.5 = gamma on the lightness only; L0.5S1.25 = and colorfulness × 1.25), numbered. Use ';' to
+//   separate values written with a decimal comma.
 //   Values with a dot and separated by commas (1,0.75,0.6) or with a comma and separated by semicolons (1;0,75;0,6).
 // --fill: repeats the list in order until the page is full (ignores the copies).
 // Print the PDF at "actual size" / 100 % (no "fit to page").
@@ -14,6 +16,8 @@ import { loadAssets } from '../src/node/render-label.js';
 import { makeSheet } from '../src/node/sheet-pdf.js';
 import { PAPER_TYPES } from '../src/sheet/page.js';
 
+// A correction: a number (gamma on each channel) or 'L0.5' / 'L0.5S1.25' (lightness only, and colorfulness).
+const spec = (x) => { const t = x.trim().replace(/,/g, '.'); return /^[0-9.]+$/.test(t) ? Number(t) : t.toUpperCase(); };
 const args = process.argv.slice(2);
 const opt = { out: 'hoja.pdf', assets: null, ring: {}, barcode: {}, fill: false, html: false };
 const pos = [];
@@ -26,9 +30,9 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--gap') opt.gapMm = Number(args[++i].replace(',', '.'));
   else if (a === '--fill') opt.fill = true;
   else if (a === '--html') opt.html = true;
-  else if (a === '--calibrate') { const v = args[++i]; opt.calibrate = (v.includes(';') ? v.split(';') : v.split(',')).map((x) => Number(x.trim().replace(',', '.'))); }
+  else if (a === '--calibrate') { const v = args[++i]; opt.calibrate = (v.includes(';') ? v.split(';') : v.split(',')).map(spec); }
   else if (a === '--paper-type') opt.paperType = args[++i];
-  else if (a === '--gamma') opt.gamma = Number(args[++i].replace(',', '.'));
+  else if (a === '--gamma') opt.gamma = spec(args[++i]);
   else if (a === '--ring' || a === '--barcode') { const [k, v] = args[++i].split('='); opt[a.slice(2)][k] = v; }
   else pos.push(a);
 }

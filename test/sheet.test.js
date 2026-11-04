@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { planSheet, fillPage, labelBox, PAPERS } from '../src/sheet/plan.js';
-import { adjustColors, gammaChannel, sheetPage, calibrationCaptions } from '../src/sheet/page.js';
+import { adjustColors, gammaChannel, colorCorrector, correctionName, sheetPage, calibrationCaptions } from '../src/sheet/page.js';
 import { cutFor } from '../src/template/geometry.js';
 
 const lab = (id, lengthMm) => ({ id, cut: cutFor(lengthMm) });
@@ -63,6 +63,28 @@ test('color by paper type: gamma lightens middle tones, keeps black, white and H
   assert.equal(adjustColors(html, 1), html);
 });
 
+test('color by lightness only: keeps black, white and the hue; a number is still the per-channel gamma', () => {
+  const fix = colorCorrector('L0.5');
+  assert.deepEqual(fix(0, 0, 0), [0, 0, 0]);
+  assert.deepEqual(fix(255, 255, 255), [255, 255, 255]);
+  const green = fix(0x00, 0xac, 0x55);
+  assert.ok(green[1] > 0xac && green[1] > green[2] + 60, 'the WhatsApp green stays green (does not turn mint)');
+  const brown = fix(0x3a, 0x22, 0x1a);
+  assert.ok(brown[0] > 0x3a && brown[0] > brown[1] && brown[1] > brown[2], 'the brown gets lighter and stays brown');
+  const grey = fix(128, 128, 128);
+  assert.ok(Math.abs(grey[0] - grey[2]) <= 1 && grey[0] > 128, 'a grey stays grey');
+  const vivid = colorCorrector('L0.5S1.25')(0x3a, 0x22, 0x1a);
+  assert.ok(vivid[0] - vivid[2] > brown[0] - brown[2], 'more colorful with S');
+  assert.equal(colorCorrector(1), null);
+  assert.equal(colorCorrector('L1'), null);
+  assert.deepEqual(colorCorrector(0.45)(0x00, 0xac, 0x55), [0, gammaChannel(0xac, 0.45), gammaChannel(0x55, 0.45)]);
+  assert.throws(() => colorCorrector('X2'));
+  assert.equal(adjustColors('<b style="color: #00AC55">', 'L0,5'), adjustColors('<b style="color: #00AC55">', 'L0.5'));
+  assert.equal(correctionName(1), 'Sin corrección');
+  assert.equal(correctionName(0.45), 'Corrección 0,45 por canal');
+  assert.equal(correctionName('L0.5S1.25'), 'Luminosidad 0,5 · saturación ×1,25');
+});
+
 test('sheet page: paper size, one section per page, labels at real size', () => {
   const plan = planSheet([lab('a', 51.7), lab('b', 48.4)]);
   const page = sheetPage(plan, ['<div class="label">A</div>', '<div class="label">B</div>']);
@@ -75,8 +97,8 @@ test('calibration sheet: one gamma and one caption per label', () => {
   const plan = planSheet([lab('a', 50), lab('a', 50)]);
   const steps = [1, 0.6];
   const page = sheetPage(plan, ['<div style="color: #3A221A">A</div>', '<div style="color: #3A221A">A</div>'], { itemGamma: steps, captions: calibrationCaptions(steps) });
-  assert.match(page, /data-gamma="1"[^>]*><div style="color: #3A221A">/);
-  assert.match(page, /data-gamma="0.6"[^>]*><div style="color: #(?!3A221A)[0-9A-F]{6}">/);
+  assert.match(page, /data-correction="1"[^>]*><div style="color: #3A221A">/);
+  assert.match(page, /data-correction="0.6"[^>]*><div style="color: #(?!3A221A)[0-9A-F]{6}">/);
   assert.match(page, /Prueba de color N\.º 1<\/b><br>Sin corrección/);
   assert.match(page, /Prueba de color N\.º 2<\/b><br>Corrección 0,6/);
 });

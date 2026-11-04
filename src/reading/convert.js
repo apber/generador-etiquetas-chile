@@ -197,8 +197,9 @@ export function transcriptionToDraft(t, options) {
 }
 
 function supplierName(s) {
-  if (!s?.name) return 'Proveedor (sin nombre en la foto)';
-  return s.name;
+  if (s?.name) return s.name;
+  if (s?.website) return s.website; // a web capture usually shows the site, not the company name
+  return 'Proveedor (sin nombre en la foto)';
 }
 
 /**

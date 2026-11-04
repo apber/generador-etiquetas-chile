@@ -89,6 +89,13 @@ test('numbers: comma decimals, dot thousands, qualifiers and unreadable digits',
   assert.deepEqual([parseNumber('9 4g').value, parseNumber('9 4g').ambiguous], [9.4, true]);
 });
 
+test('supplier: the site of a web capture names the supplier when the company name is not shown', () => {
+  const r = transcriptionToDraft(demoTranscription({ supplier: { name: null, role: null, address: null, health_permit: null, website: 'proveedor-demo.cl' } }), options);
+  assert.equal(r.draft.sources[0].from, 'proveedor-demo.cl');
+  const none = transcriptionToDraft(demoTranscription({ supplier: null }), options);
+  assert.equal(none.draft.sources[0].from, 'Proveedor (sin nombre en la foto)');
+});
+
 test('rows: names and units of supplier tables', () => {
   assert.equal(rowKey('Energía', 'kcal'), 'energy_kcal');
   assert.equal(rowKey('Energía', 'kJ'), 'energy_kj');

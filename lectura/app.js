@@ -183,17 +183,31 @@ function verdictText(p) {
   return p.ok ? 'Sirve' : `No sirve: ${p.reasons.map((r) => QUALITY_REASON_TEXT[r]).join(', ')}`;
 }
 async function addPhotos(fileList) {
-  for (const file of fileList) {
-    const item = { file, url: URL.createObjectURL(file), prepared: null, error: null };
-    photos.push(item);
-    renderPhotos();
+  // All the chosen photos appear at once ("Revisando…"); then they are checked one by one.
+  const items = fileList.map((file) => ({ file, url: null, prepared: null, error: null }));
+  photos.push(...items);
+  renderPhotos();
+  for (const [n, item] of items.entries()) {
+    showPhotosStatus(`Revisando ${items.length > 1 ? `${n + 1} de ${items.length} fotos` : 'la foto'}…`);
+    item.url = URL.createObjectURL(item.file);
     try {
-      item.prepared = await prepareImage(file);
+      item.prepared = await prepareImage(item.file);
     } catch (e) {
       item.error = `No se pudo abrir la imagen (${e.message}).`;
     }
     renderPhotos();
   }
+  showPhotosStatus(null);
+}
+function showPhotosStatus(text) {
+  $('photos-status').hidden = !text;
+  $('photos-status').lastElementChild.textContent = text ?? '';
+  updateReadButton();
+}
+/** Photos of the bag, captures of a page, or both: recognized per image (white share of a screen). */
+function kindOf(prepared) {
+  const kinds = new Set(prepared.map((p) => p.metrics.kind));
+  return kinds.size === 1 && kinds.has('screen') ? 'web_capture' : 'label_photo';
 }
 function renderPhotos() {
   const list = $('photos');
@@ -205,7 +219,7 @@ function renderPhotos() {
         ? h('span', { class: 'verdict' }, h('span', { class: `badge ${pr.ok ? 'ok' : 'warn'}`, 'aria-hidden': 'true' }, pr.ok ? '✓' : '!'), ' ', verdictText(pr))
         : h('span', { class: 'verdict' }, 'Revisando…');
     return h('li', { class: 'photo' },
-      h('img', { src: p.url, alt: `Foto ${i + 1}` }),
+      p.url ? h('img', { src: p.url, alt: `Foto ${i + 1}` }) : h('span', { class: 'pending' }, h('span', { class: 'spinner', 'aria-hidden': 'true' })),
       h('div', {}, h('div', {}, `Foto ${i + 1}: `, verdict), pr ? h('div', { class: 'metrics' }, metricsText(pr)) : null),
       h('button', { class: 'btn small', type: 'button', 'aria-label': `Quitar la foto ${i + 1}`, onclick: () => removePhoto(i) }, 'Quitar'));
   }));
@@ -215,12 +229,12 @@ function renderPhotos() {
   updateReadButton();
 }
 function removePhoto(i) {
-  URL.revokeObjectURL(photos[i].url);
+  if (photos[i].url) URL.revokeObjectURL(photos[i].url);
   photos.splice(i, 1);
   renderPhotos();
 }
 function updateReadButton() {
-  const ready = photos.length > 0 && photos.every((p) => p.prepared || p.error) && !photos.some((p) => p.error);
+  const ready = photos.length > 0 && photos.every((p) => p.prepared || p.error) && !photos.some((p) => p.error) && $('photos-status').hidden;
   const bad = photos.some((p) => p.prepared && !p.prepared.ok);
   $('read').disabled = !getKey() || !ready || (bad && !$('force').checked) || Boolean(abort);
   $('read').textContent = photos.length ? `Leer etiqueta (${photos.length} ${photos.length === 1 ? 'foto' : 'fotos'})` : 'Leer etiqueta';
@@ -276,7 +290,7 @@ function newRecord(reading, prepared, files) {
     id: `r${Date.now()}`,
     createdAt: new Date().toISOString(),
     hint: $('hint').value.trim() || null,
-    kind: document.querySelector('input[name="kind"]:checked').value,
+    kind: kindOf(prepared),
     files,
     quality: prepared.map((p, i) => ({ name: files[i], ok: p.ok, reasons: p.reasons, metrics: p.metrics, original: p.original, sent: { width: p.image.width, height: p.image.height, bytes: p.image.bytes } })),
     reading: { transcription: reading.transcription, model: reading.model, usage: reading.usage, seconds: reading.seconds, promptVersion: reading.promptVersion, fallback: reading.fallback, fallbackReason: reading.fallbackReason ?? null, finishReason: reading.finishReason ?? null },
@@ -390,6 +404,7 @@ function renderResult(notice) {
     rd.seconds ? `${fmt(rd.seconds)} s` : null,
     u ? `tokens ${u.promptTokenCount ?? '?'} + ${u.candidatesTokenCount ?? '?'}${u.thoughtsTokenCount ? ` (+${u.thoughtsTokenCount} razonando)` : ''}` : null,
     current.closeUps.length ? `${current.closeUps.length} foto(s) de cerca` : null,
+    current.kind === 'web_capture' ? 'capturas de página' : current.quality.some((q) => q.metrics.kind === 'screen') ? 'fotos y capturas' : 'fotos',
     `instrucciones v${rd.promptVersion}`,
   ].filter(Boolean).join(' · ');
 
@@ -539,7 +554,7 @@ function deleteHistory(id) {
 
 // ---------- Start ----------
 function resetNew() {
-  for (const p of photos) URL.revokeObjectURL(p.url);
+  for (const p of photos) if (p.url) URL.revokeObjectURL(p.url);
   photos.length = 0;
   current = null;
   $('hint').value = '';

@@ -138,6 +138,7 @@ test('test page: photo check, reading, alerts, close-up of the allergen sentence
     assert.match(calls[0].url, /gemini-3\.6-flash:generateContent/);
     assert.equal(calls[0].parts, 2, 'instructions + one photo');
 
+    assert.match(await page.textContent('#result-meta'), /capturas de página/, 'a white test image is recognized as a capture');
     const firstValue = await page.textContent('#table tbody tr:first-child td.num');
     assert.equal(firstValue, '560');
     const mono = await page.textContent('#table tbody tr:nth-child(5)');

@@ -42,17 +42,14 @@
         <span>Producto (como lo vende la empresa)</span>
         <input id="hint" type="text" autocomplete="off" placeholder="Ej.: Cranberries con chocolate bitter">
       </label>
-      <fieldset class="segmented">
-        <legend>Qué son las imágenes</legend>
-        <label><input type="radio" name="kind" value="label_photo" checked> Fotos de la bolsa</label>
-        <label><input type="radio" name="kind" value="web_capture"> Capturas de una página</label>
-      </fieldset>
+      <p class="hint">Sirven fotos de la bolsa, capturas de la página del proveedor o las dos juntas: el sistema reconoce cada una.</p>
       <div class="row">
         <button id="take-photo" class="btn" type="button"><span aria-hidden="true">📷</span> Sacar foto</button>
         <button id="pick-photos" class="btn" type="button"><span aria-hidden="true">🖼</span> Elegir fotos</button>
       </div>
       <input id="camera-input" type="file" accept="image/*" capture="environment" hidden>
       <input id="gallery-input" type="file" accept="image/*" multiple hidden>
+      <p id="photos-status" class="loading" hidden aria-live="polite"><span class="spinner" aria-hidden="true"></span> <span></span></p>
       <ol id="photos" class="photos" aria-label="Fotos elegidas"></ol>
       <label id="force-wrap" class="check" hidden>
         <input id="force" type="checkbox"> Leer igual, aunque alguna foto no pase la revisión
