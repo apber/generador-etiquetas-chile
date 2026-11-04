@@ -71,12 +71,19 @@ export function frontParts(front, opts = {}) {
   const tot = ws.reduce((a, b) => a + b, 0);
   const th0 = Math.PI / 2 + tot / rc / 2;
   let acc = 0;
-  const letter = (c, x, y, h, rot, weight) => `<div style="position: absolute; left: ${x}; top: ${y}; width: 40px; height: ${h}; margin-left: -20px; transform-origin: 50% 100%; transform: ${rot}; text-align: center; font-family: Montserrat, sans-serif; font-weight: ${weight}; font-size: ${h}; line-height: 1; color: #FFFFFF; white-space: pre">${esc(c)}</div>`;
+  // The medallion is drawn at its final size (k = medallion px per unit of the 300-unit design) without a
+  // scale() on a 300 px box: in a PDF of several pages, Chromium splits the pages by the boxes before
+  // transforms, so letters of that box near the bottom of a page went to the next page and were lost
+  // (04-11-2026). Each letter keeps its design size and is scaled by itself around its bottom center; its place
+  // goes in the transform (translate), not in left/top, so it is not rounded to whole pixels.
+  const k = (2 * Rv) / 300;
+  const px = (v) => `${(v * k).toFixed(2)}px`;
+  const letter = (c, x, y, h, rot, weight) => `<div style="position: absolute; left: 0px; top: 0px; width: 40px; height: ${h}px; transform-origin: 50% 100%; transform: translate(${(x * k - 20).toFixed(3)}px, ${(y * k - h).toFixed(3)}px) ${rot} scale(${k.toFixed(5)}); text-align: center; font-family: Montserrat, sans-serif; font-weight: ${weight}; font-size: ${h}px; line-height: 1; color: #FFFFFF; white-space: pre">${esc(c)}</div>`;
   const arc = [...producto].map((c, i) => {
     const mid = acc + ws[i] / 2; acc += ws[i];
     const th = th0 - mid / rc;
     const x = 150 + rb * Math.cos(th), y = 150 + rb * Math.sin(th);
-    return letter(c, `${x.toFixed(2)}px`, `${(y - fsArc).toFixed(2)}px`, `${fsArc}px`, `rotate(${(th * 180 / Math.PI - 90).toFixed(2)}deg)`, 800);
+    return letter(c, x, y, fsArc, `rotate(${(th * 180 / Math.PI - 90).toFixed(2)}deg)`, 800);
   }).join('');
   const lema = front.slogan.toUpperCase();
   const fsT = 14.5 * kR, lsT = 1.2 * kR, rT = rc - fsT / 2;
@@ -87,7 +94,7 @@ export function frontParts(front, opts = {}) {
     const mid = accT + wsT[i] / 2; accT += wsT[i];
     const th = -Math.PI / 2 - totT / rc / 2 + mid / rc;
     const x = 150 + rT * Math.cos(th), y = 150 + rT * Math.sin(th);
-    return letter(c, `${x.toFixed(2)}px`, `${(y - fsT).toFixed(2)}px`, `${fsT}px`, `rotate(${(th * 180 / Math.PI + 90).toFixed(2)}deg)`, 700);
+    return letter(c, x, y, fsT, `rotate(${(th * 180 / Math.PI + 90).toFixed(2)}deg)`, 700);
   }).join('');
 
   const description = front.description.map(esc).join('\n');
@@ -104,12 +111,11 @@ export function frontParts(front, opts = {}) {
     + `<div style="font-weight: 800; font-size: ${pesoFs}; line-height: 1.05">${esc(front.netWeight.text)}</div></div>`;
   const sealImgs = seals.map((id, i) => `<img src="${esc(assets.seals?.[id] ?? '')}" alt="Sello ALTO EN ${SEAL_ALT[id]}, Ministerio de Salud" style="position: absolute; left: ${pos[i][0]}px; top: ${pos[i][1]}px; width: ${sz}px; height: ${sz}px">`).join('');
   const logo = assets.logo
-    ? `<img src="${esc(assets.logo)}" alt="Logo" style="position: absolute; left: ${r2(ringW)}px; top: ${r2(ringW)}px; width: ${r2(300 - 2 * ringW)}px; height: ${r2(300 - 2 * ringW)}px; border-radius: 50%">`
+    ? `<img src="${esc(assets.logo)}" alt="Logo" style="position: absolute; left: ${px(ringW)}; top: ${px(ringW)}; width: ${px(300 - 2 * ringW)}; height: ${px(300 - 2 * ringW)}; border-radius: 50%">`
     : '';
   const medallion = `<div style="position: absolute; left: ${r2(cx - Rv)}px; top: ${r2(R - Rv)}px; width: ${r2(2 * Rv)}px; height: ${r2(2 * Rv)}px">`
-    + `<div style="position: absolute; left: 0px; top: 0px; width: 300px; height: 300px; transform: scale(${(2 * Rv / 300).toFixed(5)}); transform-origin: 0 0">`
-    + `<svg viewBox="0 0 300 300" width="300" height="300" style="position: absolute; left: 0; top: 0" aria-hidden="true"><circle cx="150" cy="150" r="150" fill="${ring}"></circle><circle cx="150" cy="150" r="113" fill="#FBEFDC"></circle></svg>`
-    + arcTop + arc + logo + '</div></div>';
+    + `<svg viewBox="0 0 300 300" width="${r2(2 * Rv)}" height="${r2(2 * Rv)}" style="position: absolute; left: 0; top: 0" aria-hidden="true"><circle cx="150" cy="150" r="150" fill="${ring}"></circle><circle cx="150" cy="150" r="113" fill="#FBEFDC"></circle></svg>`
+    + arcTop + arc + logo + '</div>';
 
   // Outline of the front part: the medallion hangs below the front height
   const Ra = R + 0.75, dyO = STRIP.frontHeight - R, dxO = Math.sqrt(Ra * Ra - dyO * dyO);

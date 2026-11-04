@@ -5,6 +5,7 @@ import { qrMatrix, qrSvg } from '../src/template/qr-svg.js';
 import { VARIANTS } from '../src/template/back.js';
 import { lengthMm, cutFor, MM } from '../src/template/geometry.js';
 import { labelMarkup } from '../src/template/label.js';
+import { frontParts } from '../src/template/front.js';
 import { loadFolder, DEMO_FOLDER } from '../src/node/load-folder.js';
 import { buildLabelData } from '../src/label-data.js';
 
@@ -125,4 +126,13 @@ test('layout in the browser: every demo label gets a length, nothing passes the 
     assert.ok(result.signature && result.lengthMm > 30);
     assert.ok(result.check <= 0.01);
   } finally { await r.close(); }
+});
+
+test('medallion letters: placed with translate inside the medallion, no scaled 300 px box (PDF of several pages)', () => {
+  const front = { productName: 'Semillas de maravilla', slogan: 'Bienestar en cada bocado', ringColor: '#6E421C', seals: [], description: ['SEMILLAS'], highlight: [], netWeight: { text: '50 g' } };
+  const { html } = frontParts(front, {});
+  assert.doesNotMatch(html, /width: 300px; height: 300px; transform: scale/);
+  const letters = html.match(/<div style="position: absolute; left: 0px; top: 0px; width: 40px;[^"]*">/g) ?? [];
+  assert.equal(letters.length, 'SEMILLAS DE MARAVILLA'.length + 'BIENESTAR EN CADA BOCADO'.length);
+  for (const l of letters) assert.match(l, /transform: translate\([-0-9.]+px, [-0-9.]+px\) rotate\([-0-9.]+deg\) scale\(0\.\d+\)/);
 });
