@@ -180,3 +180,106 @@ test('test page: photo check, reading, alerts, close-up of the allergen sentence
     server.close();
   }
 });
+
+test('test page: without readers the reading waits and reads itself later; a fast reading is read again and compared', { skip: !chromium && 'Chromium not installed (npx playwright install chromium)' }, async () => {
+  const server = await serve();
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const browser = await chromium.launch();
+  try {
+    const maker = await browser.newPage({ viewport: { width: 900, height: 1200 } });
+    await maker.setContent(`<body style="margin:0;background:#fff;font:28px Arial;padding:40px">${'INFORMACIÓN NUTRICIONAL Energía 560 168 Proteínas 12,0 3,6 '.repeat(40)}</body>`);
+    const photo = await maker.screenshot({ type: 'jpeg', quality: 90 });
+    await maker.close();
+
+    const context = await browser.newContext({ viewport: { width: 400, height: 860 } });
+    await context.addInitScript(() => localStorage.setItem('lectura.geminiKey', JSON.stringify('TEST-KEY-1234')));
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    page.on('dialog', (d) => d.accept());
+    let mode = 'no-quota';
+    let sodium = '40';
+    const models = [];
+    await page.route('https://generativelanguage.googleapis.com/**', async (route) => {
+      const model = /models\/([^:]+):/.exec(route.request().url())[1];
+      models.push(model);
+      const headers = { 'access-control-allow-origin': '*' };
+      if (mode === 'no-quota' || (mode === 'lite-only' && model === 'gemini-3.6-flash')) {
+        await route.fulfill({ status: 429, contentType: 'application/json', headers, body: JSON.stringify({ error: { code: 429, status: 'RESOURCE_EXHAUSTED' } }) });
+        return;
+      }
+      const t = transcription();
+      t.nutrition_table.rows = t.nutrition_table.rows.map((r) => (r.label === 'Sodio' ? row('Sodio', 'mg', sodium, String(Number(sodium) * 0.3).replace('.', ',')) : r));
+      await route.fulfill({ status: 200, contentType: 'application/json', headers, body: JSON.stringify({ ...answer(t), modelVersion: model }) });
+    });
+
+    await page.goto(`${base}/lectura/`);
+    await page.waitForSelector('html[data-ready="true"]');
+    const read = async () => {
+      await page.fill('#hint', 'Maní demo');
+      await page.fill('#test', 'R');
+      await page.setInputFiles('#gallery-input', { name: 'tabla.jpg', mimeType: 'image/jpeg', buffer: photo });
+      await page.waitForFunction(() => document.querySelector('#photos .metrics'));
+      if (await page.isVisible('#force')) await page.check('#force');
+      await page.waitForSelector('#read:not([disabled])', { timeout: 5000 });
+      await page.click('#read');
+    };
+    const history = () => page.evaluate(() => JSON.parse(localStorage.getItem('lectura.history') ?? '[]'));
+
+    // 1. No reader available: the photos wait (in IndexedDB) and nothing is saved yet.
+    await read();
+    await page.waitForSelector('#queue-section:not([hidden])');
+    assert.match(await page.textContent('#queue'), /Maní demo · prueba R/);
+    assert.match(await page.textContent('#queue'), /sin leer/);
+    assert.match(await page.textContent('#queue'), /Próximo intento/);
+    assert.equal((await history()).length, 0);
+
+    // 2. The normal reader is back: the waiting reading is read with it and saved.
+    mode = 'ok';
+    const before = models.length;
+    await page.click('#queue button:has-text("Intentar ahora")');
+    await page.waitForSelector('#queue-section[hidden]', { state: 'attached' });
+    assert.deepEqual(models.slice(before), ['gemini-3.6-flash'], 'only the normal reader, no fallback');
+    let h = await history();
+    assert.equal(h.length, 1);
+    assert.equal(h[0].test, 'R');
+    assert.equal(h[0].waited.reason, 'quota');
+    assert.match(await page.textContent('#error'), /Lectura lista: Maní demo · prueba R/);
+    await page.click('#error button:has-text("Abrir")');
+    await page.waitForSelector('#result-section:not([hidden])');
+    const [download] = await Promise.all([page.waitForEvent('download'), page.click('#download')]);
+    assert.match(download.suggestedFilename(), /^lectura-mani-demo_r-.*\.json$/);
+    const data = JSON.parse(await (await import('node:fs/promises')).readFile(await download.path(), 'utf8'));
+    assert.equal(data.test, 'R');
+    assert.equal(typeof data.forced, 'boolean');
+    assert.ok(Array.isArray(data.quality) && data.quality[0].metrics, 'the photo check goes in the file');
+
+    // 3. Only the fast reader answers: the reading is shown now and waits to be read again.
+    mode = 'lite-only';
+    await page.click('#new-reading');
+    await read();
+    await page.waitForSelector('#result-section:not([hidden])');
+    assert.match(await page.textContent('#summary'), /lector rápido/);
+    await page.waitForSelector('#queue-section:not([hidden])');
+    assert.match(await page.textContent('#queue'), /ya leída con el lector rápido/);
+
+    // 4. The normal reader reads it again and both are compared (the sodium differs).
+    mode = 'ok';
+    sodium = '400';
+    await page.click('#queue button:has-text("Intentar ahora")');
+    await page.waitForSelector('#queue-section[hidden]', { state: 'attached' });
+    h = await history();
+    assert.equal(h.length, 3);
+    assert.equal(h[0].rereadOf, h[1].id);
+    assert.deepEqual(h[0].comparison.differences.map((d) => d.field), ['sodium_mg']);
+    assert.match(await page.textContent('#error'), /1 diferencia/);
+    await page.click('#error button:has-text("Abrir")');
+    assert.match(await page.textContent('#summary'), /Relectura con el lector normal: 1 diferencia\(s\).*Sodio/);
+    assert.doesNotMatch(JSON.stringify(h), /base64|TEST-KEY/);
+
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});

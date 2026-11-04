@@ -42,6 +42,11 @@
         <span>Producto (como lo vende la empresa)</span>
         <input id="hint" type="text" autocomplete="off" placeholder="Ej.: Cranberries con chocolate bitter">
       </label>
+      <label class="field">
+        <span>Prueba (opcional)</span>
+        <input id="test" type="text" autocomplete="off" autocapitalize="characters" placeholder="Ej.: R (reflejo)">
+      </label>
+      <p class="hint">La prueba queda en la lectura y en el nombre del archivo que se descarga.</p>
       <p class="hint">Sirven fotos de la bolsa, capturas de la página del proveedor o las dos juntas: el sistema reconoce cada una.</p>
       <div class="row">
         <button id="take-photo" class="btn" type="button"><span aria-hidden="true">📷</span> Sacar foto</button>
@@ -85,9 +90,19 @@
       </div>
     </section>
 
+    <section id="queue-section" class="card" hidden aria-labelledby="queue-title">
+      <h2 id="queue-title">En espera del lector normal</h2>
+      <p class="hint">Se leen solas con el lector normal cuando vuelve a haber lecturas (la cuota se renueva cerca de las 4 de la mañana en Chile; si el servicio está ocupado, se intenta cada 15 minutos). La página debe estar abierta: al abrirla, sigue sola.</p>
+      <p id="queue-notify-wrap" class="row" hidden>
+        <button id="queue-notify" class="btn small" type="button"><span aria-hidden="true">🔔</span> Avisarme cuando estén listas</button>
+      </p>
+      <p id="queue-memory" class="hint" hidden>Este navegador no deja guardar las fotos: la espera se pierde si se cierra la página.</p>
+      <ol id="queue" class="history"></ol>
+    </section>
+
     <section id="history-section" class="card" aria-labelledby="history-title">
       <h2 id="history-title">Lecturas guardadas en este teléfono</h2>
-      <p class="hint">Se guardan sin las fotos (solo lo leído), las últimas 20.</p>
+      <p class="hint">Se guardan sin las fotos (solo lo leído): las 3 últimas de cada producto (y de cada prueba), hasta 60 en total.</p>
       <ol id="history" class="history"></ol>
       <button id="history-clear" class="btn small" type="button" hidden>Borrar todas</button>
     </section>

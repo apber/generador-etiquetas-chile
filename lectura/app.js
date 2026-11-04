@@ -14,14 +14,18 @@ import { PROMPT_VERSION } from '../src/reading/prompt.js';
 import { NUTRIENTS } from '../src/nutrients.js';
 import { NUTRIENT_LABELS, SEAL_NAMES } from '../src/i18n/es.js';
 import { catalogIndex } from '../src/allergens.js';
+import { nextAttemptAt, RETRY_CODES } from '../src/reading/retry.js';
+import { compareDrafts } from '../src/reading/compare.js';
+import { queueStore } from './queue-store.js';
 
-export const PAGE_VERSION = '0.6.3';
+export const PAGE_VERSION = '0.6.4';
 
 const KEY_STORE = 'lectura.geminiKey';
 const HISTORY_STORE = 'lectura.history';
 const COUNT_STORE = 'lectura.count';
 const SETTINGS_STORE = 'lectura.settings';
-const HISTORY_MAX = 20;
+const HISTORY_MAX = 60;
+const HISTORY_PER_KEY = 3; // the last 3 readings of each product (and test)
 
 const $ = (id) => document.getElementById(id);
 const fmt = (x) => (x === null || x === undefined ? '—' : String(x).replace('.', ','));
@@ -72,6 +76,7 @@ const photos = []; // { file, url, prepared }
 let current = null; // reading record (see newRecord)
 let abort = null;
 let closeUpFocus = null;
+let queueBusy = false;
 
 // ---------- Quota counter (Gemini resets at midnight Pacific time) ----------
 function pacificDay() {
@@ -241,11 +246,11 @@ function updateReadButton() {
 }
 
 // ---------- Reading ----------
-async function callGemini(images, extra = {}) {
-  const s = settings();
+async function callGemini(images, extra = {}, { normalOnly = false, label = null } = {}) {
+  const s = normalOnly ? { ...settings(), model: DEFAULT_MODEL, thinking: undefined } : settings();
   abort = new AbortController();
   const t0 = performance.now();
-  let stage = 'Leyendo…';
+  let stage = label ?? 'Leyendo…';
   const onAttempt = ({ model, attempt }) => {
     if (model === FALLBACK_MODEL && s.model === 'auto') stage = 'Lector normal ocupado. Probando el lector rápido…';
     else if (attempt > 0) stage = 'Servicio ocupado. Reintentando…';
@@ -258,7 +263,7 @@ async function callGemini(images, extra = {}) {
   $('error').hidden = true;
   updateReadButton();
   try {
-    const r = s.model === 'auto'
+    const r = s.model === 'auto' && !normalOnly
       ? await readWithFallback(images, common)
       : { ...(await readWithGemini(images, { ...common, model: s.model, thinkingLevel: s.thinking })), fallback: false };
     r.seconds = Math.round((performance.now() - t0) / 100) / 10;
@@ -276,6 +281,7 @@ const closeButton = () => h('button', { class: 'btn small close', type: 'button'
 function showError(e) {
   const box = $('error');
   box.hidden = false;
+  box.classList.remove('notice');
   if (e?.name === 'AbortError' || /abort/i.test(String(e?.info?.cause ?? ''))) {
     box.replaceChildren(closeButton(), h('p', {}, 'Lectura cancelada.'));
     return;
@@ -285,16 +291,21 @@ function showError(e) {
   box.replaceChildren(...[closeButton(), h('p', {}, h('strong', {}, msg)), info ? h('details', {}, h('summary', {}, 'Detalle técnico'), h('pre', {}, info)) : null].filter(Boolean));
 }
 
-function newRecord(reading, prepared, files) {
+const qualityOf = (prepared, files) => prepared.map((p, i) => ({ name: files[i], ok: p.ok, reasons: p.reasons, metrics: p.metrics, original: p.original, sent: { width: p.image.width, height: p.image.height, bytes: p.image.bytes } }));
+/** base: { hint, test, kind, files, quality, forced } of the photos that were read. */
+function newRecord(reading, base, extra = {}) {
   return {
     app: 'lectura-pruebas',
     pageVersion: PAGE_VERSION,
     id: `r${Date.now()}`,
     createdAt: new Date().toISOString(),
-    hint: $('hint').value.trim() || null,
-    kind: kindOf(prepared),
-    files,
-    quality: prepared.map((p, i) => ({ name: files[i], ok: p.ok, reasons: p.reasons, metrics: p.metrics, original: p.original, sent: { width: p.image.width, height: p.image.height, bytes: p.image.bytes } })),
+    hint: base.hint,
+    test: base.test ?? null,
+    kind: base.kind,
+    files: base.files,
+    quality: base.quality,
+    forced: base.forced, // read although a photo did not pass the check («Leer igual»)
+    ...extra,
     reading: { transcription: reading.transcription, model: reading.model, usage: reading.usage, seconds: reading.seconds, promptVersion: reading.promptVersion, fallback: reading.fallback, fallbackReason: reading.fallbackReason ?? null, finishReason: reading.finishReason ?? null },
     closeUps: [],
     transcription: reading.transcription,
@@ -305,15 +316,143 @@ async function doRead() {
   const ready = photos.filter((p) => p.prepared);
   if (!ready.length) return;
   const files = ready.map((p, i) => p.file.name || `foto-${i + 1}.jpg`);
+  const prepared = ready.map((p) => p.prepared);
+  const base = {
+    hint: $('hint').value.trim() || null, test: $('test').value.trim() || null, kind: kindOf(prepared), files,
+    quality: qualityOf(prepared, files), forced: prepared.some((p) => !p.ok),
+  };
+  const images = prepared.map((p) => p.image);
+  const auto = settings().model === 'auto';
   try {
-    const reading = await callGemini(ready.map((p) => p.prepared.image));
-    current = newRecord(reading, ready.map((p) => p.prepared), files);
+    const reading = await callGemini(images);
+    current = newRecord(reading, base);
     saveToHistory(current);
-    renderResult();
+    let notice;
+    if (auto && reading.fallback) {
+      // Read again by itself with the normal reader when it is back (decided on 04-11-2026).
+      await enqueue({ kind: 'reread', of: current.id, base, images, reason: reading.fallbackReason });
+      notice = 'Leída con el lector rápido. Quedó en espera para leerla de nuevo con el lector normal y comparar.';
+    }
+    renderResult(notice);
     $('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (e) {
+    if (auto && e instanceof ReadingError && RETRY_CODES.includes(e.code)) {
+      await enqueue({ kind: 'read', of: null, base, images, reason: e.code });
+      showWaiting(base.hint);
+      return;
+    }
     showError(e);
   }
+}
+function showWaiting(hint) {
+  const box = $('error');
+  box.hidden = false;
+  box.classList.add('notice');
+  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `No hubo lector disponible: «${hint ?? 'sin nombre'}» quedó en espera.`), ' Se leerá sola con el lector normal; mire «En espera del lector normal».'));
+  $('queue-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ---------- Waiting readings (read again by themselves with the normal reader) ----------
+async function enqueue({ kind, of, base, images, reason }) {
+  const now = Date.now();
+  await queueStore.put({
+    id: `q${now}`, kind, of, createdAt: new Date(now).toISOString(), base, images, reason,
+    notBefore: nextAttemptAt(reason, now) ?? now, attempts: 0, lastError: null,
+  });
+  await renderQueue();
+}
+async function processQueue({ only = null } = {}) {
+  if (queueBusy || abort || !getKey()) return;
+  queueBusy = true;
+  try {
+    for (const item of await queueStore.all()) {
+      if (only ? item.id !== only : (item.failed || item.notBefore > Date.now())) continue;
+      const label = `En espera: leyendo «${item.base.hint ?? 'sin nombre'}» con el lector normal…`;
+      try {
+        const reading = await callGemini(item.images, {}, { normalOnly: true, label });
+        const rec = newRecord(reading, item.base, {
+          waited: { queuedAt: item.createdAt, reason: item.reason, attempts: item.attempts + 1 },
+          ...(item.of ? { rereadOf: item.of } : {}),
+        });
+        const original = item.of ? historyList().find((x) => x.id === item.of) : null;
+        if (original) {
+          rec.comparison = { with: original.id, model: original.reading.model, differences: compareDrafts(draftOf(original), draftOf(rec)) };
+        }
+        saveToHistory(rec);
+        await queueStore.remove(item.id);
+        await notifyReady(rec);
+      } catch (e) {
+        if (e?.name === 'AbortError') break;
+        const code = e instanceof ReadingError ? e.code : 'unexpected';
+        const at = nextAttemptAt(code);
+        await queueStore.put({ ...item, attempts: item.attempts + 1, lastError: e.message ?? String(e), notBefore: at ?? item.notBefore, failed: at === null });
+        if (code === 'quota') {
+          // The quota is shared: every waiting reading waits for the reset.
+          for (const other of await queueStore.all()) if (!other.failed) await queueStore.put({ ...other, notBefore: Math.max(other.notBefore, at) });
+          break;
+        }
+      }
+    }
+  } finally {
+    queueBusy = false;
+    await renderQueue();
+  }
+}
+async function removeFromQueue(id) {
+  if (!confirm('¿Quitar esta lectura de la espera? Se borran sus fotos.')) return;
+  await queueStore.remove(id);
+  await renderQueue();
+}
+const when = (ms) => new Date(ms).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+const REASON_TEXT = { quota: 'se acabaron las lecturas normales del día', overloaded: 'el servicio estaba ocupado', timeout: 'el servicio no respondió a tiempo', network: 'no había conexión' };
+async function renderQueue() {
+  const items = await queueStore.all();
+  $('queue-section').hidden = !items.length;
+  $('queue-memory').hidden = queueStore.persistent;
+  $('queue-notify-wrap').hidden = !items.length || !('Notification' in window) || Notification.permission !== 'default';
+  $('queue').replaceChildren(...items.map((it) => {
+    const what = it.kind === 'reread'
+      ? `ya leída con el lector rápido (${REASON_TEXT[it.reason] ?? it.reason}); falta la del normal`
+      : `sin leer (${REASON_TEXT[it.reason] ?? it.reason})`;
+    const next = it.failed ? `No se pudo: ${it.lastError}` : it.notBefore > Date.now() ? `Próximo intento: ${when(it.notBefore)}` : 'Se lee apenas se pueda';
+    return h('li', {},
+      h('div', { class: 'what' },
+        h('strong', {}, `${it.base.hint ?? '(sin nombre)'}${it.base.test ? ` · prueba ${it.base.test}` : ''}`),
+        h('span', {}, `${it.base.files.length} foto(s) · ${what}`), h('br'),
+        h('span', {}, `${next}${it.attempts && !it.failed ? ` (intentos: ${it.attempts})` : ''}`)),
+      h('div', { class: 'row' },
+        h('button', { class: 'btn small', type: 'button', disabled: queueBusy || Boolean(abort), onclick: () => processQueue({ only: it.id }) }, 'Intentar ahora'),
+        h('button', { class: 'btn small', type: 'button', 'aria-label': `Quitar de la espera ${it.base.hint ?? ''}`, onclick: () => removeFromQueue(it.id) }, 'Quitar')));
+  }));
+}
+async function notifyReady(rec) {
+  const name = `${rec.hint ?? 'sin nombre'}${rec.test ? ` · prueba ${rec.test}` : ''}`;
+  const diff = rec.comparison ? ` ${rec.comparison.differences.length ? `${rec.comparison.differences.length} diferencia(s) con la lectura rápida.` : 'Igual a la lectura rápida.'}` : '';
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      const body = `Se leyó con el lector normal.${diff}`;
+      if (reg) await reg.showNotification(`Lectura lista: ${name}`, { body, tag: rec.id });
+      else new Notification(`Lectura lista: ${name}`, { body, tag: rec.id });
+    }
+  } catch { /* the page still shows it */ }
+  const box = $('error');
+  box.hidden = false;
+  box.classList.add('notice');
+  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `Lectura lista: ${name}.`), diff),
+    h('button', { class: 'btn small', type: 'button', onclick: () => { box.hidden = true; openHistory(rec.id); } }, 'Abrir'));
+}
+async function askNotifications() {
+  try {
+    await Notification.requestPermission();
+  } catch { /* old browsers */ }
+  await renderQueue();
+}
+function draftOf(rec) {
+  return transcriptionToDraft(rec.transcription, {
+    catalog, productName: rec.hint, sourceKind: rec.kind, files: rec.files,
+    model: rec.reading.model, promptVersion: rec.reading.promptVersion, fallback: rec.reading.fallback, fallbackReason: rec.reading.fallbackReason ?? undefined, date: rec.createdAt.slice(0, 10),
+  });
 }
 
 // ---------- Close-up photo of one part ----------
@@ -394,6 +533,7 @@ function withBold(text) {
 }
 const allergenNames = (ids) => (ids ?? []).map((id) => index.get(id)?.name.es ?? id).join(', ');
 
+const FIELD_NAMES = { serving_g: 'porción', ingredients: 'ingredientes', contains: 'contiene', may_contain: 'puede contener', country_of_origin: 'origen' };
 function renderResult(notice) {
   const r = result();
   current.result = r;
@@ -409,7 +549,16 @@ function renderResult(notice) {
     current.closeUps.length ? `${current.closeUps.length} foto(s) de cerca` : null,
     current.kind === 'web_capture' ? 'capturas de página' : current.quality.some((q) => q.metrics.kind === 'screen') ? 'fotos y capturas' : 'fotos',
     `instrucciones v${rd.promptVersion}`,
+    current.test ? `prueba ${current.test}` : null,
+    current.forced ? 'leída igual (alguna foto no pasó la revisión)' : null,
+    current.waited ? `leída sola después de esperar (${REASON_TEXT[current.waited.reason] ?? current.waited.reason})` : null,
   ].filter(Boolean).join(' · ');
+  if (!notice && current.comparison) {
+    const d = current.comparison.differences;
+    notice = d.length
+      ? `Relectura con el lector normal: ${d.length} diferencia(s) con la lectura rápida (${d.map((x) => FIELD_NAMES[x.field] ?? NUTRIENT_LABELS[x.field] ?? x.field).join(', ')}). Lo demás queda confirmado por los dos.`
+      : 'Relectura con el lector normal: igual a la lectura rápida (todo confirmado por los dos).';
+  }
 
   const info = r.alerts.filter((a) => a.action === 'none').length;
   $('summary').replaceChildren(...[
@@ -478,9 +627,11 @@ function renderResult(notice) {
 }
 
 // ---------- Export ----------
+const slugOf = (text) => text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 function exportName() {
-  const slug = (current.hint ?? 'lectura').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'lectura';
-  return `lectura-${slug}-${current.createdAt.slice(0, 16).replace(/[:T]/g, '-')}.json`;
+  const slug = slugOf(current.hint ?? 'lectura') || 'lectura';
+  const test = current.test ? `_${slugOf(current.test)}` : '';
+  return `lectura-${slug}${test}${current.rereadOf ? '-normal' : ''}-${current.createdAt.slice(0, 16).replace(/[:T]/g, '-')}.json`;
 }
 function exportBlob() {
   const { result: r, ...rest } = current;
@@ -515,10 +666,17 @@ async function share() {
 function historyList() {
   return store.get(HISTORY_STORE, []);
 }
+const historyKey = (rec) => `${slugOf(rec.hint ?? '')}|${slugOf(rec.test ?? '')}`;
 function saveToHistory(rec) {
   const { result: _r, ...plain } = rec;
-  const list = historyList().filter((x) => x.id !== rec.id);
+  let list = historyList().filter((x) => x.id !== rec.id);
   list.unshift(plain);
+  const seen = new Map();
+  list = list.filter((x) => {
+    const n = (seen.get(historyKey(x)) ?? 0) + 1;
+    seen.set(historyKey(x), n);
+    return n <= HISTORY_PER_KEY;
+  });
   while (list.length > HISTORY_MAX) list.pop();
   while (!store.set(HISTORY_STORE, list) && list.length > 1) list.pop();
   renderHistory();
@@ -533,8 +691,8 @@ function renderHistory() {
     } catch { /* old or broken record */ }
     return h('li', {},
       h('div', { class: 'what' },
-        h('strong', {}, rec.hint ?? '(sin nombre)'),
-        h('span', {}, `${new Date(rec.createdAt).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })} · ${rec.files.length} foto(s)${rec.closeUps.length ? ` + ${rec.closeUps.length} de cerca` : ''} · ${pending} por revisar`)),
+        h('strong', {}, `${rec.hint ?? '(sin nombre)'}${rec.test ? ` · prueba ${rec.test}` : ''}`),
+        h('span', {}, `${when(rec.createdAt)} · ${rec.files.length} foto(s)${rec.closeUps.length ? ` + ${rec.closeUps.length} de cerca` : ''} · ${rec.reading.fallback ? 'lector rápido · ' : ''}${rec.rereadOf ? 'relectura normal · ' : ''}${pending} por revisar`)),
       h('div', { class: 'row' },
         h('button', { class: 'btn small', type: 'button', onclick: () => openHistory(rec.id) }, 'Abrir'),
         h('button', { class: 'btn small', type: 'button', 'aria-label': `Borrar la lectura de ${rec.hint ?? 'sin nombre'}`, onclick: () => deleteHistory(rec.id) }, 'Borrar')));
@@ -545,6 +703,7 @@ function openHistory(id) {
   if (!rec) return;
   current = rec;
   $('hint').value = rec.hint ?? '';
+  $('test').value = rec.test ?? '';
   renderResult();
   $('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -561,6 +720,7 @@ function resetNew() {
   photos.length = 0;
   current = null;
   $('hint').value = '';
+  $('test').value = '';
   $('result-section').hidden = true;
   $('error').hidden = true;
   renderPhotos();
@@ -575,6 +735,13 @@ async function start() {
   showKey();
   showQuota();
   renderHistory();
+  navigator.serviceWorker?.register('sw.js').catch(() => {});
+  $('queue-notify').addEventListener('click', askNotifications);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') processQueue(); });
+  window.addEventListener('online', () => processQueue());
+  setInterval(() => { renderQueue(); processQueue(); }, 60_000);
+  await renderQueue();
+  processQueue();
   $('take-photo').addEventListener('click', () => $('camera-input').click());
   $('pick-photos').addEventListener('click', () => $('gallery-input').click());
   for (const id of ['camera-input', 'gallery-input']) {

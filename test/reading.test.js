@@ -11,6 +11,8 @@ import { measureImage, judgeImage } from '../src/reading/image-quality.js';
 import { buildRequest, readWithGemini, readWithFallback, parseResponse, timeoutFor, DEFAULT_MODEL, FALLBACK_MODEL } from '../src/reading/gemini.js';
 import { mergeCloseUp, focusFor } from '../src/reading/merge.js';
 import { scoreReading } from '../src/reading/score.js';
+import { pacificMidnightAfter, nextAttemptAt, BUSY_RETRY_MS, AFTER_RESET_MS } from '../src/reading/retry.js';
+import { compareDrafts } from '../src/reading/compare.js';
 
 const catalog = JSON.parse(readFileSync(new URL('../data/allergens.json', import.meta.url)));
 
@@ -480,4 +482,33 @@ test('the time limit grows with the number of images', () => {
   assert.equal(timeoutFor(1), 60_000);
   assert.equal(timeoutFor(4), 105_000);
   assert.equal(timeoutFor(20), 180_000);
+});
+
+test('a waiting reading is tried again after the quota reset (midnight Pacific) or 15 min later if the service was busy', () => {
+  // 4 Nov 2026, 16:00 in Chile (UTC−3) = 19:00 UTC = 11:00 in Los Angeles (UTC−8 from 1 Nov).
+  const now = Date.UTC(2026, 10, 4, 19, 0);
+  assert.equal(pacificMidnightAfter(now), Date.UTC(2026, 10, 5, 8, 0));
+  // Summer time (UTC−7): 1 Jul 2026, 12:00 UTC.
+  assert.equal(pacificMidnightAfter(Date.UTC(2026, 6, 1, 12, 0)), Date.UTC(2026, 6, 2, 7, 0));
+  // Just after midnight there: the next one is tomorrow's.
+  assert.equal(pacificMidnightAfter(Date.UTC(2026, 10, 5, 8, 1)), Date.UTC(2026, 10, 6, 8, 0));
+  assert.equal(nextAttemptAt('quota', now), Date.UTC(2026, 10, 5, 8, 0) + AFTER_RESET_MS);
+  for (const code of ['overloaded', 'timeout', 'network']) assert.equal(nextAttemptAt(code, now), now + BUSY_RETRY_MS);
+  for (const code of ['bad_key', 'blocked', 'bad_response']) assert.equal(nextAttemptAt(code, now), null);
+});
+
+test('two readings of the same product: only what differs is listed', () => {
+  const opts = { catalog, productName: 'Demo', sourceKind: 'label_photo' };
+  const t = (sodium, ingredients) => ({
+    images: [],
+    nutrition_table: { serving_text: { text: 'Porción 30 g', legibility: 'clear' }, serving_g: 30, per_100_header: '100 g', per_serving_header: 'Porción',
+      rows: [prow('Energía', 'kcal', pcell('500'), pcell('150')), prow('Sodio', 'mg', pcell(sodium), null)] },
+    ingredients: { text: ingredients, legibility: 'clear' },
+  });
+  const a = transcriptionToDraft(t('20', 'Maní, sal'), opts);
+  assert.deepEqual(compareDrafts(a, transcriptionToDraft(t('20', 'maní,  sal'), opts)), []);
+  const d = compareDrafts(a, transcriptionToDraft(t('200', 'Maní'), opts));
+  assert.deepEqual(d.map((x) => x.field), ['sodium_mg', 'ingredients']);
+  assert.equal(d[0].a, 20);
+  assert.equal(d[0].b, 200);
 });
