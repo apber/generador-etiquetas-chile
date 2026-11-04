@@ -19,7 +19,7 @@ import { compareDrafts } from '../src/reading/compare.js';
 import { queueStore } from './queue-store.js';
 import { groupBatch, hintOf } from './batch.js';
 
-export const PAGE_VERSION = '0.6.6';
+export const PAGE_VERSION = '0.6.7';
 
 const KEY_STORE = 'lectura.geminiKey';
 const HISTORY_STORE = 'lectura.history';
@@ -461,28 +461,45 @@ async function notifyReady(rec, left = 0) {
 // ---------- Notifications (setting) ----------
 // The checkbox keeps what the person chose; the phone's permission is shown apart (on 04-11 the checkbox
 // unchecked itself on Android when the permission was not granted, with no explanation).
+const HOW_TO_ALLOW = 'En Chrome del teléfono: ⋮ (arriba a la derecha) → Configuración → Configuración de sitios → Notificaciones → apber.github.io → Permitir. En Xiaomi revise además: Ajustes → Apps → Administrar apps → Chrome → Notificaciones → activadas. Luego vuelva a abrir la página.';
 const PERMISSION_TEXT = {
   granted: 'Permiso del teléfono: concedido. Los avisos están activos.',
-  default: 'Falta el permiso del teléfono. Apriete «Pedir permiso» y elija «Permitir». Si no aparece la pregunta, Chrome la ocultó: toque el candado (o los ajustes del sitio) junto a la dirección → Notificaciones → Permitir.',
-  denied: 'El teléfono bloqueó las notificaciones de esta página. Para permitirlas: en Chrome, toque el candado (o los ajustes del sitio) junto a la dirección → Notificaciones → Permitir, y vuelva a abrir la página.',
+  default: 'Falta el permiso del teléfono: apriete «Pedir permiso» y elija «Permitir».',
+  denied: `El teléfono no deja mostrar avisos de esta página (bloqueado, o Chrome no mostró la pregunta). ${HOW_TO_ALLOW}`,
 };
-function showNotifySetting() {
+/** Which browser: notifications only work well in Chrome itself (not inside WhatsApp, Gmail or Mi Browser). */
+function browserNote() {
+  const ua = navigator.userAgent;
+  if (/MiuiBrowser|XiaoMi/i.test(ua)) return 'Está en el navegador de Xiaomi: abra la página en Chrome para los avisos.';
+  if (/; wv\)|FBAN|FBAV|Instagram|WhatsApp/i.test(ua)) return 'La página está abierta dentro de otra app: ábrala en Chrome (⋮ → Abrir en Chrome) para los avisos.';
+  if (/SamsungBrowser/i.test(ua)) return 'Está en Samsung Internet: abra la página en Chrome para los avisos.';
+  return null;
+}
+function showNotifySetting(extra = null) {
   const supported = 'Notification' in window;
   const on = store.get(NOTIFY_STORE, false);
   $('notify').disabled = !supported;
   $('notify').checked = supported && on;
   const perm = supported ? Notification.permission : null;
   $('notify-status').hidden = !on && supported;
-  $('notify-status').textContent = !supported ? 'Este navegador no muestra notificaciones.' : `${PERMISSION_TEXT[perm] ?? `Permiso: ${perm}.`}`;
-  $('notify-ask').hidden = !on || !supported || perm === 'granted';
+  $('notify-status').textContent = [
+    extra,
+    !supported ? 'Este navegador no muestra notificaciones.' : PERMISSION_TEXT[perm] ?? `Permiso: ${perm}.`,
+    on ? browserNote() : null,
+  ].filter(Boolean).join(' ');
+  $('notify-ask').hidden = !on || !supported || perm !== 'default';
   $('notify-test').hidden = !on || perm !== 'granted';
 }
 async function askPermission() {
+  $('notify-status').textContent = 'Pidiendo permiso…';
+  let answer;
   try {
-    const r = await Notification.requestPermission();
-    if (r === 'default') $('notify-status').textContent = PERMISSION_TEXT.default;
-  } catch { /* old browsers */ }
-  showNotifySetting();
+    answer = await Notification.requestPermission();
+  } catch (e) {
+    answer = `error (${e.message})`;
+  }
+  const said = { granted: 'concedido', denied: 'bloqueado', default: 'sin respuesta (no se mostró la pregunta o se cerró)' }[answer] ?? answer;
+  showNotifySetting(`El teléfono respondió: ${said}.${answer === 'default' ? ` ${HOW_TO_ALLOW}` : ''}`);
 }
 async function toggleNotify() {
   const on = $('notify').checked;
