@@ -34,7 +34,8 @@ async function run(mode, fn) {
 export const queueStore = {
   async all() {
     const items = await run('readonly', (s) => (s ? s.getAll() : [...memory.values()]));
-    return [...items].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const key = (x) => x.order ?? Date.parse(x.createdAt) * 1000;
+    return [...items].sort((a, b) => key(a) - key(b));
   },
   put(item) {
     return run('readwrite', (s) => (s ? s.put(item) : memory.set(item.id, item)));

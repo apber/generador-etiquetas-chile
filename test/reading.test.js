@@ -11,8 +11,9 @@ import { measureImage, judgeImage } from '../src/reading/image-quality.js';
 import { buildRequest, readWithGemini, readWithFallback, parseResponse, timeoutFor, DEFAULT_MODEL, FALLBACK_MODEL } from '../src/reading/gemini.js';
 import { mergeCloseUp, focusFor } from '../src/reading/merge.js';
 import { scoreReading } from '../src/reading/score.js';
-import { pacificMidnightAfter, nextAttemptAt, BUSY_RETRY_MS, AFTER_RESET_MS } from '../src/reading/retry.js';
+import { pacificMidnightAfter, nextAttemptAt, quotaLimit, BUSY_RETRY_MS, AFTER_RESET_MS, MINUTE_EXTRA_MS } from '../src/reading/retry.js';
 import { compareDrafts } from '../src/reading/compare.js';
+import { parseName, groupBatch } from '../lectura/batch.js';
 
 const catalog = JSON.parse(readFileSync(new URL('../data/allergens.json', import.meta.url)));
 
@@ -511,4 +512,33 @@ test('two readings of the same product: only what differs is listed', () => {
   assert.deepEqual(d.map((x) => x.field), ['sodium_mg', 'ingredients']);
   assert.equal(d[0].a, 20);
   assert.equal(d[0].b, 200);
+});
+
+test('a 429 says which limit was hit: per day waits for the reset, per minute only a little', () => {
+  const now = Date.UTC(2026, 10, 4, 19, 0);
+  const err = (quotaId, retryDelay) => ({ error: { code: 429, status: 'RESOURCE_EXHAUSTED', details: [
+    { '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaId }] },
+    ...(retryDelay ? [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay }] : []),
+  ] } });
+  assert.equal(quotaLimit(err('GenerateRequestsPerDayPerProjectPerModel-FreeTier', '20s')).kind, 'day');
+  assert.equal(nextAttemptAt('quota', now, err('GenerateRequestsPerDayPerProjectPerModel-FreeTier')), Date.UTC(2026, 10, 5, 8, 0) + AFTER_RESET_MS);
+  assert.equal(nextAttemptAt('quota', now, err('GenerateRequestsPerMinutePerProjectPerModel-FreeTier', '37s')), now + 37_000 + MINUTE_EXTRA_MS);
+  assert.equal(nextAttemptAt('quota', now, err('GenerateRequestsPerMinutePerProjectPerModel-FreeTier')), now + 60_000 + MINUTE_EXTRA_MS);
+  assert.equal(nextAttemptAt('quota', now, { error: { code: 429 } }), now + BUSY_RETRY_MS, 'unknown limit: try again in 15 min');
+});
+
+test('batch of photos: the file name gives the product and the test; "todas" goes in every reading of the product', () => {
+  assert.deepEqual(parseName('Mani-Bitter_r_tabla.JPG'), { product: 'mani-bitter', test: 'R', shared: false });
+  assert.deepEqual(parseName('linaza_todas_ingredientes.jpg'), { product: 'linaza', test: null, shared: true });
+  assert.deepEqual(parseName('linaza.jpg'), { product: 'linaza', test: null, shared: false });
+  assert.deepEqual(parseName('maní-curahua_F.jpeg'), { product: 'mani-curahua', test: 'F', shared: false });
+  assert.equal(parseName('_x.jpg'), null);
+  const names = ['a_R_2.jpg', 'a_R_10.jpg', 'a_todas_ing.jpg', 'a_B_1.jpg', 'b_todas_1.jpg', '_x.jpg'];
+  const { groups, unknown } = groupBatch(names);
+  assert.deepEqual(groups.map((g) => [g.product, g.test, g.files.map((i) => names[i]), g.shared.map((i) => names[i])]), [
+    ['a', 'B', ['a_B_1.jpg'], ['a_todas_ing.jpg']],
+    ['a', 'R', ['a_R_2.jpg', 'a_R_10.jpg'], ['a_todas_ing.jpg']],
+    ['b', null, [], ['b_todas_1.jpg']],
+  ]);
+  assert.deepEqual(unknown, [5]);
 });

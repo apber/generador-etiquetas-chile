@@ -17,13 +17,16 @@ import { catalogIndex } from '../src/allergens.js';
 import { nextAttemptAt, RETRY_CODES } from '../src/reading/retry.js';
 import { compareDrafts } from '../src/reading/compare.js';
 import { queueStore } from './queue-store.js';
+import { groupBatch, hintOf } from './batch.js';
 
-export const PAGE_VERSION = '0.6.4';
+export const PAGE_VERSION = '0.6.5';
 
 const KEY_STORE = 'lectura.geminiKey';
 const HISTORY_STORE = 'lectura.history';
 const COUNT_STORE = 'lectura.count';
 const SETTINGS_STORE = 'lectura.settings';
+const NOTIFY_STORE = 'lectura.notify';
+const QUEUE_PAUSE_MS = 4000; // between waiting readings, to stay under the per-minute limit
 const HISTORY_MAX = 60;
 const HISTORY_PER_KEY = 3; // the last 3 readings of each product (and test)
 
@@ -305,6 +308,7 @@ function newRecord(reading, base, extra = {}) {
     files: base.files,
     quality: base.quality,
     forced: base.forced, // read although a photo did not pass the check («Leer igual»)
+    ...(base.batch ? { batch: true } : {}), // from a batch of photos (the file names gave product and test)
     ...extra,
     reading: { transcription: reading.transcription, model: reading.model, usage: reading.usage, seconds: reading.seconds, promptVersion: reading.promptVersion, fallback: reading.fallback, fallbackReason: reading.fallbackReason ?? null, finishReason: reading.finishReason ?? null },
     closeUps: [],
@@ -318,7 +322,7 @@ async function doRead() {
   const files = ready.map((p, i) => p.file.name || `foto-${i + 1}.jpg`);
   const prepared = ready.map((p) => p.prepared);
   const base = {
-    hint: $('hint').value.trim() || null, test: $('test').value.trim() || null, kind: kindOf(prepared), files,
+    hint: $('hint').value.trim() || null, test: null, kind: kindOf(prepared), files,
     quality: qualityOf(prepared, files), forced: prepared.some((p) => !p.ok),
   };
   const images = prepared.map((p) => p.image);
@@ -337,7 +341,7 @@ async function doRead() {
     $('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (e) {
     if (auto && e instanceof ReadingError && RETRY_CODES.includes(e.code)) {
-      await enqueue({ kind: 'read', of: null, base, images, reason: e.code });
+      await enqueue({ kind: 'read', of: null, base, images, reason: e.code, body: e.info?.body });
       showWaiting(base.hint);
       return;
     }
@@ -353,23 +357,29 @@ function showWaiting(hint) {
 }
 
 // ---------- Waiting readings (read again by themselves with the normal reader) ----------
-async function enqueue({ kind, of, base, images, reason }) {
-  const now = Date.now();
-  await queueStore.put({
-    id: `q${now}`, kind, of, createdAt: new Date(now).toISOString(), base, images, reason,
-    notBefore: nextAttemptAt(reason, now) ?? now, attempts: 0, lastError: null,
-  });
+let queueSeq = 0;
+function queueItem({ kind, of, base, images, reason, body = null, now = Date.now() }) {
+  queueSeq += 1;
+  return {
+    id: `q${now}-${queueSeq}`, order: now * 1000 + (queueSeq % 1000), kind, of, createdAt: new Date(now).toISOString(), base, images, reason,
+    notBefore: reason === 'batch' ? now : nextAttemptAt(reason, now, body) ?? now, attempts: 0, lastError: null,
+  };
+}
+async function enqueue(args) {
+  await queueStore.put(queueItem(args));
   await renderQueue();
 }
 async function processQueue({ only = null } = {}) {
   if (queueBusy || abort || !getKey()) return;
   queueBusy = true;
+  let done = 0;
   try {
     for (const item of await queueStore.all()) {
       if (only ? item.id !== only : (item.failed || item.notBefore > Date.now())) continue;
+      if (done) await new Promise((r) => setTimeout(r, QUEUE_PAUSE_MS));
       const label = `En espera: leyendo «${item.base.hint ?? 'sin nombre'}» con el lector normal…`;
       try {
-        const reading = await callGemini(item.images, {}, { normalOnly: true, label });
+        const reading = await callGemini(item.images, { productHint: item.base.productHint ?? item.base.hint }, { normalOnly: true, label });
         const rec = newRecord(reading, item.base, {
           waited: { queuedAt: item.createdAt, reason: item.reason, attempts: item.attempts + 1 },
           ...(item.of ? { rereadOf: item.of } : {}),
@@ -380,14 +390,16 @@ async function processQueue({ only = null } = {}) {
         }
         saveToHistory(rec);
         await queueStore.remove(item.id);
-        await notifyReady(rec);
+        done += 1;
+        await notifyReady(rec, (await queueStore.all()).length);
+        await renderQueue();
       } catch (e) {
         if (e?.name === 'AbortError') break;
         const code = e instanceof ReadingError ? e.code : 'unexpected';
-        const at = nextAttemptAt(code);
+        const at = nextAttemptAt(code, Date.now(), e?.info?.body);
         await queueStore.put({ ...item, attempts: item.attempts + 1, lastError: e.message ?? String(e), notBefore: at ?? item.notBefore, failed: at === null });
         if (code === 'quota') {
-          // The quota is shared: every waiting reading waits for the reset.
+          // The quota is shared: every waiting reading waits (for the reset, or a minute for the per-minute limit).
           for (const other of await queueStore.all()) if (!other.failed) await queueStore.put({ ...other, notBefore: Math.max(other.notBefore, at) });
           break;
         }
@@ -398,55 +410,146 @@ async function processQueue({ only = null } = {}) {
     await renderQueue();
   }
 }
+async function clearQueue() {
+  if (!confirm('¿Quitar todas las lecturas en espera? Se borran sus fotos.')) return;
+  for (const it of await queueStore.all()) await queueStore.remove(it.id);
+  await renderQueue();
+}
 async function removeFromQueue(id) {
   if (!confirm('¿Quitar esta lectura de la espera? Se borran sus fotos.')) return;
   await queueStore.remove(id);
   await renderQueue();
 }
 const when = (ms) => new Date(ms).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
-const REASON_TEXT = { quota: 'se acabaron las lecturas normales del día', overloaded: 'el servicio estaba ocupado', timeout: 'el servicio no respondió a tiempo', network: 'no había conexión' };
+const REASON_TEXT = { batch: 'lote de fotos', quota: 'se acabaron las lecturas normales del día', overloaded: 'el servicio estaba ocupado', timeout: 'el servicio no respondió a tiempo', network: 'no había conexión' };
 async function renderQueue() {
   const items = await queueStore.all();
   $('queue-section').hidden = !items.length;
   $('queue-memory').hidden = queueStore.persistent;
-  $('queue-notify-wrap').hidden = !items.length || !('Notification' in window) || Notification.permission !== 'default';
   $('queue').replaceChildren(...items.map((it) => {
     const what = it.kind === 'reread'
       ? `ya leída con el lector rápido (${REASON_TEXT[it.reason] ?? it.reason}); falta la del normal`
       : `sin leer (${REASON_TEXT[it.reason] ?? it.reason})`;
+    const bad = it.base.quality.filter((q) => !q.ok).length;
     const next = it.failed ? `No se pudo: ${it.lastError}` : it.notBefore > Date.now() ? `Próximo intento: ${when(it.notBefore)}` : 'Se lee apenas se pueda';
     return h('li', {},
       h('div', { class: 'what' },
         h('strong', {}, `${it.base.hint ?? '(sin nombre)'}${it.base.test ? ` · prueba ${it.base.test}` : ''}`),
-        h('span', {}, `${it.base.files.length} foto(s) · ${what}`), h('br'),
+        h('span', {}, `${it.base.files.length} foto(s)${bad ? ` (${bad} no pasa la revisión)` : ''} · ${what}`), h('br'),
         h('span', {}, `${next}${it.attempts && !it.failed ? ` (intentos: ${it.attempts})` : ''}`)),
       h('div', { class: 'row' },
         h('button', { class: 'btn small', type: 'button', disabled: queueBusy || Boolean(abort), onclick: () => processQueue({ only: it.id }) }, 'Intentar ahora'),
         h('button', { class: 'btn small', type: 'button', 'aria-label': `Quitar de la espera ${it.base.hint ?? ''}`, onclick: () => removeFromQueue(it.id) }, 'Quitar')));
   }));
 }
-async function notifyReady(rec) {
+async function notifyReady(rec, left = 0) {
   const name = `${rec.hint ?? 'sin nombre'}${rec.test ? ` · prueba ${rec.test}` : ''}`;
   const diff = rec.comparison ? ` ${rec.comparison.differences.length ? `${rec.comparison.differences.length} diferencia(s) con la lectura rápida.` : 'Igual a la lectura rápida.'}` : '';
+  const rest = left ? ` Quedan ${left} en espera.` : '';
   try {
-    if ('Notification' in window && Notification.permission === 'granted') {
+    if (store.get(NOTIFY_STORE, false) && 'Notification' in window && Notification.permission === 'granted') {
       const reg = await navigator.serviceWorker?.getRegistration();
-      const body = `Se leyó con el lector normal.${diff}`;
-      if (reg) await reg.showNotification(`Lectura lista: ${name}`, { body, tag: rec.id });
-      else new Notification(`Lectura lista: ${name}`, { body, tag: rec.id });
+      // One notification for the whole queue (same tag): it is replaced, not piled up.
+      const body = `Se leyó con el lector normal.${diff}${rest}`;
+      if (reg) await reg.showNotification(`Lectura lista: ${name}`, { body, tag: 'lectura-cola', renotify: true });
+      else new Notification(`Lectura lista: ${name}`, { body, tag: 'lectura-cola' });
     }
   } catch { /* the page still shows it */ }
   const box = $('error');
   box.hidden = false;
   box.classList.add('notice');
-  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `Lectura lista: ${name}.`), diff),
+  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `Lectura lista: ${name}.`), diff, rest),
     h('button', { class: 'btn small', type: 'button', onclick: () => { box.hidden = true; openHistory(rec.id); } }, 'Abrir'));
 }
-async function askNotifications() {
-  try {
-    await Notification.requestPermission();
-  } catch { /* old browsers */ }
+// ---------- Notifications (setting) ----------
+function showNotifySetting() {
+  const supported = 'Notification' in window;
+  const on = store.get(NOTIFY_STORE, false);
+  $('notify').disabled = !supported;
+  $('notify').checked = supported && on && Notification.permission === 'granted';
+  const msg = !supported ? 'Este navegador no muestra notificaciones.'
+    : on && Notification.permission === 'denied' ? 'El teléfono bloqueó las notificaciones de esta página: hay que permitirlas en los ajustes del navegador.' : '';
+  $('notify-status').hidden = !msg;
+  $('notify-status').textContent = msg;
+}
+async function toggleNotify() {
+  const on = $('notify').checked;
+  store.set(NOTIFY_STORE, on);
+  if (on && Notification.permission === 'default') {
+    try { await Notification.requestPermission(); } catch { /* old browsers */ }
+  }
+  showNotifySetting();
+}
+
+// ---------- Batch of photos of several products ----------
+let batch = null; // { items: [{ file, prepared, error }], plan }
+async function pickBatch(fileList) {
+  const files = [...fileList];
+  if (!files.length) return;
+  batch = { items: files.map((file) => ({ file, prepared: null, error: null })), plan: groupBatch(files.map((f) => f.name)) };
+  $('batch-plan').hidden = true;
+  $('batch-status').hidden = false;
+  for (const [n, it] of batch.items.entries()) {
+    $('batch-status').lastElementChild.textContent = `Revisando ${n + 1} de ${files.length} fotos…`;
+    try {
+      it.prepared = await prepareImage(it.file);
+    } catch (e) {
+      it.error = e.message;
+    }
+  }
+  $('batch-status').hidden = true;
+  renderBatch();
+}
+function batchGroupIndexes(g) {
+  return [...g.files, ...g.shared].filter((i) => batch.items[i].prepared);
+}
+function renderBatch() {
+  const { plan, items } = batch;
+  $('batch-plan').hidden = false;
+  $('batch-groups').replaceChildren(...plan.groups.map((g) => {
+    const idx = batchGroupIndexes(g);
+    const bad = idx.filter((i) => !items[i].prepared.ok).length;
+    const broken = [...g.files, ...g.shared].filter((i) => items[i].error).length;
+    return h('li', {}, h('div', { class: 'what' },
+      h('strong', {}, `${g.product}${g.test ? ` · prueba ${g.test}` : ''}`),
+      h('span', {}, [
+        `${idx.length} foto(s)${g.shared.length ? ` (${g.shared.length} compartida${g.shared.length > 1 ? 's' : ''})` : ''}`,
+        bad ? `${bad} no pasa la revisión` : 'todas pasan la revisión',
+        broken ? `${broken} no se pudo abrir` : null,
+      ].filter(Boolean).join(' · ')),
+      h('span', { class: 'code' }, ` ${[...g.files, ...g.shared].map((i) => items[i].file.name).join(', ')}`)));
+  }));
+  $('batch-unknown').hidden = !plan.unknown.length;
+  $('batch-unknown').textContent = plan.unknown.length ? `Sin producto en el nombre (no se usan): ${plan.unknown.map((i) => items[i].file.name).join(', ')}` : '';
+  const n = plan.groups.filter((g) => batchGroupIndexes(g).length).length;
+  $('batch-queue').disabled = !n;
+  $('batch-queue').textContent = `Poner ${n} ${n === 1 ? 'lectura' : 'lecturas'} en la cola`;
+}
+async function queueBatch() {
+  if (!batch) return;
+  const now = Date.now();
+  let count = 0;
+  for (const g of batch.plan.groups) {
+    const idx = batchGroupIndexes(g);
+    if (!idx.length) continue;
+    const prepared = idx.map((i) => batch.items[i].prepared);
+    const files = idx.map((i) => batch.items[i].file.name);
+    const base = {
+      hint: g.product, productHint: hintOf(g.product), test: g.test, kind: kindOf(prepared), files,
+      quality: qualityOf(prepared, files), forced: prepared.some((p) => !p.ok), batch: true,
+    };
+    await queueStore.put(queueItem({ kind: 'read', of: null, base, images: prepared.map((p) => p.image), reason: 'batch', now }));
+    count += 1;
+  }
+  batch = null;
+  $('batch-plan').hidden = true;
   await renderQueue();
+  const box = $('error');
+  box.hidden = false;
+  box.classList.add('notice');
+  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `${count} ${count === 1 ? 'lectura quedó' : 'lecturas quedaron'} en la cola.`), ' Se leen una tras otra con el lector normal; si se acaban las del día, siguen solas después de que se renueve la cuota (con la página abierta).'));
+  $('queue-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  processQueue();
 }
 function draftOf(rec) {
   return transcriptionToDraft(rec.transcription, {
@@ -703,7 +806,6 @@ function openHistory(id) {
   if (!rec) return;
   current = rec;
   $('hint').value = rec.hint ?? '';
-  $('test').value = rec.test ?? '';
   renderResult();
   $('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -720,7 +822,6 @@ function resetNew() {
   photos.length = 0;
   current = null;
   $('hint').value = '';
-  $('test').value = '';
   $('result-section').hidden = true;
   $('error').hidden = true;
   renderPhotos();
@@ -736,7 +837,13 @@ async function start() {
   showQuota();
   renderHistory();
   navigator.serviceWorker?.register('sw.js').catch(() => {});
-  $('queue-notify').addEventListener('click', askNotifications);
+  showNotifySetting();
+  $('notify').addEventListener('change', toggleNotify);
+  $('queue-clear').addEventListener('click', clearQueue);
+  $('batch-pick').addEventListener('click', () => $('batch-input').click());
+  $('batch-input').addEventListener('change', (e) => { pickBatch(e.target.files); e.target.value = ''; });
+  $('batch-queue').addEventListener('click', queueBatch);
+  $('batch-cancel').addEventListener('click', () => { batch = null; $('batch-plan').hidden = true; });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') processQueue(); });
   window.addEventListener('online', () => processQueue());
   setInterval(() => { renderQueue(); processQueue(); }, 60_000);

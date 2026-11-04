@@ -217,7 +217,6 @@ test('test page: without readers the reading waits and reads itself later; a fas
     await page.waitForSelector('html[data-ready="true"]');
     const read = async () => {
       await page.fill('#hint', 'Maní demo');
-      await page.fill('#test', 'R');
       await page.setInputFiles('#gallery-input', { name: 'tabla.jpg', mimeType: 'image/jpeg', buffer: photo });
       await page.waitForFunction(() => document.querySelector('#photos .metrics'));
       if (await page.isVisible('#force')) await page.check('#force');
@@ -229,7 +228,7 @@ test('test page: without readers the reading waits and reads itself later; a fas
     // 1. No reader available: the photos wait (in IndexedDB) and nothing is saved yet.
     await read();
     await page.waitForSelector('#queue-section:not([hidden])');
-    assert.match(await page.textContent('#queue'), /Maní demo · prueba R/);
+    assert.match(await page.textContent('#queue'), /Maní demo/);
     assert.match(await page.textContent('#queue'), /sin leer/);
     assert.match(await page.textContent('#queue'), /Próximo intento/);
     assert.equal((await history()).length, 0);
@@ -242,15 +241,13 @@ test('test page: without readers the reading waits and reads itself later; a fas
     assert.deepEqual(models.slice(before), ['gemini-3.6-flash'], 'only the normal reader, no fallback');
     let h = await history();
     assert.equal(h.length, 1);
-    assert.equal(h[0].test, 'R');
     assert.equal(h[0].waited.reason, 'quota');
-    assert.match(await page.textContent('#error'), /Lectura lista: Maní demo · prueba R/);
+    assert.match(await page.textContent('#error'), /Lectura lista: Maní demo/);
     await page.click('#error button:has-text("Abrir")');
     await page.waitForSelector('#result-section:not([hidden])');
     const [download] = await Promise.all([page.waitForEvent('download'), page.click('#download')]);
-    assert.match(download.suggestedFilename(), /^lectura-mani-demo_r-.*\.json$/);
+    assert.match(download.suggestedFilename(), /^lectura-mani-demo-.*\.json$/);
     const data = JSON.parse(await (await import('node:fs/promises')).readFile(await download.path(), 'utf8'));
-    assert.equal(data.test, 'R');
     assert.equal(typeof data.forced, 'boolean');
     assert.ok(Array.isArray(data.quality) && data.quality[0].metrics, 'the photo check goes in the file');
 
@@ -277,6 +274,60 @@ test('test page: without readers the reading waits and reads itself later; a fas
     assert.match(await page.textContent('#summary'), /Relectura con el lector normal: 1 diferencia\(s\).*Sodio/);
     assert.doesNotMatch(JSON.stringify(h), /base64|TEST-KEY/);
 
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
+test('test page: a batch of photos of several products, each reading named by the files, read one after another', { skip: !chromium && 'Chromium not installed (npx playwright install chromium)' }, async () => {
+  const server = await serve();
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const browser = await chromium.launch();
+  try {
+    const maker = await browser.newPage({ viewport: { width: 900, height: 1200 } });
+    await maker.setContent(`<body style="margin:0;background:#fff;font:28px Arial;padding:40px">${'INFORMACIÓN NUTRICIONAL Energía 560 168 Proteínas 12,0 3,6 '.repeat(40)}</body>`);
+    const photo = await maker.screenshot({ type: 'jpeg', quality: 90 });
+    await maker.close();
+
+    const context = await browser.newContext({ viewport: { width: 400, height: 860 } });
+    await context.addInitScript(() => localStorage.setItem('lectura.geminiKey', JSON.stringify('TEST-KEY-1234')));
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    const calls = [];
+    await page.route('https://generativelanguage.googleapis.com/**', async (route) => {
+      const body = route.request().postDataJSON();
+      calls.push({ model: /models\/([^:]+):/.exec(route.request().url())[1], prompt: body.contents[0].parts[0].text, images: body.contents[0].parts.length - 1 });
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(answer(transcription())) });
+    });
+    await page.goto(`${base}/lectura/`);
+    await page.waitForSelector('html[data-ready="true"]');
+
+    const file = (name) => ({ name, mimeType: 'image/jpeg', buffer: photo });
+    await page.setInputFiles('#batch-input', [file('prod-a_R_tabla.jpg'), file('prod-a_M_tabla.jpg'), file('prod-a_todas_ingredientes.jpg'), file('prod-b_B_1.jpg'), file('_sin-producto.jpg')]);
+    await page.waitForSelector('#batch-plan:not([hidden])');
+    const plan = await page.textContent('#batch-groups');
+    assert.match(plan, /prod-a · prueba M/);
+    assert.match(plan, /prod-a · prueba R/);
+    assert.match(plan, /prod-b · prueba B/);
+    assert.match(plan, /2 foto\(s\) \(1 compartida\)/);
+    assert.match(await page.textContent('#batch-unknown'), /_sin-producto\.jpg/);
+    assert.equal(await page.textContent('#batch-queue'), 'Poner 3 lecturas en la cola');
+
+    await page.click('#batch-queue');
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('lectura.history') ?? '[]').length === 3, null, { timeout: 30000 });
+    await page.waitForSelector('#queue-section[hidden]', { state: 'attached' });
+    assert.deepEqual(calls.map((c) => c.model), ['gemini-3.6-flash', 'gemini-3.6-flash', 'gemini-3.6-flash']);
+    assert.deepEqual(calls.map((c) => c.images), [2, 2, 1], 'the shared photo goes in both readings of prod-a');
+    assert.match(calls[0].prompt, /prod a/);
+    const history = await page.evaluate(() => JSON.parse(localStorage.getItem('lectura.history')));
+    assert.deepEqual(history.map((r) => `${r.hint}_${r.test}`).sort(), ['prod-a_M', 'prod-a_R', 'prod-b_B']);
+    const m = history.find((r) => r.test === 'M');
+    assert.deepEqual(m.files, ['prod-a_M_tabla.jpg', 'prod-a_todas_ingredientes.jpg']);
+    assert.equal(typeof m.forced, 'boolean');
+    assert.equal(m.batch, true);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

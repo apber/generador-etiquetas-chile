@@ -158,3 +158,4 @@ details[open] > summary { margin-bottom: 12px; }
 dialog { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); color: var(--text); width: min(92vw, 420px); padding: 16px; }
 dialog::backdrop { background: rgb(0 0 0 / 0.45); }
 dialog h2 { margin-top: 0; }
+code { font-family: ui-monospace, monospace; font-size: 0.85em; overflow-wrap: anywhere; }

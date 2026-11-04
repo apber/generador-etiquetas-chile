@@ -25,11 +25,32 @@ export function pacificMidnightAfter(now = Date.now()) {
 }
 
 /**
- * Time (ms) of the next attempt after an error with this code, or null when it is not retried by itself
- * (bad key, blocked or broken answer: the person decides).
+ * Which limit a 429 answer of Gemini hit: 'day' (requests per day: wait for the reset), 'minute' (requests per
+ * minute: wait a little) or null (not said). Gemini names it in error.details[].violations[].quotaId and may add
+ * a RetryInfo with retryDelay ("37s").
  */
-export function nextAttemptAt(code, now = Date.now()) {
-  if (code === 'quota') return pacificMidnightAfter(now) + AFTER_RESET_MS;
+export function quotaLimit(body) {
+  const details = body?.error?.details ?? [];
+  const ids = details.flatMap((d) => d.violations ?? []).map((v) => String(v.quotaId ?? ''));
+  if (ids.some((id) => /PerDay/i.test(id))) return { kind: 'day' };
+  const delay = details.map((d) => /^(\d+(?:\.\d+)?)s$/.exec(String(d.retryDelay ?? ''))).find(Boolean);
+  if (ids.some((id) => /PerMinute/i.test(id)) || delay) return { kind: 'minute', delayMs: delay ? Math.ceil(Number(delay[1]) * 1000) : 60_000 };
+  return { kind: null };
+}
+export const MINUTE_EXTRA_MS = 5_000;
+
+/**
+ * Time (ms) of the next attempt after an error with this code, or null when it is not retried by itself
+ * (bad key, blocked or broken answer: the person decides). body: the error answer, to tell the daily limit
+ * from the per-minute one; an unknown 429 is tried again in 15 minutes (a failed call does not use quota).
+ */
+export function nextAttemptAt(code, now = Date.now(), body = null) {
+  if (code === 'quota') {
+    const limit = quotaLimit(body);
+    if (limit.kind === 'minute') return now + limit.delayMs + MINUTE_EXTRA_MS;
+    if (limit.kind === null && body) return now + BUSY_RETRY_MS;
+    return pacificMidnightAfter(now) + AFTER_RESET_MS;
+  }
   if (RETRY_CODES.includes(code)) return now + BUSY_RETRY_MS;
   return null;
 }

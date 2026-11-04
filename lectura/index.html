@@ -42,11 +42,6 @@
         <span>Producto (como lo vende la empresa)</span>
         <input id="hint" type="text" autocomplete="off" placeholder="Ej.: Cranberries con chocolate bitter">
       </label>
-      <label class="field">
-        <span>Prueba (opcional)</span>
-        <input id="test" type="text" autocomplete="off" autocapitalize="characters" placeholder="Ej.: R (reflejo)">
-      </label>
-      <p class="hint">La prueba queda en la lectura y en el nombre del archivo que se descarga.</p>
       <p class="hint">Sirven fotos de la bolsa, capturas de la página del proveedor o las dos juntas: el sistema reconoce cada una.</p>
       <div class="row">
         <button id="take-photo" class="btn" type="button"><span aria-hidden="true">📷</span> Sacar foto</button>
@@ -60,6 +55,22 @@
         <input id="force" type="checkbox"> Leer igual, aunque alguna foto no pase la revisión
       </label>
       <button id="read" class="btn primary big" type="button" disabled>Leer etiqueta</button>
+    </section>
+
+    <section id="batch-section" class="card" aria-labelledby="batch-title">
+      <h2 id="batch-title">Lote de fotos de varios productos</h2>
+      <p class="hint">Cada foto va a la lectura que dice su nombre: <code>producto_prueba_lo-que-sea.jpg</code> (p. ej. <code>mani-bitter_R_tabla.jpg</code>). Con <code>producto_todas_….jpg</code> la foto va en todas las lecturas de ese producto (p. ej. la de ingredientes). Se lee una lectura por producto y prueba, todas en la cola del lector normal, aunque alguna foto no pase la revisión (queda anotado).</p>
+      <button id="batch-pick" class="btn" type="button"><span aria-hidden="true">🗂</span> Elegir las fotos del lote</button>
+      <input id="batch-input" type="file" accept="image/*" multiple hidden>
+      <p id="batch-status" class="loading" hidden aria-live="polite"><span class="spinner" aria-hidden="true"></span> <span></span></p>
+      <div id="batch-plan" hidden>
+        <ol id="batch-groups" class="history"></ol>
+        <p id="batch-unknown" class="hint" hidden></p>
+        <div class="row">
+          <button id="batch-queue" class="btn primary" type="button">Poner en la cola</button>
+          <button id="batch-cancel" class="btn" type="button">Cancelar</button>
+        </div>
+      </div>
     </section>
 
     <section id="result-section" class="card" hidden aria-labelledby="result-title">
@@ -93,11 +104,9 @@
     <section id="queue-section" class="card" hidden aria-labelledby="queue-title">
       <h2 id="queue-title">En espera del lector normal</h2>
       <p class="hint">Se leen solas con el lector normal cuando vuelve a haber lecturas (la cuota se renueva cerca de las 4 de la mañana en Chile; si el servicio está ocupado, se intenta cada 15 minutos). La página debe estar abierta: al abrirla, sigue sola.</p>
-      <p id="queue-notify-wrap" class="row" hidden>
-        <button id="queue-notify" class="btn small" type="button"><span aria-hidden="true">🔔</span> Avisarme cuando estén listas</button>
-      </p>
       <p id="queue-memory" class="hint" hidden>Este navegador no deja guardar las fotos: la espera se pierde si se cierra la página.</p>
       <ol id="queue" class="history"></ol>
+      <button id="queue-clear" class="btn small" type="button">Quitar todas</button>
     </section>
 
     <section id="history-section" class="card" aria-labelledby="history-title">
@@ -132,6 +141,10 @@
             <option value="low">Baja</option>
           </select>
         </label>
+        <label class="check">
+          <input id="notify" type="checkbox"> Avisar con una notificación del teléfono cuando termine una lectura en espera
+        </label>
+        <p id="notify-status" class="hint" hidden></p>
         <button id="load-models" class="btn small" type="button">Cargar la lista de modelos</button>
         <p class="hint">Instrucciones v<span id="prompt-version"></span>. En el nivel gratis, Google puede usar lo enviado para mejorar sus productos: enviar solo fotos de etiquetas.</p>
       </details>
