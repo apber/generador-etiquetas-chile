@@ -30,7 +30,7 @@ Código: [`src/reading/`](../src/reading). Prueba desde la terminal: [`scripts/r
 | Sellos del proveedor | Si su envase trae sellos distintos a los calculados, se avisa: puede faltar o sobrar algo añadido |
 | Origen | Solo si la etiqueta lo dice («Origen: Chile», «Hecho en…»). Una dirección no es el origen |
 
-4. **Alertas**: un mensaje simple por problema con una sola acción — `retake` (sacar otra foto), `review` (revisar a mano), `confirm` (confirmar), `fallback` (completar con un respaldo) o `none` (solo para la revisión). Las de `retake`, `review` y `fallback` frenan el guardado hasta que se resuelven. Textos: [`src/i18n/es-reading.js`](../src/i18n/es-reading.js).
+4. **Alertas**: un mensaje simple por problema con una sola acción — `retake` (sacar otra foto), `review` (revisar a mano), `confirm` (confirmar), `fallback` (completar con un respaldo) o `none` (solo para la revisión). Nada frena el guardado (decisión del 04-11-2026, criterio para pymes): las de `retake`, `review` y `fallback` quedan pendientes y recomiendan cómo comprobar el dato (otra foto o una captura, buscar en internet, compararlo a la vista con la bolsa); las de información que falta solo dicen cómo sale la etiqueta (p. ej. sin la línea ORIGEN). Lo que no se pudo leer o no calza no se usa en la etiqueta hasta revisarlo. Textos: [`src/i18n/es-reading.js`](../src/i18n/es-reading.js).
 
 ## Gemini
 
@@ -54,7 +54,7 @@ Tercera tanda (linaza, maravilla, pasas morenas con más fotos, caja de pistacho
 
 ### Frases de alérgenos
 
-No tienen una segunda columna con que compararlas y suelen ir en letra muy chica. Por eso: cada frase trae su legibilidad; una palabra dudosa, un alérgeno repetido en la misma frase («sésamo/sésamo», a menudo otra palabra mal leída) o una palabra que no es un alérgeno conocido («otras frutas secas») frenan el guardado hasta revisarla con la bolsa. Las listas de CONTIENE y PUEDE CONTENER sacadas de los ingredientes o de las frases de líneas compartidas se confirman siempre.
+No tienen una segunda columna con que compararlas y suelen ir en letra muy chica. Por eso: cada frase trae su legibilidad; una palabra dudosa, un alérgeno repetido en la misma frase («sésamo/sésamo», a menudo otra palabra mal leída) o una palabra que no es un alérgeno conocido («otras frutas secas») quedan pendientes y recomiendan revisarla con la bolsa. Las listas de CONTIENE y PUEDE CONTENER sacadas de los ingredientes o de las frases de líneas compartidas se confirman siempre.
 
 ### Primeras pruebas (6 productos reales, 30-10-2026)
 
@@ -74,7 +74,7 @@ Segunda tanda (5 productos más, gemini-3.6-flash, 7–14 s): 0 errores sin aler
 
 - **Clave:** cada persona pega su propia clave de Gemini; queda guardada solo en ese navegador (`localStorage`) y se envía solo a Gemini. Conviene una clave creada para pruebas y, en Google Cloud, limitarla a la API de Gemini y al sitio `apber.github.io`. La app real (etapa 7f) no pedirá clave: la llamada pasará por el servidor.
 - **Fotos:** «Sacar foto» (cámara) o «Elegir fotos» (galería, varias). No se pregunta si son fotos de la bolsa o capturas de una página: cada imagen se reconoce sola (una captura tiene mucho blanco puro) y se pueden mezclar en una misma lectura. Mientras se revisan se ve «Revisando 2 de 5 fotos…». Cada foto se revisa en el teléfono antes de gastar una lectura y muestra sus medidas (tamaño, nitidez, luz, píxeles quemados) para calibrar los umbrales con fotos de cámara.
-- **Resultado:** avisos ordenados (los que frenan primero), la tabla por 100 g con el estado de cada valor y lo impreso en las dos columnas, y los textos (ingredientes con los alérgenos en negrita, CONTIENE, PUEDE CONTENER, frases leídas, lo añadido, origen, conservación, fechas, proveedor).
+- **Resultado:** avisos ordenados (los pendientes primero), la tabla por 100 g con el estado de cada valor y lo impreso en las dos columnas, y los textos (ingredientes con los alérgenos en negrita, CONTIENE, PUEDE CONTENER, frases leídas, lo añadido, origen, conservación, fechas, proveedor).
 - **Foto de cerca:** desde el aviso que la pide, o «Foto de cerca de otra parte…»; reemplaza solo lo que muestra.
 - **Guardar:** las últimas 20 lecturas quedan en el teléfono sin las fotos. «Descargar lectura» o «Compartir lectura» entregan un archivo con la transcripción, las medidas de las fotos y el resultado, para revisarlo o compararlo con lo esperado (`--transcription`).
 - **Ajustes:** modelo (automático: el elegido y el de respaldo), razonamiento y resolución de imagen. Contador de lecturas del día (la cuota se reinicia a medianoche del Pacífico).

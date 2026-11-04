@@ -15,7 +15,7 @@ import { NUTRIENTS } from '../src/nutrients.js';
 import { NUTRIENT_LABELS, SEAL_NAMES } from '../src/i18n/es.js';
 import { catalogIndex } from '../src/allergens.js';
 
-export const PAGE_VERSION = '0.6.1-pruebas';
+export const PAGE_VERSION = '0.6.2-pruebas';
 
 const KEY_STORE = 'lectura.geminiKey';
 const HISTORY_STORE = 'lectura.history';
@@ -354,9 +354,9 @@ async function doCloseUp(file) {
 
 // ---------- Result ----------
 const ACTION = {
-  retake: { label: 'Otra foto', symbol: '!', cls: 'blocking' },
-  review: { label: 'Revisar', symbol: '!', cls: 'blocking' },
-  fallback: { label: 'Completar', symbol: '!', cls: 'blocking' },
+  retake: { label: 'Otra foto', symbol: '!', cls: 'pending' },
+  review: { label: 'Revisar', symbol: '!', cls: 'pending' },
+  fallback: { label: 'Completar', symbol: '!', cls: 'pending' },
   confirm: { label: 'Confirmar', symbol: '?', cls: 'confirm' },
   none: { label: 'Información', symbol: 'i', cls: 'info' },
 };
@@ -414,9 +414,9 @@ function renderResult(notice) {
   const info = r.alerts.filter((a) => a.action === 'none').length;
   $('summary').replaceChildren(...[
     notice ? h('p', { class: 'pill ok', role: 'status' }, h('span', { 'aria-hidden': 'true' }, '✓'), notice) : null,
-    r.summary.blocking
-      ? h('span', { class: 'pill warn' }, h('span', { 'aria-hidden': 'true' }, '!'), `${r.summary.blocking} ${r.summary.blocking === 1 ? 'frena' : 'frenan'} el guardado`)
-      : h('span', { class: 'pill ok' }, h('span', { 'aria-hidden': 'true' }, '✓'), 'Nada frena el guardado'),
+    r.summary.pending
+      ? h('span', { class: 'pill warn' }, h('span', { 'aria-hidden': 'true' }, '!'), `${r.summary.pending} por revisar (se guarda igual)`)
+      : h('span', { class: 'pill ok' }, h('span', { 'aria-hidden': 'true' }, '✓'), 'Nada por revisar'),
     r.summary.confirm ? h('span', { class: 'pill ok' }, h('span', { 'aria-hidden': 'true' }, '?'), `${r.summary.confirm} por confirmar`) : null,
     info ? h('span', { class: 'pill info' }, h('span', { 'aria-hidden': 'true' }, 'i'), `${info} informativas`) : null,
   ].filter(Boolean));
@@ -428,7 +428,7 @@ function renderResult(notice) {
     const focus = focusFor(a.code);
     return h('li', { class: `alert ${act.cls}` },
       h('div', { class: 'head' },
-        h('span', { class: `badge ${act.cls === 'blocking' ? 'warn' : act.cls === 'confirm' ? 'ok' : 'info'}`, 'aria-hidden': 'true' }, act.symbol),
+        h('span', { class: `badge ${act.cls === 'pending' ? 'warn' : act.cls === 'confirm' ? 'ok' : 'info'}`, 'aria-hidden': 'true' }, act.symbol),
         h('span', { class: 'action' }, act.label),
         h('span', { class: 'code' }, a.code)),
       a.message ? h('p', { class: 'msg' }, a.message) : null,
@@ -527,14 +527,14 @@ function renderHistory() {
   const list = historyList();
   $('history-clear').hidden = !list.length;
   $('history').replaceChildren(...(list.length ? list.map((rec) => {
-    let blocking = '?';
+    let pending = '?';
     try {
-      blocking = transcriptionToDraft(rec.transcription, { catalog, productName: rec.hint, sourceKind: rec.kind }).summary.blocking;
+      pending = transcriptionToDraft(rec.transcription, { catalog, productName: rec.hint, sourceKind: rec.kind }).summary.pending;
     } catch { /* old or broken record */ }
     return h('li', {},
       h('div', { class: 'what' },
         h('strong', {}, rec.hint ?? '(sin nombre)'),
-        h('span', {}, `${new Date(rec.createdAt).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })} · ${rec.files.length} foto(s)${rec.closeUps.length ? ` + ${rec.closeUps.length} de cerca` : ''} · ${blocking} frenan`)),
+        h('span', {}, `${new Date(rec.createdAt).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })} · ${rec.files.length} foto(s)${rec.closeUps.length ? ` + ${rec.closeUps.length} de cerca` : ''} · ${pending} por revisar`)),
       h('div', { class: 'row' },
         h('button', { class: 'btn small', type: 'button', onclick: () => openHistory(rec.id) }, 'Abrir'),
         h('button', { class: 'btn small', type: 'button', 'aria-label': `Borrar la lectura de ${rec.hint ?? 'sin nombre'}`, onclick: () => deleteHistory(rec.id) }, 'Borrar')));

@@ -268,10 +268,10 @@ test('storage and shelf life', () => {
   assert.deepEqual(shelfLife(null, '29-07-2026', '29-01-2028'), { amount: 18, unit: 'months', from: 'dates' });
 });
 
-test('draft: full reading of a clear label has no blocking alert', () => {
+test('draft: full reading of a clear label has no pending alert', () => {
   const r = transcriptionToDraft(demoTranscription(), options);
   const c = r.draft.composition;
-  assert.equal(r.summary.ready, true, JSON.stringify(r.alerts, null, 1));
+  assert.equal(r.summary.pending, 0, JSON.stringify(r.alerts, null, 1));
   // Main allergen first (the product is almonds), then the order of the statement
   assert.deepEqual(c.contains, ['almond', 'milk', 'soy']);
   assert.deepEqual(c.may_contain, ['peanut', 'tree_nuts', 'gluten']);
@@ -296,7 +296,7 @@ test('draft: missing origin, allergen line from shared-lines sentence, seals com
   assert.deepEqual(r.draft.composition.may_contain, ['peanut', 'sesame']);
   // 15 g saturated fat with added fat: the calculation also gives ALTO EN GRASAS SATURADAS
   assert.ok(codes.includes('seals_differ'));
-  assert.equal(r.summary.ready, false);
+  assert.ok(r.summary.pending > 0);
 });
 
 test('draft: a repeated or doubtful allergen word asks for review', () => {
@@ -305,7 +305,7 @@ test('draft: a repeated or doubtful allergen word asks for review', () => {
     other_allergen_statements: [{ text: 'Elaborado en líneas que también procesan maní, soya, sésamo/sésamo, otros frutos secos y mostaza.', legibility: 'clear' }],
   }), options);
   const a = r.alerts.find((x) => x.code === 'allergen_statement_doubtful');
-  assert.ok(a && a.blocking);
+  assert.ok(a && a.pending);
   assert.deepEqual(a.data.repeated, ['sésamo']);
   // A group word that repeats an allergen named before ("maní … otros frutos secos") is fine
   const ok = transcriptionToDraft(demoTranscription({ may_contain_statement: { text: 'maní, otros frutos secos', legibility: 'clear' } }), options);
@@ -317,9 +317,9 @@ test('draft: unreadable and inconsistent tables block saving', () => {
   t.nutrition_table.rows[2] = row('Grasa Total', 'g', '3,8', '1,1');
   const r = transcriptionToDraft(t, options);
   assert.ok(r.alerts.some((a) => a.code === 'table_check'));
-  assert.equal(r.summary.ready, false);
+  assert.ok(r.summary.pending > 0);
   const none = transcriptionToDraft(demoTranscription({ nutrition_table: null, ingredients: null }), options);
-  assert.deepEqual(none.alerts.filter((a) => a.blocking).map((a) => a.code).slice(0, 2), ['no_table', 'no_ingredients']);
+  assert.deepEqual(none.alerts.filter((a) => a.pending).map((a) => a.code).slice(0, 2), ['no_table', 'no_ingredients']);
 });
 
 test('score: a wrong value that no alert flags counts as a silent error', () => {
@@ -394,7 +394,7 @@ test('fallback model when the main one has no quota; its readings are reviewed i
   assert.equal(r.fallback, true);
   assert.ok(calls[1].includes(FALLBACK_MODEL));
   const d = transcriptionToDraft(r.transcription, { ...options, fallback: r.fallback, model: FALLBACK_MODEL });
-  assert.ok(d.alerts.some((a) => a.code === 'fallback_model' && a.blocking));
+  assert.ok(d.alerts.some((a) => a.code === 'fallback_model' && a.pending));
   const body = buildRequest([], { focus: 'allergens' });
   assert.match(body.contents[0].parts[0].text, /SOLO las frases de alérgenos/);
 });
@@ -471,7 +471,7 @@ test('a unit converted to an impossible amount is doubted and asks for a review'
   assert.equal(r.fields.cholesterol_mg.status !== 'doubtful', true);
   const d = transcriptionToDraft({ nutrition_table: t, images: [] }, options);
   const a = d.alerts.find((x) => x.code === 'unit_doubtful');
-  assert.ok(a && a.blocking && a.action === 'review');
+  assert.ok(a && a.pending && a.action === 'review');
   assert.match(a.message, /Sodio: la tabla dice «15g» en g/);
   assert.ok(!d.alerts.some((x) => x.code === 'value_doubtful'));
 });

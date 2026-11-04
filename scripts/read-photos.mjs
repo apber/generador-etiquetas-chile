@@ -127,7 +127,7 @@ if (opt.json) {
   console.log(`Añadido: ${c.added.map((a) => `${a.nutrient} (${a.ingredient})`).join('; ') || '—'}`);
   console.log(`Origen: ${c.country_of_origin ?? '—'} · Conservación: ${c.storage ?? '—'} · Duración: ${c.supplier_shelf_life ? `${c.supplier_shelf_life.amount} ${c.supplier_shelf_life.unit}` : '—'}`);
   console.log(`Proveedor: ${result.draft.sources[0].from}`);
-  console.log(`\nAlertas (${result.summary.blocking} frenan, ${result.summary.confirm} por confirmar):`);
+  console.log(`\nAlertas (${result.summary.pending} por revisar, ${result.summary.confirm} por confirmar):`);
   for (const a of result.alerts) console.log(`  [${a.action}] ${a.code}: ${a.message || a.detail}`);
 }
 

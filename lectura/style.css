@@ -119,11 +119,11 @@ input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-v
 
 .alerts { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .alert { border-radius: 10px; padding: 10px 12px; border-left: 6px solid var(--info); background: var(--info-bg); }
-.alert.blocking { border-left-color: var(--warn); background: var(--warn-bg); }
+.alert.pending { border-left-color: var(--warn); background: var(--warn-bg); }
 .alert.confirm { border-left-color: var(--ok); background: var(--ok-bg); }
 .alert .head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .alert .action { font-weight: 700; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.04em; }
-.alert.blocking .action { color: var(--warn); }
+.alert.pending .action { color: var(--warn); }
 .alert.confirm .action { color: var(--ok); }
 .alert .msg { margin: 4px 0 0; }
 .alert .detail { color: var(--muted); font-size: 0.88rem; margin: 4px 0 0; }

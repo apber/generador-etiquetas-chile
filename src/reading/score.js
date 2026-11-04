@@ -1,5 +1,5 @@
 // Compares a reading with the expected data, to choose model and instructions (stage 7e).
-// The key number is "silent errors": a wrong value that no blocking alert flags.
+// The key number is "silent errors": a wrong value that no alert with a recommended action flags.
 
 import { NUTRIENT_KEYS } from '../nutrients.js';
 import { normalize } from './table.js';
@@ -17,7 +17,7 @@ export function scoreReading(expected, result) {
     const field = result.fields[key] ?? { status: 'missing' };
     const got = per100[key]?.value ?? field.value ?? null;
     if (want === undefined && got === null) continue;
-    const flagged = !['ok', 'unverified'].includes(field.status) || result.alerts.some((a) => a.blocking && (a.data?.key === key || a.data?.fields?.includes(key)));
+    const flagged = !['ok', 'unverified'].includes(field.status) || result.alerts.some((a) => a.pending && (a.data?.key === key || a.data?.fields?.includes(key)));
     let outcome;
     if (want === undefined) outcome = 'extra';
     else if (got === null) outcome = 'missing';
@@ -31,7 +31,7 @@ export function scoreReading(expected, result) {
   const comp = result.draft.composition;
   if (expected.ingredients !== undefined) texts.push({ field: 'ingredients', similarity: similarity(plain(expected.ingredients), plain(comp.ingredients)), want: expected.ingredients, got: comp.ingredients });
   if (expected.ingredients !== undefined) texts.push({ field: 'ingredient_marks', ok: sameList(marks(expected.ingredients), marks(comp.ingredients)), want: marks(expected.ingredients), got: marks(comp.ingredients) });
-  const allergenFlagged = result.alerts.some((a) => a.blocking && /allergen|ingredients/.test(a.code));
+  const allergenFlagged = result.alerts.some((a) => a.pending && /allergen|ingredients/.test(a.code));
   for (const f of ['contains', 'may_contain']) {
     if (expected[f] === undefined) continue;
     const ok = sameSet(expected[f], comp[f]);
@@ -44,7 +44,7 @@ export function scoreReading(expected, result) {
   }
   if (expected.added !== undefined) texts.push({ field: 'added', ok: sameSet(expected.added.map((a) => a.nutrient), comp.added.map((a) => a.nutrient)), want: expected.added, got: comp.added });
 
-  const originFlagged = result.alerts.some((a) => a.blocking && /origin/.test(a.code));
+  const originFlagged = result.alerts.some((a) => a.pending && /origin/.test(a.code));
   for (const t of texts) if (t.field === 'country_of_origin' && !t.ok) t.flagged = originFlagged;
   const silentTexts = texts.filter((t) => t.ok === false && !t.flagged && ['contains', 'may_contain', 'country_of_origin'].includes(t.field)).map((t) => t.field);
   return {

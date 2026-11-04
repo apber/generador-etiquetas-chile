@@ -12,15 +12,18 @@ import { catalogIndex } from '../allergens.js';
 import { READING_ALERTS } from '../i18n/es-reading.js';
 import { ALERT_TEXTS, SEAL_NAMES } from '../i18n/es.js';
 
-/** Which alerts stop saving until the person acts (the others are shown but do not stop). */
-const BLOCKING = new Set(['retake', 'review', 'fallback']);
+/**
+ * Alerts that recommend an action (another photo, a check, completing a value). Since 04-11-2026 none of them stops
+ * saving: everything is saved and they stay visible until someone acts (criterion for small businesses).
+ */
+const PENDING = new Set(['retake', 'review', 'fallback']);
 
 function alert(code, data = {}) {
   const t = READING_ALERTS[code];
   return {
     code,
     action: t.action,
-    blocking: BLOCKING.has(t.action),
+    pending: PENDING.has(t.action),
     message: t.message(data),
     detail: t.detail(data),
     data,
@@ -186,13 +189,13 @@ export function transcriptionToDraft(t, options) {
     if (alerts[i].code === 'allergen_unknown' && doubtfulStatements.has(alerts[i].data.statement)) alerts.splice(i, 1);
   }
 
-  const blocking = alerts.filter((a) => a.blocking).length;
+  const pending = alerts.filter((a) => a.pending).length;
   return {
     draft,
     fields: table.fields,
     serving: table.serving,
     alerts,
-    summary: { blocking, confirm: alerts.filter((a) => a.action === 'confirm').length, ready: blocking === 0 },
+    summary: { pending, confirm: alerts.filter((a) => a.action === 'confirm').length },
   };
 }
 
