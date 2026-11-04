@@ -39,6 +39,11 @@ npm test                  # pruebas automáticas
 node scripts/read-photos.mjs …        # lectura de fotos (ver docs/lectura.md)
 ```
 
+Página de pruebas de la lectura en el celular: [apber.github.io/generador-etiquetas-chile/lectura/](https://apber.github.io/generador-etiquetas-chile/lectura/) (cada persona usa su propia clave de Gemini).
+
+```
+```
+
 Detalle de los datos y de los cálculos: [docs/formato-datos.md](docs/formato-datos.md). La plantilla: [docs/plantilla.md](docs/plantilla.md). La hoja de impresión: [docs/hoja.md](docs/hoja.md). La lectura de fotos: [docs/lectura.md](docs/lectura.md).
 
 ## Licencia

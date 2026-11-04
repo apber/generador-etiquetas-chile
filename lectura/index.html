@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="robots" content="noindex">
+  <title>Lectura de etiquetas · pruebas</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Lectura de etiquetas</h1>
+    <p class="sub">Página de pruebas · <span id="quota">0 lecturas hoy</span></p>
+  </header>
+
+  <main>
+    <section id="key-section" class="card" aria-labelledby="key-title">
+      <h2 id="key-title">Clave de Gemini</h2>
+      <div id="key-empty">
+        <p class="hint">La clave se guarda solo en este navegador y se usa solo para llamar a Gemini. Se crea gratis en <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Google AI Studio</a>.</p>
+        <label class="field">
+          <span>Clave</span>
+          <input id="key-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" placeholder="AIza…">
+        </label>
+        <button id="key-save" class="btn primary" type="button">Guardar clave</button>
+      </div>
+      <div id="key-set" hidden>
+        <p><span class="badge ok" aria-hidden="true">✓</span> Clave guardada en este navegador (<span id="key-tail"></span>).</p>
+        <div class="row">
+          <button id="key-test" class="btn" type="button">Probar clave</button>
+          <button id="key-change" class="btn" type="button">Cambiar</button>
+          <button id="key-delete" class="btn" type="button">Borrar</button>
+        </div>
+        <p id="key-status" class="hint" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section id="new-section" class="card" aria-labelledby="new-title">
+      <h2 id="new-title">Nueva lectura</h2>
+      <label class="field">
+        <span>Producto (como lo vende la empresa)</span>
+        <input id="hint" type="text" autocomplete="off" placeholder="Ej.: Cranberries con chocolate bitter">
+      </label>
+      <fieldset class="segmented">
+        <legend>Qué son las imágenes</legend>
+        <label><input type="radio" name="kind" value="label_photo" checked> Fotos de la bolsa</label>
+        <label><input type="radio" name="kind" value="web_capture"> Capturas de una página</label>
+      </fieldset>
+      <div class="row">
+        <button id="take-photo" class="btn" type="button"><span aria-hidden="true">📷</span> Sacar foto</button>
+        <button id="pick-photos" class="btn" type="button"><span aria-hidden="true">🖼</span> Elegir fotos</button>
+      </div>
+      <input id="camera-input" type="file" accept="image/*" capture="environment" hidden>
+      <input id="gallery-input" type="file" accept="image/*" multiple hidden>
+      <ol id="photos" class="photos" aria-label="Fotos elegidas"></ol>
+      <label id="force-wrap" class="check" hidden>
+        <input id="force" type="checkbox"> Leer igual, aunque alguna foto no pase la revisión
+      </label>
+      <button id="read" class="btn primary big" type="button" disabled>Leer etiqueta</button>
+    </section>
+
+    <section id="result-section" class="card" hidden aria-labelledby="result-title">
+      <h2 id="result-title">Resultado</h2>
+      <p id="result-meta" class="hint"></p>
+      <div id="summary" class="summary"></div>
+      <h3>Avisos</h3>
+      <ol id="alerts" class="alerts"></ol>
+      <div class="row">
+        <button id="closeup-any" class="btn" type="button">Foto de cerca de otra parte…</button>
+      </div>
+      <h3>Tabla nutricional (por 100 g)</h3>
+      <p id="serving" class="hint"></p>
+      <div class="table-wrap">
+        <table id="table" class="nutri">
+          <thead><tr><th scope="col">Nutriente</th><th scope="col" class="num">Valor</th><th scope="col">Estado</th><th scope="col">Impreso: 100 g | porción</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <h3>Textos</h3>
+      <dl id="texts" class="texts"></dl>
+      <h3>Fotos</h3>
+      <ul id="result-photos" class="plain"></ul>
+      <div class="row">
+        <button id="download" class="btn" type="button">Descargar lectura</button>
+        <button id="share" class="btn" type="button" hidden>Compartir lectura</button>
+        <button id="new-reading" class="btn" type="button">Nueva lectura</button>
+      </div>
+    </section>
+
+    <section id="history-section" class="card" aria-labelledby="history-title">
+      <h2 id="history-title">Lecturas guardadas en este teléfono</h2>
+      <p class="hint">Se guardan sin las fotos (solo lo leído), las últimas 20.</p>
+      <ol id="history" class="history"></ol>
+      <button id="history-clear" class="btn small" type="button" hidden>Borrar todas</button>
+    </section>
+
+    <section class="card" aria-labelledby="settings-title">
+      <details>
+        <summary><h2 id="settings-title" class="inline">Ajustes de la prueba</h2></summary>
+        <label class="field">
+          <span>Modelo</span>
+          <select id="model"></select>
+        </label>
+        <label class="field">
+          <span>Razonamiento (solo si eliges un modelo)</span>
+          <select id="thinking">
+            <option value="">Por defecto del modelo</option>
+            <option value="minimal">Mínimo</option>
+            <option value="low" selected>Bajo</option>
+            <option value="medium">Medio</option>
+            <option value="high">Alto</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Resolución de imagen en Gemini</span>
+          <select id="media">
+            <option value="high" selected>Alta</option>
+            <option value="medium">Media</option>
+            <option value="low">Baja</option>
+          </select>
+        </label>
+        <button id="load-models" class="btn small" type="button">Cargar la lista de modelos</button>
+        <p class="hint">Instrucciones v<span id="prompt-version"></span>. En el nivel gratis, Google puede usar lo enviado para mejorar sus productos: enviar solo fotos de etiquetas.</p>
+      </details>
+    </section>
+  </main>
+
+  <div class="status-bar">
+    <div id="progress" class="progress" hidden aria-live="polite">
+      <span class="spinner" aria-hidden="true"></span>
+      <span id="progress-text">Leyendo…</span>
+      <button id="cancel" class="btn small" type="button">Cancelar</button>
+    </div>
+    <div id="error" class="problem-box" hidden role="alert"></div>
+  </div>
+
+  <dialog id="chooser" aria-labelledby="chooser-title">
+    <form method="dialog">
+      <h2 id="chooser-title">Foto de cerca</h2>
+      <p id="chooser-text" class="hint"></p>
+      <label class="field" id="chooser-focus-wrap">
+        <span>Qué parte</span>
+        <select id="chooser-focus">
+          <option value="allergens">Frases de alérgenos</option>
+          <option value="table">Tabla nutricional (o algunas filas)</option>
+          <option value="ingredients">Lista de ingredientes</option>
+        </select>
+      </label>
+      <div class="stack">
+        <button id="chooser-camera" class="btn primary" type="button"><span aria-hidden="true">📷</span> Sacar foto</button>
+        <button id="chooser-gallery" class="btn" type="button"><span aria-hidden="true">🖼</span> Elegir de la galería</button>
+        <button class="btn" value="cancel">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+  <input id="closeup-camera" type="file" accept="image/*" capture="environment" hidden>
+  <input id="closeup-gallery" type="file" accept="image/*" hidden>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

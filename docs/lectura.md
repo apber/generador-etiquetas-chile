@@ -68,6 +68,20 @@ Con fotos de 720 × 1600 px. «Errores sin alerta» = dato mal leído que ningun
 
 Segunda tanda (5 productos más, gemini-3.6-flash, 7–14 s): 0 errores sin alerta con las reglas actuales.
 
+## Página de pruebas en el celular
+
+[`lectura/`](../lectura) es una página web (sin servidor) para probar la lectura con la cámara del teléfono, publicada con GitHub Pages en <https://apber.github.io/generador-etiquetas-chile/lectura/>. Usa los mismos módulos de `src/reading/`: no repite reglas.
+
+- **Clave:** cada persona pega su propia clave de Gemini; queda guardada solo en ese navegador (`localStorage`) y se envía solo a Gemini. Conviene una clave creada para pruebas y, en Google Cloud, limitarla a la API de Gemini y al sitio `apber.github.io`. La app real (etapa 7f) no pedirá clave: la llamada pasará por el servidor.
+- **Fotos:** «Sacar foto» (cámara) o «Elegir fotos» (galería, varias). Cada foto se revisa en el teléfono antes de gastar una lectura y muestra sus medidas (tamaño, nitidez, luz, píxeles quemados) para calibrar los umbrales con fotos de cámara.
+- **Resultado:** avisos ordenados (los que frenan primero), la tabla por 100 g con el estado de cada valor y lo impreso en las dos columnas, y los textos (ingredientes con los alérgenos en negrita, CONTIENE, PUEDE CONTENER, frases leídas, lo añadido, origen, conservación, fechas, proveedor).
+- **Foto de cerca:** desde el aviso que la pide, o «Foto de cerca de otra parte…»; reemplaza solo lo que muestra.
+- **Guardar:** las últimas 20 lecturas quedan en el teléfono sin las fotos. «Descargar lectura» o «Compartir lectura» entregan un archivo con la transcripción, las medidas de las fotos y el resultado, para revisarlo o compararlo con lo esperado (`--transcription`).
+- **Ajustes:** modelo (automático: el elegido y el de respaldo), razonamiento y resolución de imagen. Contador de lecturas del día (la cuota se reinicia a medianoche del Pacífico).
+- **Colores:** azul = bien, naranja = problema, siempre con un símbolo y una palabra (no depende del color).
+
+Prueba automática: [`test/lectura-page.test.js`](../test/lectura-page.test.js) (Chromium con Gemini simulado).
+
 ## Probar desde la terminal
 
 ```
