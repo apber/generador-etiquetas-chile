@@ -15,7 +15,7 @@ import { NUTRIENTS } from '../src/nutrients.js';
 import { NUTRIENT_LABELS, SEAL_NAMES } from '../src/i18n/es.js';
 import { catalogIndex } from '../src/allergens.js';
 
-export const PAGE_VERSION = '0.6.0';
+export const PAGE_VERSION = '0.6.3';
 
 const KEY_STORE = 'lectura.geminiKey';
 const HISTORY_STORE = 'lectura.history';
