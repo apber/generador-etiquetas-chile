@@ -15,7 +15,7 @@ import { NUTRIENTS } from '../src/nutrients.js';
 import { NUTRIENT_LABELS, SEAL_NAMES } from '../src/i18n/es.js';
 import { catalogIndex } from '../src/allergens.js';
 
-export const PAGE_VERSION = '0.6-pruebas';
+export const PAGE_VERSION = '0.6.1-pruebas';
 
 const KEY_STORE = 'lectura.geminiKey';
 const HISTORY_STORE = 'lectura.history';
@@ -241,16 +241,18 @@ function updateReadButton() {
 }
 
 // ---------- Reading ----------
-function fetchWithAbort(signal) {
-  return (url, init) => fetch(url, { ...init, signal });
-}
 async function callGemini(images, extra = {}) {
   const s = settings();
   abort = new AbortController();
-  const common = { apiKey: getKey(), productHint: $('hint').value.trim() || null, mediaResolution: s.media, fetchImpl: fetchWithAbort(abort.signal), ...extra };
   const t0 = performance.now();
+  let stage = 'Leyendo…';
+  const onAttempt = ({ model, attempt }) => {
+    if (model === FALLBACK_MODEL && s.model === 'auto') stage = 'Lector normal ocupado. Probando el lector rápido…';
+    else if (attempt > 0) stage = 'Servicio ocupado. Reintentando…';
+  };
+  const common = { apiKey: getKey(), productHint: $('hint').value.trim() || null, mediaResolution: s.media, signal: abort.signal, onAttempt, ...extra };
   const timer = setInterval(() => {
-    $('progress-text').textContent = `Leyendo… ${Math.round((performance.now() - t0) / 1000)} s`;
+    $('progress-text').textContent = `${stage} ${Math.round((performance.now() - t0) / 1000)} s`;
   }, 500);
   $('progress').hidden = false;
   $('error').hidden = true;
@@ -340,7 +342,7 @@ async function doCloseUp(file) {
     current.closeUps.push({
       focus, file: file.name || 'foto-de-cerca.jpg', replaced: merged.replaced,
       quality: { ok: prepared.ok, reasons: prepared.reasons, metrics: prepared.metrics, original: prepared.original },
-      transcription: reading.transcription, model: reading.model, usage: reading.usage, seconds: reading.seconds, fallback: reading.fallback,
+      transcription: reading.transcription, model: reading.model, usage: reading.usage, seconds: reading.seconds, fallback: reading.fallback, fallbackReason: reading.fallbackReason ?? null,
     });
     current.transcription = merged.transcription;
     saveToHistory(current);
@@ -369,9 +371,10 @@ const STATUS = {
 
 function result() {
   const fallback = current.reading.fallback || current.closeUps.some((c) => c.fallback);
+  const fallbackReason = current.reading.fallback ? current.reading.fallbackReason : current.closeUps.find((c) => c.fallback)?.fallbackReason;
   return transcriptionToDraft(current.transcription, {
     catalog, productName: current.hint, sourceKind: current.kind, files: [...current.files, ...current.closeUps.map((c) => c.file)],
-    model: current.reading.model, promptVersion: current.reading.promptVersion, fallback, date: current.createdAt.slice(0, 10),
+    model: current.reading.model, promptVersion: current.reading.promptVersion, fallback, fallbackReason: fallbackReason ?? undefined, date: current.createdAt.slice(0, 10),
   });
 }
 

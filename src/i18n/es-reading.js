@@ -17,8 +17,10 @@ const fmt = (x) => String(x).replace('.', ',');
 export const READING_ALERTS = {
   fallback_model: {
     action: 'review',
-    message: () => 'Hoy se acabaron las lecturas normales: esta se hizo con el lector rápido, que se equivoca más. Revise todos los datos con la bolsa (o léala de nuevo mañana).',
-    detail: (p) => `Modelo de respaldo: ${p.model}.`,
+    message: (p) => (p.reason === 'quota'
+      ? 'Hoy se acabaron las lecturas normales: esta se hizo con el lector rápido, que se equivoca más. Revise todos los datos con la bolsa (o léala de nuevo mañana).'
+      : 'El lector normal estaba ocupado: esta se hizo con el lector rápido, que se equivoca más. Revise todos los datos con la bolsa (o léala de nuevo en un rato).'),
+    detail: (p) => `Modelo de respaldo: ${p.model}. Causa: ${{ quota: 'cuota del día agotada', overloaded: 'servicio ocupado', timeout: 'no respondió a tiempo' }[p.reason] ?? p.reason}.`,
   },
   photo_unusable: {
     action: 'retake',

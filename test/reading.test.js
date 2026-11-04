@@ -411,3 +411,32 @@ test('close-up of one row or one number replaces only that row', () => {
   assert.equal(r.fields.protein_g.status, 'ok');
   assert.equal(r.values?.protein_g ?? r.draft.nutrition.per_100g.protein_g.value, 12);
 });
+
+test('an attempt that does not answer in time ends with a timeout and the fallback model reads instead', async () => {
+  const hang = (url, init) => new Promise((resolve, reject) => {
+    if (!url.includes(DEFAULT_MODEL)) {
+      resolve({ ok: true, status: 200, json: async () => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(demoTranscription()) }] } }] }) });
+      return;
+    }
+    init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+  });
+  await assert.rejects(readWithGemini([], { apiKey: 'k', model: DEFAULT_MODEL, timeoutMs: 20, fetchImpl: hang }), { code: 'timeout' });
+  const seen = [];
+  const r = await readWithFallback([], { apiKey: 'k', timeoutMs: 20, fetchImpl: hang, onAttempt: (a) => seen.push(a.model) });
+  assert.equal(r.fallback, true);
+  assert.equal(r.fallbackReason, 'timeout');
+  assert.deepEqual(seen, [DEFAULT_MODEL, FALLBACK_MODEL]);
+  const d = transcriptionToDraft(r.transcription, { ...options, fallback: true, fallbackReason: r.fallbackReason, model: FALLBACK_MODEL });
+  const a = d.alerts.find((x) => x.code === 'fallback_model');
+  assert.match(a.message, /ocupado/);
+  assert.match(a.detail, /no respondió a tiempo/);
+  const q = transcriptionToDraft(r.transcription, { ...options, fallback: true, fallbackReason: 'quota', model: FALLBACK_MODEL });
+  assert.match(q.alerts.find((x) => x.code === 'fallback_model').message, /se acabaron/);
+});
+
+test('cancelling a reading stops it at once and is not turned into a fallback reading', async () => {
+  const ctrl = new AbortController();
+  const hang = (url, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))));
+  setTimeout(() => ctrl.abort(), 10);
+  await assert.rejects(readWithFallback([], { apiKey: 'k', fetchImpl: hang, signal: ctrl.signal }), { name: 'AbortError' });
+});

@@ -32,7 +32,7 @@ function alert(code, data = {}) {
  *   catalog: data/allergens.json,
  *   productName: name given by the user (helps put the main allergen first),
  *   sourceId, sourceKind ('label_photo' | 'web_capture' | 'technical_sheet'), files: [names], date: 'YYYY-MM-DD',
- *   model, promptVersion
+ *   model, promptVersion, fallback, fallbackReason ('quota' | 'overloaded' | 'timeout')
  * }
  * Returns { draft, fields, alerts, summary }.
  */
@@ -41,7 +41,7 @@ export function transcriptionToDraft(t, options) {
   const sourceId = options.sourceId ?? 'r1';
   const alerts = [];
 
-  if (options.fallback) alerts.push(alert('fallback_model', { model: options.model }));
+  if (options.fallback) alerts.push(alert('fallback_model', { model: options.model, reason: options.fallbackReason ?? 'quota' }));
 
   // Image problems reported by the AI
   const withProblems = (t.images ?? []).filter((i) => i.problems?.length);

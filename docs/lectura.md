@@ -34,13 +34,13 @@ Código: [`src/reading/`](../src/reading). Prueba desde la terminal: [`scripts/r
 
 ## Gemini
 
-[`gemini.js`](../src/reading/gemini.js) llama a la API de Gemini con salida JSON (`responseSchema`) y resolución alta de imagen. En la app la llamada pasa por un servidor que guarda la clave; para las pruebas se usa la clave de quien desarrolla (`GEMINI_API_KEY`). Errores con mensaje simple: cuota agotada, servicio ocupado (un reintento), clave inválida, respuesta incompleta.
+[`gemini.js`](../src/reading/gemini.js) llama a la API de Gemini con salida JSON (`responseSchema`) y resolución alta de imagen. En la app la llamada pasa por un servidor que guarda la clave; para las pruebas se usa la clave de quien desarrolla (`GEMINI_API_KEY`). Errores con mensaje simple: cuota agotada, servicio ocupado (un reintento), sin respuesta a tiempo (90 s por intento, `TIMEOUT_MS`), clave inválida, respuesta incompleta. Cancelar corta la lectura de inmediato.
 
 En el nivel gratuito Google puede usar lo enviado para mejorar sus productos: enviar solo fotos de etiquetas, sin personas ni datos personales.
 
 ### Modelo
 
-`gemini-3.6-flash` con razonamiento bajo (elegido el 30-10-2026). Si se acaba su cuota del día o está ocupado, `gemini-3.5-flash-lite`; esa lectura lleva un aviso que pide revisar todos los datos con la bolsa, porque ese modelo lee con seguridad lo que no está claro. [`readWithFallback`](../src/reading/gemini.js).
+`gemini-3.6-flash` con razonamiento bajo (elegido el 30-10-2026). Si se acaba su cuota del día, está ocupado o no responde a tiempo, `gemini-3.5-flash-lite`; esa lectura lleva un aviso que pide revisar todos los datos con la bolsa (con la causa: cuota → «léala de nuevo mañana»; ocupado o sin respuesta → «en un rato»), porque ese modelo lee con seguridad lo que no está claro. [`readWithFallback`](../src/reading/gemini.js).
 
 ### Foto de cerca de una sección
 
