@@ -95,6 +95,20 @@ test('separate corrections for the drawing and the images ("drawing/images")', (
   assert.equal(correctionName(split), 'Dibujo: Luminosidad 0,475 · saturación ×1,2<br>Imágenes: Luminosidad 0,5');
 });
 
+test('photo paper: background of the label with its own correction (overrides)', () => {
+  const html = '<p style="fill: #F6EEDF; color: #3A221A">';
+  const out = adjustColors(html, 'L0.45S1.25/L0.5', { '#f6eedf': 0.45 });
+  assert.match(out, new RegExp(`fill: ${adjustColors('#F6EEDF', 0.45)};`));
+  assert.match(out, new RegExp(`color: ${adjustColors('#3A221A', 'L0.45S1.25')}"`));
+  assert.equal(adjustColors(html, 1, { '#F6EEDF': 1 }), html);
+  const plan = planSheet([lab('a', 51.7)]);
+  const photo = sheetPage(plan, ['<div class="label" style="fill: #F6EEDF"></div>'], { paperType: 'fotografico' });
+  assert.match(photo, new RegExp(adjustColors('#F6EEDF', 0.45)));
+  assert.match(photo, /data-correction="L0\.45S1\.25\/L0\.5"/);
+  const explicit = sheetPage(plan, ['<div class="label" style="fill: #F6EEDF"></div>'], { paperType: 'fotografico', gamma: 'L0.5' });
+  assert.match(explicit, new RegExp(adjustColors('#F6EEDF', 'L0.5')), 'an explicit --gamma applies to everything');
+});
+
 test('sheet page: paper size, one section per page, labels at real size', () => {
   const plan = planSheet([lab('a', 51.7), lab('b', 48.4)]);
   const page = sheetPage(plan, ['<div class="label">A</div>', '<div class="label">B</div>']);

@@ -12,12 +12,15 @@ import { MM } from '../template/geometry.js';
 /**
  * Paper types: gamma applied to the colors (1 = unchanged; < 1 lighter). Chosen with a calibration sheet
  * (--calibrate): the value whose print on that paper looks most like the plain-paper print.
- * fotografico: 0.45, between tests 0.5 and 0.4 (30-10-2026; Epson L375, glossy photo paper, driver set to the
- * glossy photo paper type). Another printer or paper may need another value.
+ * fotografico (04-11-2026; Epson L375, glossy photo paper, driver set to the glossy photo paper type): the
+ * drawing with lightness 0.45 and colorfulness × 1.25, the images (logo with the hibiscus) with lightness 0.5,
+ * and the background of the label with 0.45 per channel (keeps it pale and neutral instead of yellowish). Before:
+ * 0.45 per channel for everything (30-10-2026). Another printer or paper may need other values.
+ * overrides: { '#RRGGBB': spec } = colors of the drawing corrected with another spec.
  */
 export const PAPER_TYPES = {
   normal: { name: 'Papel normal o adhesivo mate', gamma: 1 },
-  fotografico: { name: 'Papel fotográfico brillante', gamma: 0.45 },
+  fotografico: { name: 'Papel fotográfico brillante', gamma: 'L0.45S1.25/L0.5', overrides: { '#F6EEDF': 0.45 } },
 };
 
 const CSS_PX_PER_MM = 96 / 25.4;
@@ -80,15 +83,17 @@ export function colorCorrector(spec, part = 'drawing') {
 }
 
 /** Applies a color correction (see colorCorrector) to every #rgb, #rrggbb and rgb()/rgba() color of a piece of HTML. */
-export function adjustColors(html, spec) {
+export function adjustColors(html, spec, overrides = {}) {
   const fix = colorCorrector(spec);
-  if (!fix) return html;
+  const special = Object.fromEntries(Object.entries(overrides).map(([k, v]) => [k.toUpperCase(), colorCorrector(v) ?? ((r, g, b) => [r, g, b])]));
+  if (!fix && !Object.keys(special).length) return html;
   const hex = ([R, G, B]) => `#${hex2(R)}${hex2(G)}${hex2(B)}`;
+  const same = (r, g, b) => [r, g, b];
   return html
-    .replace(/(?<!&)#([0-9a-fA-F]{6})\b/g, (m, h) => hex(fix(...[0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)))))
-    .replace(/(?<!&)#([0-9a-fA-F]{3})\b/g, (m, h) => hex(fix(...[...h].map((c) => parseInt(c + c, 16)))))
+    .replace(/(?<!&)#([0-9a-fA-F]{6})\b/g, (m, h) => hex((special[`#${h.toUpperCase()}`] ?? fix ?? same)(...[0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16)))))
+    .replace(/(?<!&)#([0-9a-fA-F]{3})\b/g, (m, h) => hex((fix ?? same)(...[...h].map((c) => parseInt(c + c, 16)))))
     .replace(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(\s*,\s*[\d.]+)?\s*\)/g, (m, r, g, b, a) => {
-      const [R, G, B] = fix(Number(r), Number(g), Number(b));
+      const [R, G, B] = (fix ?? same)(Number(r), Number(g), Number(b));
       return a ? `rgba(${R}, ${G}, ${B}${a})` : `rgb(${R}, ${G}, ${B})`;
     });
 }
@@ -146,11 +151,12 @@ const fmt = (v) => String(v).replace('.', ',');
 export function sheetPage(plan, labelsHtml, options = {}) {
   const type = PAPER_TYPES[options.paperType ?? 'normal'] ?? PAPER_TYPES.normal;
   const gamma = options.gamma ?? type.gamma;
+  const overrides = options.gamma === undefined ? type.overrides ?? {} : {};
   const W = plan.paper.width, H = plan.paper.height;
   const pages = plan.pages.map((p) => {
     const items = p.items.map((it) => {
       const g = options.itemGamma?.[it.index] ?? gamma;
-      const label = adjustColors(labelsHtml[it.index], g);
+      const label = adjustColors(labelsHtml[it.index], g, options.itemGamma ? {} : overrides);
       const cap = options.captions?.[it.index];
       const caption = cap ? `<div style="position: absolute; left: 652px; top: 150px; width: 118px; font-family: Arial, sans-serif; font-size: 7px; line-height: 1.3; color: #000000">${cap}</div>` : '';
       return `<div data-correction="${g}" style="position: absolute; left: ${it.xMm.toFixed(3)}mm; top: ${it.yMm.toFixed(3)}mm; transform: scale(${SCALE.toFixed(6)}); transform-origin: 0 0">${label}${caption}</div>`;
