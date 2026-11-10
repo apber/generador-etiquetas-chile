@@ -299,8 +299,9 @@ test('test page: a batch of photos of several products, each reading named by th
     const calls = [];
     await page.route('https://generativelanguage.googleapis.com/**', async (route) => {
       const body = route.request().postDataJSON();
-      calls.push({ model: /models\/([^:]+):/.exec(route.request().url())[1], prompt: body.contents[0].parts[0].text, images: body.contents[0].parts.length - 1 });
-      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(answer(transcription())) });
+      const model = /models\/([^:]+):/.exec(route.request().url())[1];
+      calls.push({ model, prompt: body.contents[0].parts[0].text, images: body.contents[0].parts.length - 1 });
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ ...answer(transcription()), modelVersion: model }) });
     });
     await page.goto(`${base}/lectura/`);
     await page.waitForSelector('html[data-ready="true"]');
@@ -328,6 +329,35 @@ test('test page: a batch of photos of several products, each reading named by th
     assert.deepEqual(m.files, ['prod-a_M_tabla.jpg', 'prod-a_todas_ingredientes.jpg']);
     assert.equal(typeof m.forced, 'boolean');
     assert.equal(m.batch, true);
+
+    // The same photo read again in a batch with the fast reader (to compare it with the normal one).
+    await page.setInputFiles('#batch-input', [file('prod-a_M_tabla.jpg')]);
+    await page.waitForSelector('#batch-plan:not([hidden])');
+    await page.selectOption('#batch-reader', 'fast');
+    await page.click('#batch-queue');
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('lectura.history') ?? '[]').length === 4, null, { timeout: 30000 });
+    assert.equal(calls.at(-1).model, 'gemini-3.5-flash-lite');
+    const after = await page.evaluate(() => JSON.parse(localStorage.getItem('lectura.history')));
+    assert.equal(after.filter((r) => r.test === 'M').length, 2, 'the fast reading does not replace the normal one');
+    assert.match(await page.textContent('#history'), /lector rápido/);
+
+    // Download one reading without opening it, and several in one .zip.
+    const [one] = await Promise.all([page.waitForEvent('download'), page.click('#history li:first-child button:has-text("Descargar")')]);
+    assert.match(one.suggestedFilename(), /^lectura-prod-a_m-rapido-\d{4}-\d\d-\d\d-\d\d-\d\d\.json$/);
+    const saved = JSON.parse(await readFile(await one.path(), 'utf8'));
+    assert.equal(saved.reading.model, 'gemini-3.5-flash-lite');
+    assert.equal(saved.reader, 'fast');
+    assert.ok(saved.result?.fields, 'the result is computed for a reading that was not opened');
+    assert.equal(await page.isDisabled('#history-zip'), true);
+    await page.click('#history-all');
+    assert.equal(await page.textContent('#history-zip'), 'Descargar seleccionadas (4)');
+    await page.uncheck('#history li:nth-child(2) input.pick');
+    const [zip] = await Promise.all([page.waitForEvent('download'), page.click('#history-zip')]);
+    assert.match(zip.suggestedFilename(), /^lecturas-3-.*\.zip$/);
+    const bytes = await readFile(await zip.path());
+    assert.equal(bytes.readUInt32LE(0), 0x04034B50, 'zip file');
+    const names = [...bytes.toString('latin1').matchAll(/lectura-[a-z0-9_-]+\.json/g)].map((x) => x[0]);
+    assert.equal(new Set(names).size, 3);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

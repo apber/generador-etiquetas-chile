@@ -59,13 +59,20 @@
 
     <section id="batch-section" class="card" aria-labelledby="batch-title">
       <h2 id="batch-title">Lote de fotos de varios productos</h2>
-      <p class="hint">Cada foto va a la lectura que dice su nombre: <code>producto_prueba_lo-que-sea.jpg</code> (p. ej. <code>mani-bitter_R_tabla.jpg</code>). Con <code>producto_todas_….jpg</code> la foto va en todas las lecturas de ese producto (p. ej. la de ingredientes). Se lee una lectura por producto y prueba, todas en la cola del lector normal, aunque alguna foto no pase la revisión (queda anotado).</p>
+      <p class="hint">Cada foto va a la lectura que dice su nombre: <code>producto_prueba_lo-que-sea.jpg</code> (p. ej. <code>mani-bitter_R_tabla.jpg</code>). Con <code>producto_todas_….jpg</code> la foto va en todas las lecturas de ese producto (p. ej. la de ingredientes). Se lee una lectura por producto y prueba, todas en la cola del lector elegido, aunque alguna foto no pase la revisión (queda anotado). El lector rápido tiene su propia cuota del día: no espera a las lecturas del normal.</p>
       <button id="batch-pick" class="btn" type="button"><span aria-hidden="true">🗂</span> Elegir las fotos del lote</button>
       <input id="batch-input" type="file" accept="image/*" multiple hidden>
       <p id="batch-status" class="loading" hidden aria-live="polite"><span class="spinner" aria-hidden="true"></span> <span></span></p>
       <div id="batch-plan" hidden>
         <ol id="batch-groups" class="history"></ol>
         <p id="batch-unknown" class="hint" hidden></p>
+        <label class="field">
+          <span>Leer el lote con</span>
+          <select id="batch-reader">
+            <option value="normal" selected>Lector normal (gemini-3.6-flash)</option>
+            <option value="fast">Lector rápido (gemini-3.5-flash-lite), para compararlo con el normal</option>
+          </select>
+        </label>
         <div class="row">
           <button id="batch-queue" class="btn primary" type="button">Poner en la cola</button>
           <button id="batch-cancel" class="btn" type="button">Cancelar</button>
@@ -102,8 +109,8 @@
     </section>
 
     <section id="queue-section" class="card" hidden aria-labelledby="queue-title">
-      <h2 id="queue-title">En espera del lector normal</h2>
-      <p class="hint">Se leen solas con el lector normal cuando vuelve a haber lecturas (la cuota se renueva cerca de las 4 de la mañana en Chile; si el servicio está ocupado, se intenta cada 15 minutos). La página debe estar abierta: al abrirla, sigue sola.</p>
+      <h2 id="queue-title">Lecturas en espera</h2>
+      <p class="hint">Se leen solas con su lector (normal, salvo un lote pedido con el rápido) cuando vuelve a haber lecturas (la cuota se renueva cerca de las 4 de la mañana en Chile; si el servicio está ocupado, se intenta cada 15 minutos). La página debe estar abierta: al abrirla, sigue sola.</p>
       <p id="queue-memory" class="hint" hidden>Este navegador no deja guardar las fotos: la espera se pierde si se cierra la página.</p>
       <ol id="queue" class="history"></ol>
       <button id="queue-clear" class="btn small" type="button">Quitar todas</button>
@@ -111,7 +118,11 @@
 
     <section id="history-section" class="card" aria-labelledby="history-title">
       <h2 id="history-title">Lecturas guardadas en este teléfono</h2>
-      <p class="hint">Se guardan sin las fotos (solo lo leído): las 3 últimas de cada producto (y de cada prueba), hasta 60 en total.</p>
+      <p class="hint">Se guardan sin las fotos (solo lo leído): las 3 últimas de cada producto (y de cada prueba y lector), hasta 60 en total. Marque las que quiera para bajarlas juntas en un archivo .zip.</p>
+      <div id="history-tools" class="row" hidden>
+        <button id="history-all" class="btn small" type="button">Seleccionar todas</button>
+        <button id="history-zip" class="btn small primary" type="button" disabled>Descargar seleccionadas</button>
+      </div>
       <ol id="history" class="history"></ol>
       <button id="history-clear" class="btn small" type="button" hidden>Borrar todas</button>
     </section>

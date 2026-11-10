@@ -18,8 +18,9 @@ import { nextAttemptAt, RETRY_CODES } from '../src/reading/retry.js';
 import { compareDrafts } from '../src/reading/compare.js';
 import { queueStore } from './queue-store.js';
 import { groupBatch, hintOf } from './batch.js';
+import { makeZip } from './zip.js';
 
-export const PAGE_VERSION = '0.6.7';
+export const PAGE_VERSION = '0.6.8';
 
 const KEY_STORE = 'lectura.geminiKey';
 const HISTORY_STORE = 'lectura.history';
@@ -28,7 +29,9 @@ const SETTINGS_STORE = 'lectura.settings';
 const NOTIFY_STORE = 'lectura.notify';
 const QUEUE_PAUSE_MS = 4000; // between waiting readings, to stay under the per-minute limit
 const HISTORY_MAX = 60;
-const HISTORY_PER_KEY = 3; // the last 3 readings of each product (and test)
+const HISTORY_PER_KEY = 3; // the last 3 readings of each product (and test, and reader: the fast ones do not push out the normal ones)
+const READERS = { normal: DEFAULT_MODEL, fast: FALLBACK_MODEL };
+const READER_NAME = { normal: 'normal', fast: 'rápido' };
 
 const $ = (id) => document.getElementById(id);
 const fmt = (x) => (x === null || x === undefined ? '—' : String(x).replace('.', ','));
@@ -249,8 +252,8 @@ function updateReadButton() {
 }
 
 // ---------- Reading ----------
-async function callGemini(images, extra = {}, { normalOnly = false, label = null } = {}) {
-  const s = normalOnly ? { ...settings(), model: DEFAULT_MODEL, thinking: undefined } : settings();
+async function callGemini(images, extra = {}, { fixedModel = null, label = null } = {}) {
+  const s = fixedModel ? { ...settings(), model: fixedModel, thinking: undefined } : settings();
   abort = new AbortController();
   const t0 = performance.now();
   let stage = label ?? 'Leyendo…';
@@ -266,7 +269,7 @@ async function callGemini(images, extra = {}, { normalOnly = false, label = null
   $('error').hidden = true;
   updateReadButton();
   try {
-    const r = s.model === 'auto' && !normalOnly
+    const r = s.model === 'auto' && !fixedModel
       ? await readWithFallback(images, common)
       : { ...(await readWithGemini(images, { ...common, model: s.model, thinkingLevel: s.thinking })), fallback: false };
     r.seconds = Math.round((performance.now() - t0) / 100) / 10;
@@ -352,17 +355,18 @@ function showWaiting(hint) {
   const box = $('error');
   box.hidden = false;
   box.classList.add('notice');
-  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `No hubo lector disponible: «${hint ?? 'sin nombre'}» quedó en espera.`), ' Se leerá sola con el lector normal; mire «En espera del lector normal».'));
+  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `No hubo lector disponible: «${hint ?? 'sin nombre'}» quedó en espera.`), ' Se leerá sola con el lector normal; mire «Lecturas en espera».'));
   $('queue-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ---------- Waiting readings (read again by themselves with the normal reader) ----------
 let queueSeq = 0;
-function queueItem({ kind, of, base, images, reason, body = null, now = Date.now() }) {
+function queueItem({ kind, of, base, images, reason, body = null, now = Date.now(), reader = 'normal' }) {
   queueSeq += 1;
   return {
     id: `q${now}-${queueSeq}`, order: now * 1000 + (queueSeq % 1000), kind, of, createdAt: new Date(now).toISOString(), base, images, reason,
     notBefore: reason === 'batch' ? now : nextAttemptAt(reason, now, body) ?? now, attempts: 0, lastError: null,
+    ...(reader === 'fast' ? { reader } : {}), // old items have no reader: normal
   };
 }
 async function enqueue(args) {
@@ -377,11 +381,13 @@ async function processQueue({ only = null } = {}) {
     for (const item of await queueStore.all()) {
       if (only ? item.id !== only : (item.failed || item.notBefore > Date.now())) continue;
       if (done) await new Promise((r) => setTimeout(r, QUEUE_PAUSE_MS));
-      const label = `En espera: leyendo «${item.base.hint ?? 'sin nombre'}» con el lector normal…`;
+      const reader = readerOf(item);
+      const label = `En espera: leyendo «${item.base.hint ?? 'sin nombre'}» con el lector ${READER_NAME[reader]}…`;
       try {
-        const reading = await callGemini(item.images, { productHint: item.base.productHint ?? item.base.hint }, { normalOnly: true, label });
+        const reading = await callGemini(item.images, { productHint: item.base.productHint ?? item.base.hint }, { fixedModel: READERS[reader], label });
         const rec = newRecord(reading, item.base, {
           waited: { queuedAt: item.createdAt, reason: item.reason, attempts: item.attempts + 1 },
+          ...(reader === 'fast' ? { reader: 'fast' } : {}), // fast reader on purpose (batch to compare readers)
           ...(item.of ? { rereadOf: item.of } : {}),
         });
         const original = item.of ? historyList().find((x) => x.id === item.of) : null;
@@ -399,9 +405,9 @@ async function processQueue({ only = null } = {}) {
         const at = nextAttemptAt(code, Date.now(), e?.info?.body);
         await queueStore.put({ ...item, attempts: item.attempts + 1, lastError: e.message ?? String(e), notBefore: at ?? item.notBefore, failed: at === null });
         if (code === 'quota') {
-          // The quota is shared: every waiting reading waits (for the reset, or a minute for the per-minute limit).
-          for (const other of await queueStore.all()) if (!other.failed) await queueStore.put({ ...other, notBefore: Math.max(other.notBefore, at) });
-          break;
+          // Each reader has its own quota: the readings waiting for the same reader wait (for the reset, or a
+          // minute for the per-minute limit); the other reader goes on.
+          for (const other of await queueStore.all()) if (!other.failed && readerOf(other) === reader) await queueStore.put({ ...other, notBefore: Math.max(other.notBefore, at) });
         }
       }
     }
@@ -409,6 +415,9 @@ async function processQueue({ only = null } = {}) {
     queueBusy = false;
     await renderQueue();
   }
+}
+function readerOf(item) {
+  return item.reader === 'fast' ? 'fast' : 'normal';
 }
 async function clearQueue() {
   if (!confirm('¿Quitar todas las lecturas en espera? Se borran sus fotos.')) return;
@@ -429,7 +438,7 @@ async function renderQueue() {
   $('queue').replaceChildren(...items.map((it) => {
     const what = it.kind === 'reread'
       ? `ya leída con el lector rápido (${REASON_TEXT[it.reason] ?? it.reason}); falta la del normal`
-      : `sin leer (${REASON_TEXT[it.reason] ?? it.reason})`;
+      : `sin leer (${REASON_TEXT[it.reason] ?? it.reason}) · lector ${READER_NAME[readerOf(it)]}`;
     const bad = it.base.quality.filter((q) => !q.ok).length;
     const next = it.failed ? `No se pudo: ${it.lastError}` : it.notBefore > Date.now() ? `Próximo intento: ${when(it.notBefore)}` : 'Se lee apenas se pueda';
     return h('li', {},
@@ -449,7 +458,7 @@ async function notifyReady(rec, left = 0) {
   try {
     if (store.get(NOTIFY_STORE, false) && 'Notification' in window && Notification.permission === 'granted') {
       // One notification for the whole queue (same tag): it is replaced, not piled up.
-      await showNotification(`Lectura lista: ${name}`, { body: `Se leyó con el lector normal.${diff}${rest}`, tag: 'lectura-cola', renotify: true });
+      await showNotification(`Lectura lista: ${name}`, { body: `Se leyó con el lector ${isFast(rec) ? 'rápido' : 'normal'}.${diff}${rest}`, tag: 'lectura-cola', renotify: true });
     }
   } catch { /* the page still shows it */ }
   const box = $('error');
@@ -570,6 +579,7 @@ function renderBatch() {
 }
 async function queueBatch() {
   if (!batch) return;
+  const reader = $('batch-reader').value === 'fast' ? 'fast' : 'normal';
   const now = Date.now();
   let count = 0;
   for (const g of batch.plan.groups) {
@@ -581,7 +591,7 @@ async function queueBatch() {
       hint: g.product, productHint: hintOf(g.product), test: g.test, kind: kindOf(prepared), files,
       quality: qualityOf(prepared, files), forced: prepared.some((p) => !p.ok), batch: true,
     };
-    await queueStore.put(queueItem({ kind: 'read', of: null, base, images: prepared.map((p) => p.image), reason: 'batch', now }));
+    await queueStore.put(queueItem({ kind: 'read', of: null, base, images: prepared.map((p) => p.image), reason: 'batch', now, reader }));
     count += 1;
   }
   batch = null;
@@ -590,7 +600,7 @@ async function queueBatch() {
   const box = $('error');
   box.hidden = false;
   box.classList.add('notice');
-  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `${count} ${count === 1 ? 'lectura quedó' : 'lecturas quedaron'} en la cola.`), ' Se leen una tras otra con el lector normal; si se acaban las del día, siguen solas después de que se renueve la cuota (con la página abierta).'));
+  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `${count} ${count === 1 ? 'lectura quedó' : 'lecturas quedaron'} en la cola.`), ` Se leen una tras otra con el lector ${READER_NAME[reader]}; si se acaban las del día, siguen solas después de que se renueve la cuota (con la página abierta).`));
   $('queue-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   processQueue();
 }
@@ -655,12 +665,19 @@ const STATUS = {
 };
 
 function result() {
-  const fallback = current.reading.fallback || current.closeUps.some((c) => c.fallback);
-  const fallbackReason = current.reading.fallback ? current.reading.fallbackReason : current.closeUps.find((c) => c.fallback)?.fallbackReason;
-  return transcriptionToDraft(current.transcription, {
-    catalog, productName: current.hint, sourceKind: current.kind, files: [...current.files, ...current.closeUps.map((c) => c.file)],
-    model: current.reading.model, promptVersion: current.reading.promptVersion, fallback, fallbackReason: fallbackReason ?? undefined, date: current.createdAt.slice(0, 10),
+  return resultOf(current);
+}
+function resultOf(rec) {
+  const fallback = rec.reading.fallback || rec.closeUps.some((c) => c.fallback);
+  const fallbackReason = rec.reading.fallback ? rec.reading.fallbackReason : rec.closeUps.find((c) => c.fallback)?.fallbackReason;
+  return transcriptionToDraft(rec.transcription, {
+    catalog, productName: rec.hint, sourceKind: rec.kind, files: [...rec.files, ...rec.closeUps.map((c) => c.file)],
+    model: rec.reading.model, promptVersion: rec.reading.promptVersion, fallback, fallbackReason: fallbackReason ?? undefined, date: rec.createdAt.slice(0, 10),
   });
+}
+/** Read with the fast reader (on purpose or as the fallback). */
+function isFast(rec) {
+  return rec.reader === 'fast' || Boolean(rec.reading.fallback) || String(rec.reading.model ?? '').replace(/^models\//, '') === FALLBACK_MODEL;
 }
 
 function withBold(text) {
@@ -774,21 +791,29 @@ function renderResult(notice) {
 
 // ---------- Export ----------
 const slugOf = (text) => text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-function exportName() {
-  const slug = slugOf(current.hint ?? 'lectura') || 'lectura';
-  const test = current.test ? `_${slugOf(current.test)}` : '';
-  return `lectura-${slug}${test}${current.rereadOf ? '-normal' : ''}-${current.createdAt.slice(0, 16).replace(/[:T]/g, '-')}.json`;
+function exportName(rec = current) {
+  const slug = slugOf(rec.hint ?? 'lectura') || 'lectura';
+  const test = rec.test ? `_${slugOf(rec.test)}` : '';
+  const reader = rec.rereadOf ? '-normal' : isFast(rec) ? '-rapido' : '';
+  return `lectura-${slug}${test}${reader}-${rec.createdAt.slice(0, 16).replace(/[:T]/g, '-')}.json`;
 }
-function exportBlob() {
-  const { result: r, ...rest } = current;
-  const data = { ...rest, result: r ?? result(), userAgent: navigator.userAgent };
-  return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+function exportText(rec = current) {
+  const { result: r, ...rest } = rec;
+  let res = r;
+  try { res = r ?? resultOf(rec); } catch { res = null; } // old or broken record: export what there is
+  return JSON.stringify({ ...rest, result: res, userAgent: navigator.userAgent }, null, 2);
 }
-function download() {
-  const a = h('a', { href: URL.createObjectURL(exportBlob()), download: exportName() });
+function exportBlob(rec = current) {
+  return new Blob([exportText(rec)], { type: 'application/json' });
+}
+function saveBlob(blob, name) {
+  const a = h('a', { href: URL.createObjectURL(blob), download: name });
   document.body.append(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function download(rec = current) {
+  saveBlob(exportBlob(rec), exportName(rec));
 }
 function shareFile() {
   return new File([exportBlob()], exportName().replace(/\.json$/, '.txt'), { type: 'text/plain' });
@@ -812,7 +837,8 @@ async function share() {
 function historyList() {
   return store.get(HISTORY_STORE, []);
 }
-const historyKey = (rec) => `${slugOf(rec.hint ?? '')}|${slugOf(rec.test ?? '')}`;
+const historyKey = (rec) => `${slugOf(rec.hint ?? '')}|${slugOf(rec.test ?? '')}${isFast(rec) && !rec.reading.fallback ? '|rapido' : ''}`;
+const selected = new Set(); // readings marked to download together
 function saveToHistory(rec) {
   const { result: _r, ...plain } = rec;
   let list = historyList().filter((x) => x.id !== rec.id);
@@ -829,20 +855,44 @@ function saveToHistory(rec) {
 }
 function renderHistory() {
   const list = historyList();
+  for (const id of [...selected]) if (!list.some((x) => x.id === id)) selected.delete(id);
   $('history-clear').hidden = !list.length;
+  $('history-tools').hidden = !list.length;
+  $('history-all').textContent = list.length && selected.size === list.length ? 'Quitar la selección' : 'Seleccionar todas';
+  $('history-zip').disabled = !selected.size;
+  $('history-zip').textContent = selected.size ? `Descargar seleccionadas (${selected.size})` : 'Descargar seleccionadas';
   $('history').replaceChildren(...(list.length ? list.map((rec) => {
     let pending = '?';
     try {
       pending = transcriptionToDraft(rec.transcription, { catalog, productName: rec.hint, sourceKind: rec.kind }).summary.pending;
     } catch { /* old or broken record */ }
+    const name = `${rec.hint ?? '(sin nombre)'}${rec.test ? ` · prueba ${rec.test}` : ''}`;
+    const box = h('input', { type: 'checkbox', class: 'pick', 'aria-label': `Elegir ${name} para descargar` });
+    box.checked = selected.has(rec.id);
+    box.addEventListener('change', () => { if (box.checked) selected.add(rec.id); else selected.delete(rec.id); renderHistory(); });
     return h('li', {},
+      box,
       h('div', { class: 'what' },
-        h('strong', {}, `${rec.hint ?? '(sin nombre)'}${rec.test ? ` · prueba ${rec.test}` : ''}`),
-        h('span', {}, `${when(rec.createdAt)} · ${rec.files.length} foto(s)${rec.closeUps.length ? ` + ${rec.closeUps.length} de cerca` : ''} · ${rec.reading.fallback ? 'lector rápido · ' : ''}${rec.rereadOf ? 'relectura normal · ' : ''}${pending} por revisar`)),
+        h('strong', {}, name),
+        h('span', {}, `${when(rec.createdAt)} · ${rec.files.length} foto(s)${rec.closeUps.length ? ` + ${rec.closeUps.length} de cerca` : ''} · ${isFast(rec) ? 'lector rápido · ' : ''}${rec.rereadOf ? 'relectura normal · ' : ''}${pending} por revisar`)),
       h('div', { class: 'row' },
         h('button', { class: 'btn small', type: 'button', onclick: () => openHistory(rec.id) }, 'Abrir'),
+        h('button', { class: 'btn small', type: 'button', 'aria-label': `Descargar la lectura de ${name}`, onclick: () => download(rec) }, 'Descargar'),
         h('button', { class: 'btn small', type: 'button', 'aria-label': `Borrar la lectura de ${rec.hint ?? 'sin nombre'}`, onclick: () => deleteHistory(rec.id) }, 'Borrar')));
   }) : [h('li', {}, h('span', { class: 'hint' }, 'Todavía no hay lecturas.'))]));
+}
+function toggleAllHistory() {
+  const list = historyList();
+  if (selected.size === list.length) selected.clear();
+  else for (const x of list) selected.add(x.id);
+  renderHistory();
+}
+function downloadSelected() {
+  const list = historyList().filter((x) => selected.has(x.id));
+  if (!list.length) return;
+  const zip = makeZip(list.map((rec) => ({ name: exportName(rec), data: exportText(rec) })));
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  saveBlob(new Blob([zip], { type: 'application/zip' }), `lecturas-${list.length}-${stamp}.zip`);
 }
 function openHistory(id) {
   const rec = historyList().find((x) => x.id === id);
@@ -915,9 +965,11 @@ async function start() {
       doCloseUp(f);
     });
   }
-  $('download').addEventListener('click', download);
+  $('download').addEventListener('click', () => download());
   $('share').addEventListener('click', share);
   $('new-reading').addEventListener('click', resetNew);
+  $('history-all').addEventListener('click', toggleAllHistory);
+  $('history-zip').addEventListener('click', downloadSelected);
   $('history-clear').addEventListener('click', () => {
     if (!confirm('¿Borrar todas las lecturas guardadas en este teléfono?')) return;
     store.set(HISTORY_STORE, []);
