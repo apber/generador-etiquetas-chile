@@ -17,7 +17,8 @@ export const STRIP = {
   frontCx: 569.625,        // center of the medallion, halfway between the folds
   frontHeight: 112.75,     // 30 mm
   tailEnd: 775.44,
-  freeEnd: 1.70,           // free end of the back (v2.39: 0.25 mm shorter)
+  freeEnd: 1.70,           // free end of the back with the step (v2.39: 0.25 mm shorter)
+  straightInset: 0.75 * 3.7816,   // straight left edge (v0.6.1): free end 0.75 mm further in, 2 mm from the pouch edge
   backDx: -3.03,           // strip x of view x = 0
   foldMarksY: [[0.75, 7.5], [29, 35], [53, 59], [77, 83], [105.5, 112]],
 };

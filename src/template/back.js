@@ -152,16 +152,20 @@ function fechas() {
   return `<div style="display: flex; width: max-content; gap: 5px; font-family: 'Roboto Condensed', Arial, sans-serif; color: #2B1A10; font-weight: 700">${col('ELABORACIÓN')}${col('VENCIMIENTO')}</div>`;
 }
 
-const block = (html, gap, shift = BACK.shift) => `<div class="blk" style="margin-top: ${gap}px; padding-left: ${shift.toFixed(4)}px;">${html}</div>`;
+const blockAt = (html, gap, shift = BACK.shift) => `<div class="blk" style="margin-top: ${gap}px; padding-left: ${shift.toFixed(4)}px;">${html}</div>`;
 
 /**
  * HTML of one variant of the back, in view coordinates (x = 0 at the right fold of the front).
  * The `.rev` element is what layout.js arranges and measures.
+ * edge 'straight' (v0.6.1): every paragraph starts at the outer margin, `inset` px further in than with the step
+ * (the free end moves in with it); 'step' (v2.39): the 1 mm rule, paragraph by paragraph.
  */
-export function backVariantHtml(c, v) {
+export function backVariantHtml(c, v, edge = 'step', inset = 0) {
+  const straight = edge === 'straight';
+  const block = (html, gap) => blockAt(html, gap, straight ? 0 : BACK.shift);
   const hasRedes = c.handles.length > 0 || c.qr;
   const redesInPanel = v.redes === 'panel' && hasRedes;
-  const rowX = BACK.textX - BACK.shift;
+  const rowX = BACK.textX - BACK.shift + (straight ? inset : 0);
   const ingY = 5 + (v.name === 'line' ? BACK.nameHeight + BACK.nameGap : 0);
   const bc = barcodeBlock(c);
   const cw = Math.max(bc.w, BACK.signature.w + 1.2);
@@ -187,7 +191,8 @@ export function backVariantHtml(c, v) {
   blocks += block(fechas(), redesInPanel ? BACK.redesGap : BACK.gap);
 
   const push = v.name === 'line' ? ' data-push="1"' : '';
-  const ing = `<div class="reg" data-key="ing" data-shift="${BACK.shift.toFixed(4)}" data-stepy="${BACK.stepY}" style="position: relative; flex: 1 1 0; min-width: 0; margin-top: ${ingY.toFixed(3)}px; margin-right: ${BACK.gutter}px; display: flow-root; ${TXT}">${blocks}</div>`;
+  const shiftAttrs = straight ? '' : ` data-shift="${BACK.shift.toFixed(4)}" data-stepy="${BACK.stepY}"`;
+  const ing = `<div class="reg" data-key="ing"${shiftAttrs} style="position: relative; flex: 1 1 0; min-width: 0; margin-top: ${ingY.toFixed(3)}px; margin-right: ${BACK.gutter}px; display: flow-root; ${TXT}">${blocks}</div>`;
   const colA = `<div class="reg" data-key="colA"${push} style="position: relative; flex: none; width: max-content; margin-top: 4px; display: flow-root;"><div class="blk" style="margin-top: 0px;">${table(c)}</div></div>`;
   const row = `<div class="rowB" style="position: absolute; left: ${f2(rowX)}px; top: 0; width: ${f2(BACK.contentRight - rowX)}px; display: flex; align-items: flex-start">${ing}${colA}</div>`;
   const redes = hasRedes && !redesInPanel

@@ -4,7 +4,7 @@ Código: [`src/template/`](../src/template). La plantilla arma la etiqueta de un
 
 ```
 npx playwright install chromium        # una vez
-npm run render -- <carpeta> [ids…] [--assets marca.json] [--out carpeta] [--png]
+npm run render -- <carpeta> [ids…] [--assets marca.json] [--out carpeta] [--png] [--edge straight|step] [--fold-marks right|both|none]
 ```
 
 Por cada producto deja `<id>.html` (la etiqueta terminada, sin scripts, a tamaño real: 1 mm = 3,7816 px), `<id>.json` (variante elegida, largo del reverso) y, con `--png`, una imagen. Sin `--assets` usa imágenes de reemplazo (demo). Las imágenes de una marca (logo, ícono de la firma, íconos de redes, sellos oficiales) viven fuera del repositorio, en un JSON:
@@ -21,7 +21,9 @@ En el navegador (la futura app): `labelPage(datos, empresa, opciones)` de [`labe
 
 | Parte | Medida |
 |---|---|
-| Tira | 205,0 mm (unión B): el frente sigue 4,25 mm pasado el doblez derecho (cola oculta) y el reverso, en una sola pieza, da la vuelta por el doblez izquierdo y termina sobre la cola, 1,25 mm antes del doblez |
+| Tira | 204,25 mm (unión B): el frente sigue 4,25 mm pasado el doblez derecho (cola oculta) y el reverso, en una sola pieza, da la vuelta por el doblez izquierdo y termina sobre la cola con un borde recto, 2 mm antes del doblez (se monta 2,25 mm sobre la cola) |
+| Borde del extremo libre | recto en toda la altura (v0.6.1). Opción `backEdge: 'step'` (`--edge step`): el de la v2.39, a 1,25 mm del doblez en la franja de 30 mm y 1,58 mm más adentro bajo ella (escalón), con la tira de 205,0 mm |
+| Marcas de doblez | 5 trazos de 0,3 mm, solo en el doblez derecho (v0.6.1: las del izquierdo se veían si la etiqueta quedaba un poco corrida). Opción `foldMarks`: `'right'`, `'both'` o `'none'` (`--fold-marks`) |
 | Frente | 100,35 mm entre las marcas de doblez × 30 mm (cara principal 30,1 cm²) |
 | Reverso | largo mínimo por producto (base de cálculo: 54,5 mm) |
 | Código de barras | EAN-13 dibujado desde su número, vertical, al 80 % (21,0 × 30,6 mm) |
@@ -31,7 +33,7 @@ En el navegador (la futura app): `labelPage(datos, empresa, opciones)` de [`labe
 
 - **Secciones faltantes:** si falta un dato de una sección del panel de ingredientes (ingredientes, origen, alérgenos), la sección no se imprime; la alerta de impresión lo dice (opción `missingSections: 'placeholder'`: imprime el título con «[por confirmar]»). Si falta INGREDIENTES, la firma se alinea con la primera línea del párrafo que quede primero.
 - **Párrafos del panel de ingredientes**, con 2 px entre ellos: INGREDIENTES (con ORIGEN en línea propia), CONTIENE (con PUEDE CONTENER en línea nueva), conservación, instrucciones de uso y texto adicional si los hay, ENVASADO POR (con la resolución sanitaria en la línea siguiente) y las fechas de elaboración y vencimiento para escribir o timbrar.
-- **1 mm por párrafo:** un párrafo empieza 1 mm más a la izquierda solo si cabe completo sobre el escalón del reverso; desde el primero que no, ninguno se corre.
+- **Margen del texto:** con el borde recto todos los párrafos empiezan al mismo margen, a 1,44 mm del centro de la línea de corte. Con el escalón (`backEdge: 'step'`) vale la regla del 1 mm por párrafo: un párrafo empieza 1 mm más a la izquierda solo si cabe completo sobre el escalón; desde el primero que no, ninguno se corre.
 - **Firma y código de barras** flotan a la derecha del texto; suben hasta que la cabeza del ícono de la firma quede a la altura del nombre del producto (si el nombre no llega a su columna o va arriba en una línea) o de la primera línea de ingredientes.
 - **Tabla nutricional** al ancho de su contenido: título, «Porciones por envase» en una fila completa, la porción junto a los encabezados «100 g | Porción», líneas de 0,75 px entre grupos y de 0,4 px dentro de cada grupo; la leyenda de parte comestible, si corresponde, dentro de la tabla.
 - **Bloque de redes** (QR + SÍGUENOS + redes, siempre junto): bajo la tabla, pegado al borde derecho (el de la tabla) y con el QR hacia el borde, lo más arriba que quede sin chocar (2,6 px de la tabla, 4 px del texto y del código de barras); en dos líneas si cabe justo bajo la tabla (el espacio entre el QR y el texto baja de 5 a 2,5 px solo si hace falta, con 0,75 px de holgura), si no en tres. O al final del panel de ingredientes, si así el reverso queda más corto.

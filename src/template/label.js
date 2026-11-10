@@ -15,7 +15,9 @@ import { esc } from './html.js';
 
 export const DEFAULT_TEMPLATE_OPTIONS = {
   barcodeScale: 0.8,          // 80 %: read well on plain and glossy photo paper (v2.39, 29-10-2026)
-  sealSize: '10mm',           // '15mm' = legal size (the user accepted the risk of 10 mm)
+  sealSize: '10mm',
+  backEdge: 'straight',       // v0.6.1: straight free end, 2 mm from the pouch edge; 'step' = v2.39 (step 1.58 mm, 1 mm rule)
+  foldMarks: 'right',         // v0.6.1: only on the right fold (the left ones showed when stuck a bit off); 'both' | 'none'           // '15mm' = legal size (the user accepted the risk of 10 mm)
   medallion: 1.1,             // +10 % (39.6 mm)
   ringColor: '#6E421C',       // when the record has no ring color (alert missing_ring_color)
   missingSections: 'omit',     // a missing ingredients-panel section is left out; 'placeholder' prints missingText
@@ -30,9 +32,13 @@ export function labelMarkup(d, company, options = {}) {
   const data = { ...d, front: { ...d.front, ringColor: ring }, barcode: opts.barcode ?? d.barcode };
   const front = frontParts(data.front, opts);
   const content = backContent(data, company, opts);
-  const variants = VARIANTS.map((v) => backVariantHtml(content, v)).join('');
+  const straight = opts.backEdge === 'straight';
+  const freeEnd = STRIP.freeEnd + (straight ? STRIP.straightInset : 0);
+  const variants = VARIANTS.map((v) => backVariantHtml(content, v, opts.backEdge, STRIP.straightInset)).join('');
   const H0 = Math.ceil(BACK.cut + 0.75);
-  const marks = [STRIP.foldLeft, STRIP.foldRight].flatMap((x) => STRIP.foldMarksY.map(([y1, y2]) =>
+  const folds = { both: [STRIP.foldLeft, STRIP.foldRight], right: [STRIP.foldRight], none: [] }[opts.foldMarks];
+  if (!folds) throw new Error(`foldMarks: "${opts.foldMarks}" (both, right or none)`);
+  const marks = folds.flatMap((x) => STRIP.foldMarksY.map(([y1, y2]) =>
     `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#9C8F80" stroke-width="1.13"></line>`)).join('');
   const html = `<div class="label" data-product="${esc(d.productId)}" style="position: relative; width: ${STRIP.boardWidth}px; height: ${H0}px; font-family: 'Roboto Condensed', Arial, sans-serif; color: #2B1A10; overflow: hidden">`
     + `<svg class="strip" viewBox="0 0 ${STRIP.boardWidth} ${H0}" width="${STRIP.boardWidth}" height="${H0}" style="position: absolute; left: 0; top: 0" aria-hidden="true">`
@@ -44,7 +50,7 @@ export function labelMarkup(d, company, options = {}) {
     + '</div>';
   const cfg = {
     limit: BACK.limit, baseCut: BACK.cut, baseLengthMm: BACK.baseLengthMm, mm: MM, boardWidth: STRIP.boardWidth,
-    outline: outlinePath(null, front.medallionArc),
+    outline: outlinePath(null, front.medallionArc, opts.backEdge, freeEnd), freeEnd,
   };
   return { html, cfg };
 }

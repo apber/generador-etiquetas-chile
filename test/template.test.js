@@ -74,6 +74,18 @@ test('markup: texts of the back and front, all variants, escaped data', () => {
   assert.match(html, /Porciones por envase: 5/);
   assert.match(html, /aria-label="Sin código de barras"|aria-label="Código de barras \d{13}"/);
   assert.match(cfg.outline, /V \{C7\} Q 370\.14 \{C\} 362\.89 \{C\}/);
+  // v0.6.1: straight free end 0.75 mm in (x = 4.54 px), no step; only the right fold marks
+  assert.match(cfg.outline, /H 11\.79 Q 4\.54 \{C\} 4\.54 \{C7\} V 8 Q 4\.54 0\.75 11\.79 0\.75 Z$/);
+  assert.doesNotMatch(cfg.outline, /7\.67/);
+  assert.equal((html.match(/<line x1="759\.36"/g) ?? []).length, 5);
+  assert.doesNotMatch(html, /<line x1="379\.89"/);
+  assert.doesNotMatch(html, /data-shift=/);
+  // v2.39 as options: step, 1 mm rule and both fold marks
+  const old = labelMarkup(d, store.company, { backEdge: 'step', foldMarks: 'both' });
+  assert.match(old.cfg.outline, /H 14\.92 Q 7\.67 \{C\} 7\.67 \{C7\} V 118 Q 7\.67 112\.75 2\.42 112\.75 H 1\.70 V 8/);
+  assert.match(old.html, /data-shift="3\.7816"/);
+  assert.equal((old.html.match(/<line x1="379\.89"/g) ?? []).length, 5);
+  assert.doesNotMatch(labelMarkup(d, store.company, { foldMarks: 'none' }).html, /<line /);
   const bad = buildLabelData(store, { productId: 'mani-tostado' });
   const evil = { ...bad, front: { ...bad.front, productName: 'Maní <script>' } };
   assert.doesNotMatch(labelMarkup(evil, store.company).html, /<script>/);

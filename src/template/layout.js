@@ -176,7 +176,7 @@ export async function layoutLabel(root, cfg) {
   root.querySelector('.variants')?.remove();
 
   const result = {
-    variant: best.id, lengthMm, cut: r2(cut), boardHeight: H, check: Number(check.toFixed(2)), ...best.info,
+    variant: best.id, lengthMm, cut: r2(cut), freeEnd: cfg.freeEnd, boardHeight: H, check: Number(check.toFixed(2)), ...best.info,
     regions: best.regions,
     candidates: results.map((r) => ({ id: r.id, lengthMm: r.len })),
   };

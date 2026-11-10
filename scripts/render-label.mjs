@@ -1,7 +1,7 @@
 // Renders the labels of a data folder in Chromium and saves, per product, the finished label (HTML),
 // its result (chosen variant, back length) and optionally a PNG.
 // Usage: node scripts/render-label.mjs [folder] [ids…] [--out dir] [--assets assets.json] [--png]
-//        [--ring id=#hex] [--barcode id=number] [--scale n]
+//        [--ring id=#hex] [--barcode id=number] [--scale n] [--edge straight|step] [--fold-marks right|both|none]
 // Without folder: demo/. Needs Playwright's Chromium (npx playwright install chromium).
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -18,6 +18,8 @@ for (let i = 0; i < args.length; i++) {
   if (a === '--out') opt.out = args[++i];
   else if (a === '--assets') opt.assets = args[++i];
   else if (a === '--png') opt.png = true;
+  else if (a === '--edge') opt.backEdge = args[++i];
+  else if (a === '--fold-marks') opt.foldMarks = args[++i];
   else if (a === '--scale') opt.scale = Number(args[++i]);
   else if (a === '--ring' || a === '--barcode') { const [k, v] = args[++i].split('='); opt[a.slice(2)][k] = v; }
   else positional.push(a);
@@ -33,7 +35,8 @@ try {
   for (const id of ids) {
     const d = buildLabelData(store, { productId: id });
     if (d.incomplete) { console.log(`${id}: incompleto (${d.blocking.review.join(', ')})`); continue; }
-    const { result, html, png } = await r.render(d, store.company, { assets, ring: opt.ring[id], barcode: opt.barcode[id], png: opt.png, scale: opt.scale });
+    const { result, html, png } = await r.render(d, store.company, { assets, ring: opt.ring[id], barcode: opt.barcode[id], png: opt.png, scale: opt.scale,
+      ...(opt.backEdge ? { backEdge: opt.backEdge } : {}), ...(opt.foldMarks ? { foldMarks: opt.foldMarks } : {}) });
     writeFileSync(join(opt.out, `${id}.html`), `<!doctype html><meta charset="utf-8"><body style="margin:0">${html}`);
     writeFileSync(join(opt.out, `${id}.json`), JSON.stringify(result, null, 2));
     if (png) writeFileSync(join(opt.out, `${id}.png`), png);

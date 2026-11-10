@@ -1,5 +1,6 @@
-// Print sheet: places finished labels on pages (letter or A4) at real size, one under the other, with a fixed
-// gap between their cut outlines, as many per page as fit inside the printer margins. Pure functions: the app
+// Print sheet: places finished labels on pages (letter or A4) at real size, one under the other, as many per page
+// as fit inside the printer margins. By default (v0.6.1) consecutive labels share their cut line where the bottom of
+// one back meets the top of the next (one cut for both); `gapMm` > 0 leaves a fixed gap between the outlines. Pure functions: the app
 // and the Node script use the same plan.
 //
 // Sizes are in mm. A label is measured by its visible outline (the cut line, stroke included), not by its
@@ -14,15 +15,16 @@ export const PAPERS = {
 
 export const DEFAULT_SHEET_OPTIONS = {
   paper: 'letter',
-  gapMm: 3,            // between the cut outlines of two labels (25-10-2026)
+  gapMm: -1.5 / MM,    // shared cut line (v0.6.1): the line of the next label on top of the previous one (−0.40 mm);
+                       // before, 3 mm between the cut outlines (25-10-2026)
   marginMm: 4,         // top and bottom: 5 labels of 51.7 mm fit on letter with up to 4.5 mm (checked by the user)
   minSideMm: 3,        // narrower side margins give a warning (the strip measures 205.0 mm: 5.4 mm on letter, 2.5 on A4)
 };
 
 /** Visible outline of a laid-out label, in board px and mm (cut = bottom edge of the back, from layoutLabel). */
-export function labelBox(cut) {
+export function labelBox(cut, freeEnd = STRIP.freeEnd) {
   const half = 0.75;   // half the stroke of the cut line
-  const left = STRIP.freeEnd - half, right = STRIP.tailEnd + half;
+  const left = freeEnd - half, right = STRIP.tailEnd + half;
   const bottom = cut + half;
   return { leftPx: left, topPx: 0, widthPx: right - left, heightPx: bottom,
     widthMm: (right - left) / MM, heightMm: bottom / MM };
@@ -39,7 +41,7 @@ export function planSheet(labels, options = {}) {
   if (!paper) throw new Error(`Unknown paper "${o.paper}" (letter or a4)`);
   const usable = paper.height - 2 * o.marginMm;
   const warnings = [];
-  const boxes = labels.map((l) => ({ ...l, box: labelBox(l.cut) }));
+  const boxes = labels.map((l) => ({ ...l, box: labelBox(l.cut, l.freeEnd) }));
   const pages = [];
   let cur = [];
   let h = 0;
@@ -89,7 +91,7 @@ export function fillPage(labels, options = {}) {
   let h = 0;
   for (let i = 0; i < 100; i++) {
     const l = labels[i % labels.length];
-    const need = (out.length ? o.gapMm : 0) + labelBox(l.cut).heightMm;
+    const need = (out.length ? o.gapMm : 0) + labelBox(l.cut, l.freeEnd).heightMm;
     if (h + need > usable + 1e-6) break;
     h += need;
     out.push(l);

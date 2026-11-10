@@ -24,7 +24,7 @@ function inlineImages(html) {
 
 /**
  * entries: [{ id, copies }] in print order. options: { assets, ring: {id: hex}, barcode: {id: number}, paper,
- * marginMm, gapMm, fill (repeat the list until the page is full), paperType, gamma, calibrate: [gammas] (color
+ * marginMm, gapMm, backEdge ('straight' | 'step'), foldMarks ('right' | 'both' | 'none'), fill (repeat the list until the page is full), paperType, gamma, calibrate: [gammas] (color
  * calibration sheet: the first product once per gamma, with captions) }.
  * Returns { pdf, html, plan, labels: { id: { lengthMm, variant, cut } }, skipped }.
  */
@@ -40,8 +40,9 @@ export async function makeSheet(store, entries, options = {}) {
       if (d.incomplete) { skipped.push(id); continue; }
       const { result, html } = await r.render(d, store.company, {
         assets: options.assets, ring: options.ring?.[id], barcode: options.barcode?.[id],
+        ...(options.backEdge ? { backEdge: options.backEdge } : {}), ...(options.foldMarks ? { foldMarks: options.foldMarks } : {}),
       });
-      labels[id] = { html: inlineImages(html), lengthMm: result.lengthMm, variant: result.variant, cut: result.cut };
+      labels[id] = { html: inlineImages(html), lengthMm: result.lengthMm, variant: result.variant, cut: result.cut, freeEnd: result.freeEnd };
     }
   } finally {
     await r.close();
@@ -49,11 +50,11 @@ export async function makeSheet(store, entries, options = {}) {
   const ok = entries.filter((e) => labels[e.id]);
   const sheetOpts = { paper: options.paper, marginMm: options.marginMm, gapMm: options.gapMm };
   Object.keys(sheetOpts).forEach((k) => sheetOpts[k] === undefined && delete sheetOpts[k]);
-  let list = ok.flatMap((e) => Array.from({ length: e.copies ?? 1 }, () => ({ id: e.id, cut: labels[e.id].cut })));
-  if (options.fill) list = fillPage(ok.map((e) => ({ id: e.id, cut: labels[e.id].cut })), sheetOpts);
+  let list = ok.flatMap((e) => Array.from({ length: e.copies ?? 1 }, () => ({ id: e.id, cut: labels[e.id].cut, freeEnd: labels[e.id].freeEnd })));
+  if (options.fill) list = fillPage(ok.map((e) => ({ id: e.id, cut: labels[e.id].cut, freeEnd: labels[e.id].freeEnd })), sheetOpts);
   // Color calibration: the first product once per correction, each with its caption
   const steps = options.calibrate;
-  if (steps?.length && ok.length) list = steps.map(() => ({ id: ok[0].id, cut: labels[ok[0].id].cut }));
+  if (steps?.length && ok.length) list = steps.map(() => ({ id: ok[0].id, cut: labels[ok[0].id].cut, freeEnd: labels[ok[0].id].freeEnd }));
   const plan = planSheet(list, sheetOpts);
   const html = sheetPage(plan, list.map((l) => labels[l.id].html), {
     fontsCss, paperType: options.paperType, gamma: options.gamma, title: options.title,

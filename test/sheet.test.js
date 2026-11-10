@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { planSheet, fillPage, labelBox, PAPERS } from '../src/sheet/plan.js';
 import { adjustColors, gammaChannel, colorCorrector, correctionName, sheetPage, calibrationCaptions } from '../src/sheet/page.js';
-import { cutFor } from '../src/template/geometry.js';
+import { cutFor, MM } from '../src/template/geometry.js';
 
 const lab = (id, lengthMm) => ({ id, cut: cutFor(lengthMm) });
 const near = (a, b, tol = 1e-6) => Math.abs(a - b) <= tol;
@@ -16,16 +16,16 @@ test('label box: the visible outline measures 205.0 mm across and the back lengt
 
 test('plan: 5 labels of 51.7 mm on letter with margins up to 4.5 mm; with 4.6 mm the fifth goes to a new page', () => {
   const five = Array.from({ length: 5 }, (_, i) => lab(`p${i}`, 51.7));
-  const a = planSheet(five, { marginMm: 4.5 });
+  const a = planSheet(five, { marginMm: 4.5, gapMm: 3 });
   assert.equal(a.pages.length, 1);
   assert.equal(a.pages[0].items.length, 5);
-  const b = planSheet(five, { marginMm: 4.6 });
+  const b = planSheet(five, { marginMm: 4.6, gapMm: 3 });
   assert.deepEqual(b.pages.map((p) => p.items.length), [4, 1]);
 });
 
-test('plan: 3 mm between outlines, centered on the page, different lengths', () => {
+test('plan: 3 mm between outlines (option), centered on the page, different lengths', () => {
   const list = [lab('a', 51.7), lab('b', 48.4), lab('c', 43.0)];
-  const { pages, sideMm, paper } = planSheet(list);
+  const { pages, sideMm, paper } = planSheet(list, { gapMm: 3 });
   const it = pages[0].items;
   for (let i = 1; i < it.length; i++) assert.ok(near(it[i].yMm - (it[i - 1].yMm + it[i - 1].heightMm), 3, 1e-9));
   const bottom = paper.height - (it.at(-1).yMm + it.at(-1).heightMm);
@@ -45,8 +45,26 @@ test('plan: letter leaves 5.4 mm at the sides; A4 only 2.5 mm, with a warning', 
 test('fill: repeats the list in order until the next one does not fit', () => {
   const out = fillPage([lab('mani', 51.7), lab('cran', 51.7), lab('mix', 48.4)]);
   assert.deepEqual(out.map((l) => l.id), ['mani', 'cran', 'mix', 'mani', 'cran']);
-  assert.equal(fillPage([lab('a', 43)]).length, 5);
-  assert.equal(fillPage([lab('a', 43)], { paper: 'a4' }).length, 6);
+  assert.equal(fillPage([lab('a', 43)], { gapMm: 3 }).length, 5);
+  assert.equal(fillPage([lab('a', 43)], { paper: 'a4', gapMm: 3 }).length, 6);
+});
+
+test('shared cut line (default, v0.6.1): the line of the next label lies on the one of the previous label', () => {
+  const list = [lab('a', 51.7), lab('b', 43.0)];
+  const it = planSheet(list).pages[0].items;
+  // bottom line of a (center at cut) = top line of b (center 0.75 px below its top)
+  const lineA = it[0].yMm + list[0].cut / MM, lineB = it[1].yMm + 0.75 / MM;
+  assert.ok(near(lineA, lineB, 1e-9), `${lineA} ${lineB}`);
+  // letter, 4 mm margins: 6 of 43.0 mm (5 with 3 mm), 5 of 51.7 mm
+  assert.equal(fillPage([lab('a', 43.0)]).length, 6);
+  assert.equal(fillPage([lab('a', 44.8)]).length, 6);
+  assert.equal(fillPage([lab('a', 46.5)]).length, 5);
+  assert.equal(fillPage([lab('a', 51.7)]).length, 5);
+});
+
+test('label box with the straight free end (2 mm from the pouch edge): 0.75 mm narrower', () => {
+  const step = labelBox(cutFor(51.7)), straight = labelBox(cutFor(51.7), 1.70 + 0.75 * MM);
+  assert.ok(near(step.widthMm - straight.widthMm, 0.75, 1e-9));
 });
 
 test('color by paper type: gamma lightens middle tones, keeps black, white and HTML entities', () => {

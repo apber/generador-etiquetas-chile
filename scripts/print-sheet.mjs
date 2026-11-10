@@ -1,8 +1,11 @@
-// Print sheet in PDF: the labels of one or several products, at real size, 3 mm apart, as many per page as
-// fit inside the margins (more pages if needed).
+// Print sheet in PDF: the labels of one or several products, at real size, sharing their cut line, as many per
+// page as fit inside the margins (more pages if needed).
 // Usage: node scripts/print-sheet.mjs <folder> <id[:copies]>… [--out hoja.pdf] [--assets assets.json]
 //        [--paper letter|a4] [--margin mm] [--gap mm] [--fill] [--paper-type normal|fotografico] [--gamma n]
-//        [--ring id=#hex] [--barcode id=number] [--html] [--calibrate g1,g2,…]
+//        [--ring id=#hex] [--barcode id=number] [--html] [--calibrate g1,g2,…] [--edge straight|step]
+//        [--fold-marks right|both|none]
+// --gap: by default the labels share their cut line (−0.4 mm); --gap 3 leaves 3 mm between them.
+// --edge step: the free end with the step of v2.39 (default: straight, 2 mm from the pouch edge).
 // --calibrate: color test for a paper type: the first product once per correction (1 = none; 0.45 = gamma per
 //   channel; L0.5 = gamma on the lightness only; L0.5S1.25 = and colorfulness × 1.25), numbered. Use ';' to
 //   separate values written with a decimal comma.
@@ -30,6 +33,8 @@ for (let i = 0; i < args.length; i++) {
   else if (a === '--margin') opt.marginMm = Number(args[++i].replace(',', '.'));
   else if (a === '--gap') opt.gapMm = Number(args[++i].replace(',', '.'));
   else if (a === '--fill') opt.fill = true;
+  else if (a === '--edge') opt.backEdge = args[++i];
+  else if (a === '--fold-marks') opt.foldMarks = args[++i];
   else if (a === '--html') opt.html = true;
   else if (a === '--calibrate') { const v = args[++i]; opt.calibrate = (v.includes(';') ? v.split(';') : v.split(',')).map(spec); }
   else if (a === '--paper-type') opt.paperType = args[++i];
@@ -50,5 +55,5 @@ const mm = (v) => v.toFixed(1).replace('.', ',');
 for (const id of res.skipped) console.log(`${id}: incompleto, no va en la hoja`);
 for (const [id, l] of Object.entries(res.labels)) console.log(`${id}: reverso ${mm(l.lengthMm)} mm (alto en la hoja ${mm((l.cut + 0.75) / 3.7816)} mm)`);
 res.plan.pages.forEach((p, i) => console.log(`Página ${i + 1}: ${p.items.length} etiquetas (${p.items.map((x) => x.id).join(', ')}) · márgenes arriba y abajo ${mm(p.marginTopMm)} mm`));
-console.log(`Papel ${res.plan.paper.name} · márgenes laterales ${mm(res.plan.sideMm)} mm · separación ${mm(res.plan.gapMm)} mm · ${opt.out}`);
+console.log(`Papel ${res.plan.paper.name} · márgenes laterales ${mm(res.plan.sideMm)} mm · separación ${res.plan.gapMm < 0 ? 'línea de corte compartida' : `${mm(res.plan.gapMm)} mm`} · ${opt.out}`);
 for (const w of res.plan.warnings) console.log(`Aviso: ${w.code}${w.id ? ` (${w.id})` : ''}${w.sideMm ? ` (${mm(w.sideMm)} mm)` : ''}`);

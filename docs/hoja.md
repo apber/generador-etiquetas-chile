@@ -6,7 +6,7 @@ Código: [`src/sheet/`](../src/sheet) (cálculo y página, sirven igual en la fu
 npx playwright install chromium        # una vez
 npm run sheet -- <carpeta> <id[:copias]>… [--assets marca.json] [--out hoja.pdf] [--fill]
                  [--paper letter|a4] [--margin mm] [--gap mm] [--paper-type normal|fotografico] [--gamma n]
-                 [--ring id=#hex] [--barcode id=número] [--html]
+                 [--ring id=#hex] [--barcode id=número] [--html] [--edge straight|step] [--fold-marks right|both|none]
 ```
 
 Ejemplos: `npm run sheet -- datos mani:3 mix:2` (3 + 2 etiquetas, en el orden dado); `npm run sheet -- datos mani cranberries mix --fill` (repite la lista hasta llenar una hoja). Imprimir el PDF en **tamaño real / 100 %**, sin «ajustar a la página».
@@ -16,13 +16,13 @@ Ejemplos: `npm run sheet -- datos mani:3 mix:2` (3 + 2 etiquetas, en el orden da
 | | |
 |---|---|
 | Orden | el de la lista; con `--fill`, la lista se repite hasta que la siguiente no cabe |
-| Separación | 3 mm entre los contornos de corte (no entre los tableros) |
+| Separación | línea de corte compartida (v0.6.1): la línea de arriba de cada etiqueta queda sobre la de abajo de la anterior (−0,40 mm entre contornos), así el fondo del reverso y el borde de la etiqueta siguiente se cortan de una vez. Con `--gap 3`, 3 mm entre los contornos de corte, como antes |
 | Márgenes | arriba y abajo al menos `--margin` (4 mm por defecto); cada página se centra en vertical por su pila de etiquetas y en horizontal por el contorno visible |
 | Cuántas caben | todas las que entren con los márgenes; las que no, pasan a otra página. Cada etiqueta mide lo suyo (el reverso cambia por producto) |
-| Lados | la tira mide 205,0 mm: en carta quedan 5,4 mm por lado; en A4, 2,5 mm (aviso: muchas impresoras no imprimen tan cerca del borde) |
+| Lados | la tira mide 204,25 mm: en carta quedan 5,8 mm por lado; en A4, 2,9 mm (aviso: muchas impresoras no imprimen tan cerca del borde). Con el borde recto, el lado izquierdo de toda la pila queda alineado |
 | Productos incompletos | no van en la hoja; se avisa |
 
-Con la etiqueta del sobre chico, en carta caben 5 de 51,7 mm con márgenes de hasta 4,5 mm, y 5 de 43 mm (6 en A4).
+Con la etiqueta del sobre chico y la línea compartida, en carta (márgenes de 4 mm) caben 5 de 51,7 mm y 6 de hasta 45,5 mm; en A4, 6 de hasta 48,5 mm y 7 de hasta 41,6 mm. Con 3 mm de separación: 5 de 51,7 mm con márgenes de hasta 4,5 mm y 5 de 43 mm (6 en A4).
 
 ## Color según el papel
 

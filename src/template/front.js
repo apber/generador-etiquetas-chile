@@ -125,9 +125,17 @@ export function frontParts(front, opts = {}) {
   };
 }
 
-/** Outline of the whole strip (cut line) for a back whose bottom edge is at `cut` (null: with {C} and {C7} to fill in). */
-export function outlinePath(cut, arc) {
+/**
+ * Outline of the whole strip (cut line) for a back whose bottom edge is at `cut` (null: with {C} and {C7} to fill in).
+ * edge 'straight' (default, v0.6.1): the free end is one straight line at x = freeEnd; 'step' (v2.39): the free end
+ * at 1.70 px down to the front height and 1.58 mm further in below it.
+ */
+export function outlinePath(cut, arc, edge = 'step', freeEnd = STRIP.freeEnd) {
   const c = cut == null ? '{C}' : r2(cut), c7 = cut == null ? '{C7}' : r2(cut - 7.25);
-  return `M 8.95 0.75 H 772.94 Q 775.44 0.75 775.44 3.25 V 110.25 Q 775.44 112.75 772.94 112.75 H ${arc.from} A ${arc.r} ${arc.r} 0 0 1 ${arc.to} 112.75 `
-    + `H 375.39 Q 370.14 112.75 370.14 118 V ${c7} Q 370.14 ${c} 362.89 ${c} H 14.92 Q 7.67 ${c} 7.67 ${c7} V 118 Q 7.67 112.75 2.42 112.75 H 1.70 V 8 Q 1.70 0.75 8.95 0.75 Z`;
+  const L = r2(freeEnd), L7 = r2(freeEnd + 7.25);
+  const left = edge === 'straight'
+    ? `H ${L7} Q ${L} ${c} ${L} ${c7} V 8 Q ${L} 0.75 ${L7} 0.75 Z`
+    : `H 14.92 Q 7.67 ${c} 7.67 ${c7} V 118 Q 7.67 112.75 2.42 112.75 H 1.70 V 8 Q 1.70 0.75 8.95 0.75 Z`;
+  return `M ${edge === 'straight' ? L7 : 8.95} 0.75 H 772.94 Q 775.44 0.75 775.44 3.25 V 110.25 Q 775.44 112.75 772.94 112.75 H ${arc.from} A ${arc.r} ${arc.r} 0 0 1 ${arc.to} 112.75 `
+    + `H 375.39 Q 370.14 112.75 370.14 118 V ${c7} Q 370.14 ${c} 362.89 ${c} ${left}`;
 }
