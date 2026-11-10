@@ -375,6 +375,7 @@ test('test page: the notification setting keeps the choice and explains a missin
     page.on('pageerror', (e) => errors.push(String(e)));
     await page.goto(`http://127.0.0.1:${server.address().port}/lectura/`);
     await page.waitForSelector('html[data-ready="true"]');
+    assert.match(await page.textContent('.top .sub'), /Página de pruebas versión \d+\.\d+\.\d+ · instrucciones v\d+/);
     await page.click('#settings-title');
     await page.check('#notify'); // headless: the permission is not granted
     assert.equal(await page.isChecked('#notify'), true, 'the checkbox does not uncheck itself');

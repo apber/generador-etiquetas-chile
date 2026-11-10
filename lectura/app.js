@@ -183,6 +183,8 @@ function bindSettings() {
     }
   });
   $('prompt-version').textContent = PROMPT_VERSION;
+  $('page-version').textContent = `versión ${PAGE_VERSION}`;
+  $('prompt-version-top').textContent = PROMPT_VERSION;
 }
 
 // ---------- Photos ----------
