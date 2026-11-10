@@ -36,7 +36,7 @@ function mergeRows(baseTable, closeTable) {
 /** Which close-up an alert asks for (null if a close-up does not help). */
 export function focusFor(alertCode) {
   if (/^allergen|contains_|may_contain/.test(alertCode)) return 'allergens';
-  if (/^(value_|table_check|columns_disagree|serving_|header_|row_)/.test(alertCode)) return 'table';
+  if (/^(value_|table_|columns_disagree|serving_|header_|row_)/.test(alertCode)) return 'table';
   if (/^ingredients_/.test(alertCode)) return 'ingredients';
   return null;
 }

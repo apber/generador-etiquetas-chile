@@ -148,13 +148,46 @@ test('table: an unreadable value per 100 g is derived from the serving column (w
 });
 
 test('table: a doubtful value per 100 g is confirmed only if the serving column can tell it apart', () => {
+  // Arreglo 14 (10-11-2026): «0,3» in 30 g fits 0,8 to 1,2 per 100 g; «11,4» fits 37,x to 38,x: neither confirms.
   const t = demoTable();
   t.rows[2] = { label: 'Grasa Total', unit: 'g', per_100: { text: '1,2', value: 1.2, legibility: 'doubtful' }, per_serving: cell('0,3') };
-  const r = readTable(t);
-  assert.equal(r.fields.total_fat_g.status, 'derived');
-  assert.equal(r.values.total_fat_g, 1);
+  let r = readTable(t);
+  assert.equal(r.fields.total_fat_g.status, 'doubtful');
+  assert.equal(r.fields.total_fat_g.note, 'other_column_imprecise');
+  assert.equal(r.values.total_fat_g, undefined);
   t.rows[2] = { label: 'Grasa Total', unit: 'g', per_100: { text: '38,0', value: 38, legibility: 'doubtful' }, per_serving: cell('11,4') };
-  assert.equal(readTable(t).fields.total_fat_g.status, 'ok');
+  assert.equal(readTable(t).fields.total_fat_g.status, 'doubtful');
+  // A whole number per 100 g and a serving cell with a decimal: only 5 fits «1,5» in 30 g.
+  t.rows[7] = { label: 'Colesterol', unit: 'mg', per_100: { text: '5', value: 5, legibility: 'doubtful' }, per_serving: cell('1,5') };
+  r = readTable(t);
+  assert.equal(r.fields.cholesterol_mg.status, 'ok');
+  assert.equal(r.fields.cholesterol_mg.note, 'confirmed_by_other_column');
+  // The serving cell tells a different value apart: it is derived from it.
+  t.rows[7] = { label: 'Colesterol', unit: 'mg', per_100: { text: '6', value: 6, legibility: 'doubtful' }, per_serving: cell('1,5') };
+  r = readTable(t);
+  assert.equal(r.fields.cholesterol_mg.status, 'derived');
+  assert.equal(r.values.cholesterol_mg, 5);
+});
+
+test('table: two doubtful cells never confirm each other; a clear pair needs the precision of the 100 g cell', () => {
+  // Invented: a photo from afar, two doubtful cells that agree with each other.
+  const t = demoTable();
+  t.rows[9] = { label: 'Azúcares totales', unit: 'g', per_100: { text: '2,1', value: 2.1, legibility: 'doubtful' }, per_serving: { text: '0,6', value: 0.6, legibility: 'doubtful' } };
+  let r = readTable(t);
+  assert.equal(r.fields.total_sugars_g.status, 'doubtful');
+  assert.equal(r.fields.total_sugars_g.note, 'both_doubtful');
+  // Invented: «70,0 | 17» in 25 g (17 accepts 16,5 to 17,5 per serving, i.e. 66 to 70 per 100 g).
+  t.serving_text = { text: 'Porción 25 g', legibility: 'clear' };
+  t.serving_g = 25;
+  t.rows = [row('Energía', 'kcal', '320,0', '80,0'), row('H. de C. disponibles', 'g', '70,0', '17'), row('Azúcares totales', 'g', '60,0', '15,0')];
+  r = readTable(t);
+  assert.equal(r.fields.available_carbohydrates_g.status, 'unverified');
+  assert.equal(r.fields.available_carbohydrates_g.note, 'serving_cell_imprecise');
+  // A pair that fits only with the 2 % allowance, not with the rounding of its digits.
+  t.rows = [row('Energía', 'kcal', '320,0', '80,0'), row('H. de C. disponibles', 'g', '70,0', '17,8'), row('Azúcares totales', 'g', '60,0', '15,0')];
+  r = readTable(t);
+  assert.equal(r.fields.available_carbohydrates_g.note, 'serving_cell_edge');
+  assert.equal(r.fields.energy_kcal.status, 'ok');
 });
 
 test('table: columns that disagree are not used', () => {
@@ -541,4 +574,85 @@ test('batch of photos: the file name gives the product and the test; "todas" goe
     ['b', null, [], ['b_todas_1.jpg']],
   ]);
   assert.deepEqual(unknown, [5]);
+});
+
+// ---------- Lote de arreglos 0.7 (10-11-2026) ----------
+
+test('arreglo 1: "harina" without saying of what is wheat flour → CONTIENE gluten; "harina de arroz" is not', () => {
+  const d = transcriptionToDraft(demoTranscription({
+    ingredients: { text: 'HARINA, AZÚCAR, MANTECA VEGETAL, VAINILLA, LECITINA DE SOYA Y SAL.', legibility: 'clear' },
+    contains_statement: null,
+  }), options);
+  assert.deepEqual(d.draft.composition.contains, ['gluten', 'soy']);
+  assert.match(d.draft.composition.ingredients, /^\{harina\}, azúcar/);
+  assert.match(d.alerts.find((a) => a.code === 'contains_from_ingredients').detail, /harina de trigo/);
+  for (const text of ['harina de arroz, azúcar', 'harina de maíz, sal', 'Harina de coco']) {
+    const r = transcriptionToDraft(demoTranscription({ ingredients: { text, legibility: 'clear' }, contains_statement: null }), options);
+    assert.deepEqual(r.draft.composition.contains, [], text);
+  }
+  const integral = transcriptionToDraft(demoTranscription({ ingredients: { text: 'harina integral, agua, sal', legibility: 'clear' }, contains_statement: null }), options);
+  assert.deepEqual(integral.draft.composition.contains, ['gluten']);
+});
+
+test('arreglo 2: bilingual ingredients and household measure keep only the Spanish part', () => {
+  const t = demoTranscription({
+    ingredients: { text: 'HARINA, AZÚCAR, MANTECA VEGETAL Y SAL.\n\nFLOUR, SUGAR, VEGETABLE SHORTENING AND SALT.', legibility: 'clear' },
+    contains_statement: null,
+  });
+  t.nutrition_table = demoTable({ household_measure: '1 unid. / units' });
+  const d = transcriptionToDraft(t, options);
+  assert.equal(d.draft.composition.ingredients, '{harina}, azúcar, manteca vegetal y sal');
+  assert.equal(d.draft.nutrition.serving.household_measure, '1 unid.');
+  const a = d.alerts.find((x) => x.code === 'other_language_removed');
+  assert.ok(a && !a.pending);
+  assert.match(a.detail, /FLOUR/);
+  // On one line, after the period; an English-only list is kept as it is.
+  const one = transcriptionToDraft(demoTranscription({ ingredients: { text: 'harina, azúcar y sal. flour, sugar and salt', legibility: 'clear' } }), options);
+  assert.equal(one.draft.composition.ingredients, '{harina}, azúcar y sal');
+  const en = transcriptionToDraft(demoTranscription({ ingredients: { text: 'Cranberries, sugar, sunflower oil', legibility: 'clear' } }), options);
+  assert.equal(en.draft.composition.ingredients, 'cranberries, sugar, sunflower oil');
+  assert.equal(normalizeMeasure('1/4 taza'), '¼ taza');
+});
+
+test('arreglo 3: sodium converted from g is doubted above 1000 mg when no ingredient adds salt', () => {
+  const table = (g) => ({ serving_text: { text: 'Porción 25 g', legibility: 'clear' }, serving_g: 25, per_100_header: '100 g',
+    rows: [row('Energía', 'kcal', '320,0', '80,0'), row('Sodio (g)', 'g', g, null)] });
+  const noSalt = transcriptionToDraft(demoTranscription({ nutrition_table: table('3'), ingredients: { text: 'Ciruelas deshidratadas y aceite mineral', legibility: 'clear' } }), options);
+  assert.equal(noSalt.fields.sodium_mg.status, 'doubtful');
+  assert.match(noSalt.alerts.find((a) => a.code === 'unit_doubtful').message, /ningún ingrediente aporta sal/);
+  const salted = transcriptionToDraft(demoTranscription({ nutrition_table: table('1,2'), ingredients: { text: 'Maní, aceite vegetal, sal', legibility: 'clear' } }), options);
+  assert.notEqual(salted.fields.sodium_mg.status, 'doubtful');
+  assert.equal(readTable(table('3'), { saltAdded: true }).fields.sodium_mg.status !== 'doubtful', true);
+});
+
+test('arreglo 4: an allergen named after a group that already holds it is not a repeated word', () => {
+  assert.deepEqual(allergensInStatement('Elaborado en líneas donde se procesan frutos secos, maní y otros alérgenos', catalog).repeated, []);
+  assert.deepEqual(allergensInStatement('maní, frutos secos', catalog).repeated, []);
+  assert.deepEqual(allergensInStatement('maní, almendras, maní', catalog).repeated, ['peanut']);
+});
+
+test('arreglo 5: carbohydrates derived from a serving column of totals say "minus fiber" in the detail', () => {
+  const t = { serving_text: { text: 'Porción: 100 g', legibility: 'clear' }, serving_g: 100,
+    rows: [row('Energía', 'kcal', null, '330 kcal'), row('Proteínas', 'g', null, '12 g'), row('Grasas totales', 'g', null, '0,5 g'),
+      row('Carbohidratos totales', 'g', null, '72 g'), row('Azúcares', 'g', null, '40 g'), row('Fibra dietética', 'g', null, '10 g'), row('Sodio', 'mg', null, '250 mg')] };
+  const d = transcriptionToDraft(demoTranscription({ nutrition_table: t }), options);
+  assert.equal(d.draft.nutrition.per_100g.available_carbohydrates_g.value, 62);
+  assert.match(d.alerts.find((a) => a.code === 'value_derived').detail, /totales «72 g» × 100 \/ 100 = 72, menos 10 de fibra = 62/);
+});
+
+test('arreglo 15: a table seen only in blurry, far or dark photos stays «Por confirmar» with a retake alert', () => {
+  const far = demoTranscription({ images: [{ index: 1, shows: ['nutrition_table'], problems: ['too_far'] }, { index: 2, shows: ['ingredients'], problems: [] }] });
+  const d = transcriptionToDraft(far, options);
+  assert.ok(Object.values(d.fields).filter((f) => f.status !== 'missing').every((f) => f.status === 'unverified' && f.note === 'table_photos_poor'));
+  assert.equal(d.draft.nutrition.per_100g.energy_kcal.value, 560); // everything is saved
+  const a = d.alerts.find((x) => x.code === 'table_photos_poor');
+  assert.ok(a.pending && a.action === 'retake');
+  assert.match(a.message, /de lejos/);
+  assert.equal(focusFor(a.code), 'table');
+  assert.equal(scoreReading({ per_100g: { energy_kcal: 600 } }, d).nutrients.wrong_flagged, 1);
+  // Glare or a tilt alone, or one good photo of the table among bad ones, does not trigger it.
+  for (const images of [[{ index: 1, shows: ['nutrition_table'], problems: ['glare', 'tilted'] }],
+    [{ index: 1, shows: ['nutrition_table'], problems: ['blurry'] }, { index: 2, shows: ['nutrition_table'], problems: [] }]]) {
+    assert.ok(!transcriptionToDraft(demoTranscription({ images }), options).alerts.some((x) => x.code === 'table_photos_poor'));
+  }
 });

@@ -185,3 +185,25 @@ test('removing a seal that is due needs a recorded decision and keeps the slogan
 test('management-only products have no label', () => {
   assert.throws(() => build(demo(), 'salsa-demo'), /management-only/);
 });
+
+test('arreglo 7: a composition field from another source is named in the reference-data alert', () => {
+  const store = withProduct(demo(), 'mani-tostado', (p) => {
+    p.sources.push({ id: 'ref', level: 4, kind: 'market_reference', from: 'Ficha de otra marca (demo)', date: '2026-11-10' });
+    p.composition.field_sources = { ingredients: 'ref', contains: 'ref' };
+    return p;
+  });
+  const a = build(store, 'mani-tostado').alerts.find((x) => x.code === 'reference_data:ref');
+  assert.deepEqual(a.fields, ['ingredientes', 'CONTIENE']);
+  assert.match(a.detail, /ingredientes, CONTIENE/);
+  // Without field_sources nothing changes (the records of before stay valid).
+  assert.ok(!build(demo(), 'mani-tostado').alerts.some((x) => x.code.startsWith('reference_data')));
+});
+
+test('arreglo 8: a barcode with a wrong check digit is not drawn and asks for a review', () => {
+  const store = withProduct(demo(), 'mani-tostado', (p) => { p.presentations[0].barcode = '0000000000001'; return p; });
+  const d = build(store, 'mani-tostado');
+  const a = d.alerts.find((x) => x.code === 'invalid_barcode');
+  assert.ok(a && a.print === 'review');
+  assert.equal(d.barcode, null);
+  assert.ok(!d.alerts.some((x) => x.code === 'missing_barcode'));
+});

@@ -14,18 +14,20 @@ Código: [`src/reading/`](../src/reading). Prueba desde la terminal: [`scripts/r
 |---|---|
 | Número de cada celda | Se toma del texto impreso (coma decimal, punto de miles); si no coincide con el número que dio la IA, el dato queda dudoso. «1.181» se lee como 1181 y queda marcado (miles o decimal) |
 | Fila → nutriente | Por el nombre de la fila (energía, proteínas, grasa saturada, mono, poli, trans, colesterol, H. de C., azúcares, fibra, sodio, sal) |
-| Unidades | Se llevan a las de la etiqueta (kcal, g, mg): sodio en g × 1000; energía solo en kJ ÷ 4,184; sal × 400 = sodio (con aviso) |
+| Unidades | Se llevan a las de la etiqueta (kcal, g, mg): sodio en g × 1000; energía solo en kJ ÷ 4,184; sal × 400 = sodio (con aviso). Si la conversión da algo imposible, la unidad impresa queda en duda y el valor no se usa: sodio sobre 5000 mg por 100 g, o sobre 1000 mg si ningún ingrediente aporta sal (arreglo 3, 0.7: una fruta seca con el sodio impreso en g en vez de mg); colesterol sobre 1500 mg |
 | H. de C. | «Disponibles» (o «Disp.») se usa tal cual. «Totales» − fibra (con aviso). «H. de C.» sin aclarar: se usa tal como está impreso; si la energía calza claramente mejor restando la fibra, se pide revisarlo (nunca se cambia solo) |
-| **Doble lectura** | Cada valor por 100 g se compara con su valor por porción (valor × porción / 100, con el margen del redondeo de ambos). Si calzan, el dato queda confirmado aunque una de las dos celdas se leyera dudosa (p. ej. «1?,5» calza con 61,7 × 0,3). Si no calzan, el dato no se usa |
-| Valor por 100 g ilegible | Se calcula desde la porción (valor × 100 / porción), con aviso. Un valor dudoso que calza con la porción solo por el redondeo (1,2 con 0,3 de 30 g) no se da por bueno: se usa el que da la porción (1,0) |
+| **Doble lectura** | Cada valor por 100 g se compara con su valor por porción (valor × porción / 100, con el margen del redondeo de ambos). Si las dos celdas se leen claras y calzan, el dato queda confirmado. Desde la 0.7 (arreglo 14) la otra columna solo confirma con precisión suficiente: **dos celdas dudosas nunca se confirman entre sí**; un valor dudoso se confirma solo si la celda por porción lo distingue de sus vecinos con la misma cantidad de decimales («0,3» en 40 g calza con 0,6, 0,7 y 0,8 por 100 g: no confirma ninguno; «1,5» en 30 g sí confirma un 5 dudoso); una celda por porción con menos decimales que la de 100 g («70,0 \| 17») o que calza solo con el margen extra del 2 % deja el valor «por confirmar». Una celda por porción dudosa se confirma con la de 100 g clara (p. ej. «1?,5» calza con 61,7 × 0,3). Si no calzan, el dato no se usa |
+| Valor por 100 g ilegible | Se calcula desde la porción (valor × 100 / porción), con aviso. Un valor dudoso que la porción no distingue (1,2 con 0,3 de 30 g) queda dudoso y pide otra foto |
+| **Tabla solo en fotos malas** | Desde la 0.7 (arreglo 15): si todas las fotos en que se ve la tabla vienen marcadas por la IA como borrosas, de lejos u oscuras, todos los valores de la tabla quedan «por confirmar» (aunque calcen las dos columnas) y un aviso pide otra foto de la tabla. Una foto de cerca de la tabla sin esos problemas lo levanta. Calibración del 10-11-2026: con fotos así la IA lee con seguridad números equivocados (de lejos, filas corridas) |
 | Porción sin gramos | Si la columna por porción guarda una misma proporción con la de 100 g, se deduce la porción (confirmar); si no, la tabla no se usa |
 | Columna por porción calculada para otro peso | Si todas las filas guardan la misma proporción pero no la de la porción declarada, se avisa y se usan los valores por 100 g |
 | Sin columna por porción (páginas web) | Los valores quedan «sin verificar»: solo los revisan los chequeos de la tabla |
 | Chequeos de la tabla | Los de siempre ([`nutrients.js`](../src/nutrients.js)): energía ≈ 4·P + 4·HdC + 9·G, grasas parciales, azúcares ≤ H. de C., total ≤ 100 g |
 | Filas obligatorias | Si falta una, se pide otra foto (o completar con una tabla reconocida). El desglose de grasas es obligatorio con 3 g de grasa o más por porción |
+| Dos idiomas | Desde la 0.7 (arreglo 2): si el proveedor repite un texto en otro idioma («HARINA, AZÚCAR… / FLOUR, SUGAR…», «1 unid. / units»), se deja solo el español (ingredientes, frases de alérgenos, conservación y medida casera), con una nota de lo que se quitó. Si ninguna parte parece español, no se quita nada ([`language.js`](../src/reading/language.js)) |
 | Ingredientes | En minúsculas; los alérgenos que el proveedor marca en MAYÚSCULAS van entre llaves `{…}` (negrita). Si no los marca (o todo está en mayúsculas), se marcan los alérgenos encontrados |
-| CONTIENE | Lo que dice el proveedor, más los alérgenos de la lista de ingredientes que no puso (con aviso). Cereales con gluten → «gluten». El alérgeno que es el propio producto va primero |
-| PUEDE CONTENER | Lo que sigue a «Puede contener» y las frases de líneas compartidas («Elaborado en líneas que también procesan…», con aviso); sin repetir lo de CONTIENE. Lectura estricta: «frutos secos» = frutos de cáscara + maní |
+| CONTIENE | Lo que dice el proveedor, más los alérgenos de la lista de ingredientes que no puso (con aviso). Cereales con gluten → «gluten». **«Harina» sin decir de qué es = harina de trigo → gluten** (lectura estricta, arreglo 1, 0.7); «harina de arroz, de maíz…» no. El alérgeno que es el propio producto va primero |
+| PUEDE CONTENER | Lo que sigue a «Puede contener» y las frases de líneas compartidas («Elaborado en líneas que también procesan…», con aviso); sin repetir lo de CONTIENE. Lectura estricta: «frutos secos» = frutos de cáscara + maní. Un alérgeno que se nombra junto al grupo que ya lo incluye («frutos secos, maní») no cuenta como palabra repetida (arreglo 4, 0.7) |
 | Lo añadido | Azúcar (azúcar, jarabes, miel, glucosa, concentrado de jugo…), grasa (aceites salvo el mineral, manteca, grasa…) y sal, con el ingrediente que lo trae: decide qué sellos se evalúan |
 | Sellos del proveedor | Si su envase trae sellos distintos a los calculados, se avisa: puede faltar o sobrar algo añadido |
 | Origen | Solo si la etiqueta lo dice («Origen: Chile», «Hecho en…»). Una dirección no es el origen |
@@ -68,6 +70,20 @@ Con fotos de 720 × 1600 px. «Errores sin alerta» = dato mal leído que ningun
 
 Segunda tanda (5 productos más, gemini-3.6-flash, 7–14 s): 0 errores sin alerta con las reglas actuales.
 
+### Al cambiar las instrucciones o el modelo
+
+Las instrucciones (`PROMPT_VERSION` en [`prompt.js`](../src/reading/prompt.js)) y los modelos solo cambian con una versión nueva, y la versión nueva se usa recién después de volver a puntuar las lecturas esperadas (arreglo 12, 0.7; skill lectura-con-ia). Cada lectura guarda el modelo y la versión de las instrucciones.
+
+1. Subir `PROMPT_VERSION` y agregar su línea en [`test/prompt.test.js`](../test/prompt.test.js) (huella de las instrucciones y el formato, y los modelos). La prueba falla si cambian el texto, el formato o el modelo sin eso.
+2. Si solo cambian las reglas del código: puntuar de nuevo las lecturas guardadas, sin gastar cuota: `node scripts/score-readings.mjs --expect esperado.json [--alias producto=id] carpeta-de-lecturas` (también acepta los .zip descomprimidos de la página de pruebas). Cuenta por lector los **errores sin alerta**.
+3. Si cambian las instrucciones o el modelo: una tanda nueva con fotos buenas de los productos con datos esperados (página de pruebas, «Lote de fotos de varios productos») y puntuarla igual. Meta: 0 errores sin alerta con el lector normal.
+4. Anotar la fecha de la puntuación en la línea de la versión (`scored`).
+
+| Versión | Cambio | Puntuación |
+|---|---|---|
+| 4 (04-11-2026) | Frases de alérgenos palabra por palabra | 0 errores sin alerta en 14 lecturas con fotos buenas (03 y 04-11) |
+| 5 (10-11-2026) | Un texto con palabras gastadas, tapadas o cortadas es dudoso, con «?» donde falta (arreglo 13: el lector normal dio por clara una lista de ingredientes a la que le faltaba una palabra borrada) | **Pendiente**: tanda nueva con fotos buenas. Con las reglas de la 0.7, las 40 lecturas de la calibración (instrucciones v4) dan 0 errores sin alerta con el lector normal (antes 25) y 5 con el rápido (antes 30) |
+
 ## Página de pruebas en el celular
 
 [`lectura/`](../lectura) es una página web (sin servidor) para probar la lectura con la cámara del teléfono, publicada con GitHub Pages en <https://apber.github.io/generador-etiquetas-chile/lectura/>. Usa los mismos módulos de `src/reading/`: no repite reglas.
@@ -90,6 +106,12 @@ Prueba automática: [`test/lectura-page.test.js`](../test/lectura-page.test.js) 
 GEMINI_API_KEY=… node scripts/read-photos.mjs --list-models
 GEMINI_API_KEY=… node scripts/read-photos.mjs --model gemini-3.6-flash --thinking low --hint "Maní con chocolate" foto1.jpg foto2.jpg
 node scripts/read-photos.mjs --transcription lecturas/<nombre>.transcription.json --hint "…"   # sin gastar una lectura
+```
+
+Puntuar lecturas guardadas (descargadas de la página o de `lecturas/`) contra lo esperado, por lector:
+
+```
+node scripts/score-readings.mjs --expect esperado.json --alias cranberries-ocean-spray=cranberries-ocean --detail carpeta/
 ```
 
 Opciones: `--thinking low` (razonamiento), `--media high|medium|low` (resolución de imagen), `--kind web_capture` (capturas de una página), `--force` (leer aunque una foto no pase la revisión), `--out <carpeta>` (por defecto `lecturas/`), `--expect esperado.json --id <id>` (compara con lo esperado y cuenta los **errores sin alerta**: un dato mal leído que ninguna alerta marca).

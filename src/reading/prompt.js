@@ -1,7 +1,10 @@
 // Instructions sent to the AI together with the photos (stage 7e).
 // The AI transcribes; it does not calculate, complete or correct. See schema.js.
 
-export const PROMPT_VERSION = 4;
+// When the text below (or the schema, or the model) changes: raise PROMPT_VERSION and score the expected readings again
+// before using it (docs/lectura.md, «Al cambiar las instrucciones o el modelo»; test/prompt.test.js checks it).
+// v5 (10-11-2026, arreglo 13): a text with worn, covered or cut words is doubtful, with "?" where words are missing.
+export const PROMPT_VERSION = 5;
 
 /** Sections that can be read again from a close-up photo. */
 export const FOCUS_SECTIONS = {
@@ -20,6 +23,7 @@ Tu trabajo es COPIAR lo que está impreso, no interpretarlo:
 - Copia los textos tal como aparecen, con sus mayúsculas, tildes, paréntesis y signos (las MAYÚSCULAS suelen marcar alérgenos: consérvalas).
 - Si un carácter no se lee (reflejo, borroso, cortado, tapado), escribe "?" en su lugar en "text", pon "value" en null si el número no es seguro y marca "legibility": "doubtful" (se lee casi todo) o "illegible" (no se lee).
 - "legibility": "clear" solo si no tienes ninguna duda de ningún carácter.
+- En los textos (ingredientes, frases de alérgenos, conservación), si falta una palabra o parte de ella porque está gastada, borrada, tapada, cortada o fuera de la foto, escribe "?" donde falta (p. ej. "Maní, ? y sal") y marca "legibility": "doubtful". No juntes las palabras de los lados como si no faltara nada ni completes con lo que suele llevar el producto. Un texto es "clear" solo si se ve completo, de principio a fin.
 - Si algo no aparece en ninguna imagen, usa null (o una lista vacía). No lo inventes.
 - Si varias imágenes muestran lo mismo, usa la más legible; si se contradicen, cópialo de la más legible y explícalo en "remarks".
 

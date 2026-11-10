@@ -148,3 +148,10 @@ test('medallion letters: placed with translate inside the medallion, no scaled 3
   assert.equal(letters.length, 'SEMILLAS DE MARAVILLA'.length + 'BIENESTAR EN CADA BOCADO'.length);
   for (const l of letters) assert.match(l, /transform: translate\([-0-9.]+px, [-0-9.]+px\) rotate\([-0-9.]+deg\) scale\(0\.\d+\)/);
 });
+
+test('arreglo 8: a barcode override with a wrong check digit draws «SIN CÓDIGO» instead of failing', () => {
+  const store = loadFolder(DEMO_FOLDER);
+  const d = buildLabelData(store, { productId: 'mani-tostado' });
+  const { html } = labelMarkup(d, store.company, { barcode: '0000000000001' });
+  assert.match(html, /SIN CÓDIGO/);
+});

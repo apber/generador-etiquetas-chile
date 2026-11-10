@@ -7,6 +7,7 @@
 //  - A value per 100 g that cannot be read is derived from the serving column (with alert).
 
 import { NUTRIENT_KEYS, NUTRIENTS, FAT_BREAKDOWN_FROM_G } from '../nutrients.js';
+import { spanishMeasure } from './language.js';
 
 const KJ_PER_KCAL = 4.184;
 
@@ -108,6 +109,11 @@ export function rowUnit(label, unit) {
 
 /** Highest believable amount per 100 g after a unit conversion (above it the printed unit is doubted). */
 const PLAUSIBLE_MAX = { sodium_mg: 5000, cholesterol_mg: 1500 };
+/**
+ * Sodium when no ingredient is known to add salt (arreglo 3, 10-11-2026): a dried fruit printed «Sodio (g)» with a few
+ * units (thousands of mg) and passed under 5000. Foods without added salt stay far below 1000 mg per 100 g; above it the printed «g» is doubted.
+ */
+const SODIUM_MAX_WITHOUT_SALT = 1000;
 
 /** Factor to bring a printed unit to the label unit (null if it cannot be converted). */
 function unitFactor(key, printed) {
@@ -168,7 +174,7 @@ function readCell(cell, factor) {
  * status: ok (checked against the serving column) | unverified (no serving column to check)
  *         | derived (from the serving column) | doubtful | mismatch | missing
  */
-export function readTable(table) {
+export function readTable(table, { saltAdded = null } = {}) {
   const issues = [];
   const fields = {};
   if (!table || !Array.isArray(table.rows) || !table.rows.length) {
@@ -181,7 +187,8 @@ export function readTable(table) {
   const gInText = sText ? parseServingGrams(sText) : null;
   const serving = {
     g: g ?? gInText,
-    householdMeasure: normalizeMeasure(table.household_measure),
+    householdMeasure: normalizeMeasure(spanishMeasure(table.household_measure).text),
+    measureRemoved: spanishMeasure(table.household_measure).removed,
     text: sText,
     legible: table.serving_text?.legibility === 'clear',
   };
@@ -270,10 +277,13 @@ export function readTable(table) {
 
   // Unit converted to an impossible amount (e.g. «Sodio (g) 15g» = 15 000 mg per 100 g): the printed unit is
   // probably a typo of the supplier, and the value is not used until someone checks the bag.
-  for (const [k, max] of Object.entries(PLAUSIBLE_MAX)) {
+  for (const [k, maxAny] of Object.entries(PLAUSIBLE_MAX)) {
+    const noSalt = k === 'sodium_mg' && saltAdded !== true;
+    const max = noSalt ? SODIUM_MAX_WITHOUT_SALT : maxAny;
     const conv = issues.find((i) => i.code === 'unit_converted' && i.key === k);
     if (conv && decided[k]?.value > max) {
-      issues.push({ code: 'unit_doubtful', key: k, text: byKey[k].per100?.text ?? null, from: conv.from, to: conv.to, value: decided[k].value });
+      issues.push({ code: 'unit_doubtful', key: k, text: byKey[k].per100?.text ?? null, from: conv.from, to: conv.to, value: decided[k].value,
+        noSalt: noSalt && decided[k].value <= maxAny, saltKnown: saltAdded !== null });
       decided[k] = { status: 'doubtful', value: decided[k].value, note: 'unit_doubtful' };
     }
   }
@@ -348,15 +358,23 @@ function decide(r, servingG, hasServingColumn) {
     const allowance = servingAllowance(a.value, a.text, b.value, b.text, servingG);
     const consistent = Math.abs((a.value * servingG) / 100 - b.value) <= allowance;
     if (consistent) {
-      if (!a.legible && b.legible) {
-        // A doubtful value per 100 g is confirmed only if it is the value the serving column gives
-        // (0,3 g in 30 g gives 1,0: it confirms a doubtful 1,0 but not a doubtful 1,2, which also fits by rounding).
-        const d = decimalsIn(a.text);
-        const fromServing = Math.round(((b.value * 100) / servingG) * 10 ** d) / 10 ** d;
-        if (Math.abs(fromServing - a.value) > 1e-9) return derive(b, servingG, 'derived_doubtful_per100');
+      // Two doubtful cells never confirm each other (calibration of 10-11-2026: in photos from afar, pairs read with doubt
+      // agreed with each other but belonged to other rows or had a wrong digit).
+      if (!a.legible && !b.legible) return { status: 'doubtful', value: a.value, note: 'both_doubtful' };
+      if (!a.legible) {
+        // A doubtful value per 100 g is confirmed only if the serving column can tell it apart from its neighbours
+        // at the same precision («0,3» in 40 g fits 0,6, 0,7 and 0,8 per 100 g; «130 kcal» fits 324 to 328).
+        const fits = candidatesFromServing(a.text, b, servingG);
+        if (fits.length === 1 && Math.abs(fits[0] - a.value) < 1e-9) return { status: 'ok', value: a.value, note: 'confirmed_by_other_column' };
+        if (fits.length === 1) return derive(b, servingG, 'derived_doubtful_per100');
+        return { status: 'doubtful', value: a.value, note: 'other_column_imprecise' };
       }
-      // Both say the same: a doubtful reading is confirmed by the other column.
-      return { status: 'ok', value: a.value, note: a.legible && b.legible ? null : 'confirmed_by_other_column' };
+      if (!b.legible) return { status: 'ok', value: a.value, note: 'confirmed_by_other_column' };
+      // Two clear cells: the serving cell confirms only with the precision the column uses, and not only at the edge of
+      // the rounding (10-11-2026: a whole number per serving accepted a wrong decimal value per 100 g).
+      if (decimalsIn(b.text) < decimalsIn(a.text) && b.value !== 0) return { status: 'unverified', value: a.value, note: 'serving_cell_imprecise' };
+      if (onRoundingEdge(a, b, servingG)) return { status: 'unverified', value: a.value, note: 'serving_cell_edge' };
+      return { status: 'ok', value: a.value, note: null };
     }
     if (a.legible && !b.legible) return { status: 'ok', value: a.value, note: 'serving_cell_doubtful' };
     if (!a.legible && b.legible) return derive(b, servingG);
@@ -374,6 +392,27 @@ function decide(r, servingG, hasServingColumn) {
     return { status: hasServingColumn && servingG ? 'unverified' : 'unverified', value: a.value, note: a.note ?? (hasServingColumn ? 'serving_cell_missing' : null) };
   }
   return { status: 'doubtful', value: null, note: 'no_serving_to_derive' };
+}
+
+/** Values per 100 g, written with the decimals of text100, that a serving cell fits (rounding of both columns). */
+export function candidatesFromServing(text100, b, servingG) {
+  const d = decimalsIn(text100);
+  const step = 10 ** -d;
+  const centre = (b.value * 100) / servingG;
+  const reach = ((0.5 * 10 ** -decimalsIn(b.text) + 0.02 * b.value) * 100) / servingG + 2 * step;
+  const out = [];
+  for (let k = Math.ceil((centre - reach) / step); k * step <= centre + reach + 1e-9; k++) {
+    const c = Math.round(k * step * 10 ** d) / 10 ** d;
+    if (c < 0) continue;
+    if (Math.abs((c * servingG) / 100 - b.value) <= servingAllowance(c, text100, b.value, b.text, servingG)) out.push(c);
+  }
+  return out;
+}
+
+/** The pair fits only thanks to the extra 2 % allowance, not to the rounding of the printed digits. */
+function onRoundingEdge(a, b, servingG) {
+  const rounding = 0.5 * 10 ** -decimalsIn(b.text) + 0.5 * 10 ** -decimalsIn(a.text) * (servingG / 100) + 1e-9;
+  return Math.abs((a.value * servingG) / 100 - b.value) > rounding;
 }
 
 function derive(b, servingG, note = 'derived_from_serving') {

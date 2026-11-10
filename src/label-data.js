@@ -8,6 +8,7 @@ import { evaluateSeals, LIMITS_SOLID } from './seals.js';
 import { catalogIndex, cleanMayContain, allergenNames, mixAllergens } from './allergens.js';
 import { componentAsIngredient, formatProblems, segments, startsWithAllergen, wordCount, plainText } from './ingredients.js';
 import { checkClaims } from './claims.js';
+import { isValidEan13 } from './ean13.js';
 import { ALERT_TEXTS, LABEL_TEXT, SEAL_NAMES } from './i18n/es.js';
 
 export const DEFAULT_OPTIONS = {
@@ -41,6 +42,7 @@ const ALERT_META = {
   missing_component: ['missing', 'review'],
   missing_ring_color: ['missing', 'none'],
   missing_barcode: ['missing', 'ask'],
+  invalid_barcode: ['inconsistent', 'review'],
   seal_unknown: ['missing', 'review'],
   inconsistent_energy: ['inconsistent', 'review'],
   inconsistent_fat_parts: ['inconsistent', 'review'],
@@ -85,6 +87,12 @@ function makeAlert(base, suffix, params, owner, fields = []) {
   };
 }
 
+/** Names of the composition fields in the reference-data alert. */
+const COMPOSITION_FIELD_NAMES = {
+  ingredients: 'ingredientes', contains: 'CONTIENE', may_contain: 'PUEDE CONTENER',
+  country_of_origin: 'origen', storage: 'conservación', usage_instructions: 'instrucciones de uso',
+};
+
 /** Composition, values and alerts of one simple record (as a product or as a mix component). */
 function simpleData(product, ctx) {
   const comp = product.composition ?? {};
@@ -110,7 +118,10 @@ function simpleData(product, ctx) {
     if (!bySource.has(s.id)) bySource.set(s.id, { source: s, fields: [] });
     bySource.get(s.id).fields.push(field);
   };
-  if (comp.source) note(comp.source, 'composición');
+  // Arreglo 7 (04-11-2026): a composition field may come from another source than the rest (field_sources).
+  const own = comp.field_sources ?? {};
+  if (comp.source && Object.keys(COMPOSITION_FIELD_NAMES).some((f) => !own[f])) note(comp.source, 'composición');
+  for (const [f, id] of Object.entries(own)) if (id !== comp.source) note(id, COMPOSITION_FIELD_NAMES[f] ?? f);
   if (product.nutrition?.serving?.source) note(product.nutrition.serving.source, 'porción');
   for (const key of NUTRIENT_KEYS) {
     const v = product.nutrition?.per_100g?.[key];
@@ -154,7 +165,10 @@ export function buildLabelData(store, request, options = {}) {
 
   if (product.status === 'inactive') add('inactive');
   if (!product.ring_color) add('missing_ring_color', null, {}, ['ring_color']);
+  // A barcode with a wrong check digit is not drawn (impresos-y-etiquetas): «SIN CÓDIGO» and an alert (arreglo 8).
+  const barcodeOk = presentation.barcode ? isValidEan13(String(presentation.barcode)) : false;
   if (!presentation.barcode) add('missing_barcode', null, {}, ['presentations.barcode']);
+  else if (!barcodeOk) add('invalid_barcode', null, { number: presentation.barcode }, ['presentations.barcode']);
 
   // --- Composition and values per 100 g ---------------------------------------
   let raw;
@@ -360,7 +374,7 @@ export function buildLabelData(store, request, options = {}) {
     origin,
     healthPermit: company.health_permit.text,
     followUs: company.follow_us ?? null,
-    barcode: presentation.barcode ?? null,
+    barcode: barcodeOk ? presentation.barcode : null,
     alerts,
     blocking: blocking(alerts),
   };

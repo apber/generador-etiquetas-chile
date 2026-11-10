@@ -163,7 +163,20 @@
             }
           ]
         },
-        "source": { "description": "Source id for the composition.", "type": "string" }
+        "source": { "description": "Source id for the composition.", "type": "string" },
+        "field_sources": {
+          "description": "Source id of a composition field that does not come from the general source (e.g. ingredients completed from a reference).",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "ingredients": { "type": "string" },
+            "contains": { "type": "string" },
+            "may_contain": { "type": "string" },
+            "country_of_origin": { "type": "string" },
+            "storage": { "type": "string" },
+            "usage_instructions": { "type": "string" }
+          }
+        }
       }
     },
     "recipe": {

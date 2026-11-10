@@ -61,7 +61,7 @@ for (const { product, name } of products.values()) {
 
   // Referenced sources must exist
   const sourceIds = new Set((product.sources ?? []).map((s) => s.id));
-  const refs = [comp.source, product.nutrition?.serving?.source,
+  const refs = [comp.source, ...Object.values(comp.field_sources ?? {}), product.nutrition?.serving?.source,
     ...Object.values(product.nutrition?.per_100g ?? {}).map((v) => v.source)].filter(Boolean);
   for (const ref of new Set(refs)) {
     if (!sourceIds.has(ref)) errors.push(`${name}: source "${ref}" is not listed in sources`);

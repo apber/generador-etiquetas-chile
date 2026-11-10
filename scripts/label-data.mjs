@@ -35,7 +35,8 @@ for (const id of ids) {
     const label = `${'  '.repeat(r.indent)}${NUTRIENT_LABELS[r.key]}`;
     console.log(`    ${label.padEnd(28)} ${(r.per100g?.text ?? '—').padStart(7)} ${(r.perServing?.text ?? '—').padStart(7)}`);
   }
-  console.log(`  INGREDIENTES: ${d.ingredients?.plain ?? '—'} (${d.ingredients?.words ?? 0} palabras)`);
+  const words = d.ingredients?.words ?? 0;
+  console.log(`  INGREDIENTES: ${d.ingredients?.plain ?? '—'} (${words} ${words === 1 ? 'palabra' : 'palabras'})`);
   console.log(`  CONTIENE: ${d.contains.text ?? '—'}`);
   console.log(`  PUEDE CONTENER: ${d.mayContain.text ?? '—'}`);
   console.log(`  ${d.storage}`);

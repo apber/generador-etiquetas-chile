@@ -4,8 +4,9 @@
 import { readTable } from './table.js';
 import {
   allergensInStatement, allergensInIngredients, containsIds, formatIngredients,
-  addedFromIngredients, formatStorage, shelfLife,
+  addedFromIngredients, formatStorage, shelfLife, hasUnqualifiedFlour,
 } from './text.js';
+import { spanishOnly } from './language.js';
 import { checkValues, declaredValues } from '../nutrients.js';
 import { evaluateSeals } from '../seals.js';
 import { catalogIndex } from '../allergens.js';
@@ -50,8 +51,23 @@ export function transcriptionToDraft(t, options) {
   const withProblems = (t.images ?? []).filter((i) => i.problems?.length);
   if (withProblems.length) alerts.push(alert('image_problems', { list: withProblems }));
 
+  // Bilingual texts: only the Spanish part (arreglo 2). The ingredients go first: whether salt was added
+  // decides how much sodium is believable (arreglo 3).
+  const removedLanguage = [];
+  const es = (block) => {
+    if (!block?.text) return block ?? null;
+    const r = spanishOnly(block.text);
+    removedLanguage.push(...r.removed);
+    return r.removed.length ? { ...block, text: r.text } : block;
+  };
+  const ingredientsBlock = es(t.ingredients);
+  const ingredientsText = ingredientsBlock?.text ?? null;
+  const ingredients = formatIngredients(ingredientsText, catalog);
+  const added = addedFromIngredients(ingredients);
+
   // Nutrition table
-  const table = readTable(t.nutrition_table);
+  const table = readTable(t.nutrition_table, { saltAdded: ingredients ? added.some((a) => a.nutrient === 'sodium') : null });
+  removedLanguage.push(...(table.serving?.measureRemoved ?? []));
   for (const issue of table.issues) {
     if (issue.code !== 'row_missing' && READING_ALERTS[issue.code]) alerts.push(alert(issue.code, issue));
   }
@@ -61,13 +77,17 @@ export function transcriptionToDraft(t, options) {
       becauseFat: missingRows.filter((i) => i.mandatoryBecauseFat).map((i) => i.key) }));
   }
   resolveUnspecifiedCarbs(table, alerts);
+  poorTablePhotos(t.images, table, alerts);
   if (table.serving?.g && !table.serving.householdMeasure) alerts.push(alert('no_household_measure', { g: table.serving.g }));
   const byStatus = { doubtful: [], mismatch: [], derived: [] };
   for (const [key, f] of Object.entries(table.fields)) {
     const item = { key, text100: f.per100?.text, textServing: f.perServing?.text, servingG: table.serving?.g };
     if (f.status === 'doubtful' && f.note !== 'unit_doubtful') byStatus.doubtful.push(item);
     if (f.status === 'mismatch' && f.note !== 'columns_disagree_no_serving') byStatus.mismatch.push({ ...item, expected: Math.round(((f.per100.value * table.serving.g) / 100) * 100) / 100 });
-    if (f.status === 'derived') byStatus.derived.push({ ...item, value: f.value });
+    if (f.status === 'derived') {
+      const fiber = f.note === 'total_minus_fiber' ? table.fields.dietary_fiber_g?.value : null;
+      byStatus.derived.push({ ...item, value: f.value, ...(fiber != null ? { fiber, total: round1(f.value + fiber) } : {}) });
+    }
   }
   for (const [status, items] of Object.entries(byStatus)) {
     if (items.length) alerts.push(alert(`value_${status}`, { keys: items.map((i) => i.key), fields: items.map((i) => i.key), items }));
@@ -78,10 +98,9 @@ export function transcriptionToDraft(t, options) {
   }
 
   // Ingredients and allergens
-  const ingredientsText = t.ingredients?.text ?? null;
-  const ingredients = formatIngredients(ingredientsText, catalog);
   if (!ingredients) alerts.push(alert('no_ingredients'));
-  else if (t.ingredients.legibility !== 'clear' || ingredientsText.includes('?')) alerts.push(alert('ingredients_doubtful', { text: ingredientsText }));
+  else if (ingredientsBlock.legibility !== 'clear' || ingredientsText.includes('?')) alerts.push(alert('ingredients_doubtful', { text: ingredientsText }));
+  const flour = hasUnqualifiedFlour(ingredientsText, catalog);
 
   const index = catalogIndex(catalog);
   const names = (ids) => ids.map((id) => index.get(id)?.name.es ?? id).join(', ');
@@ -94,28 +113,30 @@ export function transcriptionToDraft(t, options) {
       alerts.push(alert('allergen_statement_doubtful', { statement: block.text, repeated: st.repeated.map((id) => index.get(id)?.name.es ?? id) }));
     }
   };
-  const others = (t.other_allergen_statements ?? []).map((x) => (typeof x === 'string' ? { text: x, legibility: 'clear' } : x));
-  [t.contains_statement, t.may_contain_statement, ...others].forEach(checkStatement);
-  const containsSt = allergensInStatement(t.contains_statement?.text, catalog);
-  for (const phrase of containsSt.unknown) alerts.push(alert('allergen_unknown', { phrase, statement: t.contains_statement.text }));
+  const others = (t.other_allergen_statements ?? []).map((x) => es(typeof x === 'string' ? { text: x, legibility: 'clear' } : x));
+  const containsBlock = es(t.contains_statement);
+  const mayBlock = es(t.may_contain_statement);
+  [containsBlock, mayBlock, ...others].forEach(checkStatement);
+  const containsSt = allergensInStatement(containsBlock?.text, catalog);
+  for (const phrase of containsSt.unknown) alerts.push(alert('allergen_unknown', { phrase, statement: containsBlock.text }));
   let contains;
-  if (t.contains_statement?.text) {
+  if (containsBlock?.text) {
     contains = containsIds(containsSt.ids);
     const extra = inIngredients.filter((id) => !contains.includes(id));
     if (extra.length) {
       contains.push(...extra);
-      alerts.push(alert('contains_added_from_ingredients', { ids: extra, names: names(extra) }));
+      alerts.push(alert('contains_added_from_ingredients', { ids: extra, names: names(extra), flour: flour && extra.includes('gluten') }));
     }
   } else {
     contains = mainFirst(inIngredients, options.productName, catalog);
-    if (contains.length) alerts.push(alert('contains_from_ingredients', { ids: contains, names: names(contains) }));
+    if (contains.length) alerts.push(alert('contains_from_ingredients', { ids: contains, names: names(contains), flour: flour && contains.includes('gluten') }));
   }
   contains = mainFirst(contains, options.productName, catalog);
 
   let mayContain = null;
-  if (t.may_contain_statement?.text) {
-    const st = allergensInStatement(t.may_contain_statement.text, catalog);
-    for (const phrase of st.unknown) alerts.push(alert('allergen_unknown', { phrase, statement: t.may_contain_statement.text }));
+  if (mayBlock?.text) {
+    const st = allergensInStatement(mayBlock.text, catalog);
+    for (const phrase of st.unknown) alerts.push(alert('allergen_unknown', { phrase, statement: mayBlock.text }));
     mayContain = st.ids;
   }
   for (const { text: statement } of others) {
@@ -138,8 +159,9 @@ export function transcriptionToDraft(t, options) {
   const inShell = /c[aá]scara/i.test(`${options.productName ?? ''} ${t.product_name ?? ''}`) && !/sin c[aá]scara/i.test(`${options.productName ?? ''} ${t.product_name ?? ''}`);
   if (inShell) alerts.push(alert('in_shell'));
 
-  // Added sugar, fat, salt and seals compared with the supplier's
-  const added = addedFromIngredients(ingredients);
+  if (removedLanguage.length) alerts.push(alert('other_language_removed', { removed: removedLanguage }));
+
+  // Seals compared with the supplier's
   if (t.warning_seals?.length && Object.keys(table.values).length) {
     const seals = evaluateSeals(table.values, declaredValues(table.values), added).filter((s) => s.due).map((s) => SEAL_NAMES[s.id]);
     const supplier = t.warning_seals.map((s) => s.toUpperCase().replace(/\s+/g, ' ').trim()).sort();
@@ -163,7 +185,7 @@ export function transcriptionToDraft(t, options) {
       added,
       country_of_origin: country,
       in_shell: inShell,
-      storage: formatStorage(t.storage?.text),
+      storage: formatStorage(es(t.storage)?.text),
       usage_instructions: t.usage_instructions?.text ?? null,
       supplier_shelf_life: life ? { amount: life.amount, unit: life.unit } : null,
       source: sourceId,
@@ -198,6 +220,29 @@ export function transcriptionToDraft(t, options) {
     summary: { pending, confirm: alerts.filter((a) => a.action === 'confirm').length },
   };
 }
+
+/** Problems that make the AI read wrong numbers with confidence (calibration of 10-11-2026). */
+export const POOR_TABLE_PHOTO = ['blurry', 'too_far', 'dark'];
+
+/**
+ * Arreglo 15 (10-11-2026): if every photo that shows the table is blurry, far or dark, no value of the table is taken
+ * as confirmed (not even when the serving column agrees): they are kept «Por confirmar» and another photo is advised.
+ * A close-up of the table without those problems lifts it.
+ */
+function poorTablePhotos(images, table, alerts) {
+  const withTable = (images ?? []).filter((i) => i.shows?.includes('nutrition_table'));
+  if (!withTable.length || !withTable.every((i) => i.problems?.some((p) => POOR_TABLE_PHOTO.includes(p)))) return;
+  const keys = [];
+  for (const [key, f] of Object.entries(table.fields)) {
+    if (!['ok', 'derived', 'unverified'].includes(f.status) || f.value === null || f.value === undefined) continue;
+    table.fields[key] = { ...f, status: 'unverified', note: 'table_photos_poor', noteBefore: f.note ?? null };
+    keys.push(key);
+  }
+  const problems = [...new Set(withTable.flatMap((i) => i.problems.filter((p) => POOR_TABLE_PHOTO.includes(p))))];
+  alerts.push(alert('table_photos_poor', { keys, fields: keys, problems, list: withTable }));
+}
+
+const round1 = (x) => Math.round(x * 10) / 10;
 
 function supplierName(s) {
   if (s?.name) return s.name;

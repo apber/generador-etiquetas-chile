@@ -48,6 +48,8 @@ La ficha guarda **solo lo que se escribe o se lee del proveedor**. Todo lo deriv
 | `composition.storage` | Conservación (`null` = texto por defecto de la empresa) |
 | `composition.usage_instructions` | Instrucciones de uso (opcional) |
 | `composition.extra_text` | Texto adicional (opcional) |
+| `composition.source` | Fuente de la composición (id de `sources[]`) |
+| `composition.field_sources` | Opcional: fuente de un campo de la composición que no viene de la fuente general, p. ej. `{ "ingredients": "f3", "contains": "f3" }` (campos: `ingredients`, `contains`, `may_contain`, `country_of_origin`, `storage`, `usage_instructions`). Si es una referencia, el aviso «datos de referencia» lo nombra |
 | `composition.supplier_shelf_life` | Duración según el proveedor (no se imprime) |
 | `recipe.components[]` | Receta de una mezcla: `product`, `g_per_100g`, `alternatives` y, solo si en la mezcla difiere del de su ficha, `country_of_origin` |
 | `nutrition.serving` | Porción: `g` y `household_measure` (medida casera) |

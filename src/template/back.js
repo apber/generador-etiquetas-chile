@@ -10,6 +10,7 @@
 import { BACK, MM } from './geometry.js';
 import { esc, icon } from './html.js';
 import { ean13Svg } from './ean13-svg.js';
+import { isValidEan13 } from '../ean13.js';
 import { qrSvg } from './qr-svg.js';
 
 const TXT = "font-family: 'Roboto Condensed', Arial, sans-serif; font-size: 6.2px; line-height: 1.17; color: #2B1A10";
@@ -110,7 +111,7 @@ function table(c) {
 function barcodeBlock(c) {
   const b = BACK.barcodeBase;
   const w = (b.w * c.barcodeScale) / b.scale, h = (b.h * c.barcodeScale) / b.scale;
-  const svg = c.barcode
+  const svg = c.barcode && isValidEan13(String(c.barcode))
     ? ean13Svg(c.barcode, { width: f2(h), height: f2(w) })
     : `<svg viewBox="0 0 ${f2(h)} ${f2(w)}" width="${f2(h)}" height="${f2(w)}" role="img" aria-label="Sin código de barras"><rect x="0.5" y="0.5" width="${f2(h - 1)}" height="${f2(w - 1)}" fill="#FFFFFF" stroke="#9C8F80" stroke-dasharray="2 1.5"></rect><text x="${f2(h / 2)}" y="${f2(w / 2 + 2)}" style="font-family: Arial, sans-serif; font-size: 6px; fill: #9C8F80; text-anchor: middle">SIN CÓDIGO</text></svg>`;
   return { w, h, html: `<div style="position: relative; width: ${f2(w)}px; height: ${f2(h)}px; margin: 0 auto"><div style="position: absolute; left: 0; top: ${f2(h)}px; width: ${f2(h)}px; height: ${f2(w)}px; transform: rotate(-90deg); transform-origin: 0 0">${svg}</div></div>` };

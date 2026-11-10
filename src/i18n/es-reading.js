@@ -8,6 +8,8 @@ const IMAGE_PROBLEMS = {
   glare: 'reflejo', blurry: 'borrosa', cut_off: 'cortada', too_far: 'muy lejos',
   tilted: 'inclinada', dark: 'oscura', covered: 'tapada',
 };
+const FLOUR = ' «Harina» sin decir de qué es se toma como harina de trigo: contiene gluten (lectura estricta).';
+const POOR_PHOTO = { blurry: 'borrosa', too_far: 'de lejos', dark: 'oscura' };
 const STATUS = {
   doubtful: 'no se lee bien', mismatch: 'no calza con la columna por porción',
 };
@@ -63,8 +65,8 @@ export const READING_ALERTS = {
   },
   unit_doubtful: {
     action: 'review',
-    message: (p) => `${cap(nutrientName(p.key))}: la tabla dice «${p.text ?? '?'}» en ${p.from} por 100 g, que serían ${fmt(p.value)} ${p.to}: no es posible. Lo más probable es que sean ${p.to}; mientras tanto el dato no se usa. Conviene compararlo a la vista con la bolsa.`,
-    detail: () => 'Unidad impresa dudosa: el valor no se usa hasta revisarlo.',
+    message: (p) => `${cap(nutrientName(p.key))}: la tabla dice «${p.text ?? '?'}» en ${p.from} por 100 g, que serían ${fmt(p.value)} ${p.to}${p.noSalt ? `, y ${p.saltKnown ? 'ningún ingrediente aporta sal' : 'no se sabe si lleva sal'}: no es creíble` : ': no es posible'}. Lo más probable es que sean ${p.to}; mientras tanto el dato no se usa. Conviene compararlo a la vista con la bolsa.`,
+    detail: (p) => 'Unidad impresa dudosa: el valor no se usa hasta revisarlo.' + (p.noSalt ? ' Sin sal añadida, el sodio de un alimento queda muy por debajo de 1000 mg por 100 g.' : ''),
   },
   unit_converted: {
     action: 'none',
@@ -151,9 +153,16 @@ export const READING_ALERTS = {
   value_derived: {
     action: 'confirm',
     message: (p) => `No se lee bien por 100 g: ${listY(p.keys.map(nutrientName))}. Se calculó desde la porción; confirme.`,
-    detail: (p) => p.items.map((i) => `${nutrientName(i.key)}: «${i.textServing}» × 100 / ${fmt(i.servingG)} = ${fmt(i.value)}`).join('. ') + '. El redondeo del proveedor puede dar una pequeña diferencia.',
+    detail: (p) => p.items.map((i) => (i.fiber != null
+      ? `${nutrientName(i.key)}: totales «${i.textServing}» × 100 / ${fmt(i.servingG)} = ${fmt(i.total)}, menos ${fmt(i.fiber)} de fibra = ${fmt(i.value)}`
+      : `${nutrientName(i.key)}: «${i.textServing}» × 100 / ${fmt(i.servingG)} = ${fmt(i.value)}`)).join('. ') + '. El redondeo del proveedor puede dar una pequeña diferencia.',
   },
 
+  table_photos_poor: {
+    action: 'retake',
+    message: (p) => `La foto de la tabla salió ${listY(p.problems.map((x) => POOR_PHOTO[x] ?? x))}: los números se guardan, pero quedan por confirmar. Conviene otra foto de la tabla, de cerca, de frente y con buena luz.`,
+    detail: (p) => `${p.list.map((i) => `Foto ${i.index}: ${i.problems.map((x) => IMAGE_PROBLEMS[x] ?? x).join(', ')}`).join('. ')}. Con fotos así la lectura puede dar números equivocados como si se leyeran bien, y la columna por porción no basta para confirmarlos.${p.keys.length ? ` Por confirmar: ${listY(p.keys.map(nutrientName))}.` : ''}`,
+  },
   table_check: {
     action: 'retake',
     message: () => 'Los números de la tabla no cuadran. Conviene otra foto de la tabla o compararla a la vista con la bolsa.',
@@ -172,12 +181,17 @@ export const READING_ALERTS = {
   contains_added_from_ingredients: {
     action: 'confirm',
     message: (p) => `Los ingredientes traen ${p.names} y el proveedor no lo puso en «Contiene». Se agregó; confirme.`,
-    detail: () => 'CONTIENE = alérgenos presentes como ingredientes, también dentro de un ingrediente (RSA art. 107 h).',
+    detail: (p) => 'CONTIENE = alérgenos presentes como ingredientes, también dentro de un ingrediente (RSA art. 107 h).' + (p.flour ? FLOUR : ''),
   },
   contains_from_ingredients: {
     action: 'confirm',
     message: (p) => `El proveedor no dice «Contiene». Por los ingredientes, contiene ${p.names}; confirme.`,
-    detail: () => 'Tomado de la lista de ingredientes.',
+    detail: (p) => 'Tomado de la lista de ingredientes.' + (p.flour ? FLOUR : ''),
+  },
+  other_language_removed: {
+    action: 'none',
+    message: () => '',
+    detail: (p) => `El proveedor lo escribe también en otro idioma; se dejó solo el español. Se quitó: ${p.removed.map((x) => `«${x}»`).join(', ')}.`,
   },
   allergen_unknown: {
     action: 'retake',

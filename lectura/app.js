@@ -20,7 +20,7 @@ import { queueStore } from './queue-store.js';
 import { groupBatch, hintOf } from './batch.js';
 import { makeZip } from './zip.js';
 
-export const PAGE_VERSION = '0.6.8';
+export const PAGE_VERSION = '0.7.0';
 
 const KEY_STORE = 'lectura.geminiKey';
 const HISTORY_STORE = 'lectura.history';

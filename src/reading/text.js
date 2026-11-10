@@ -58,16 +58,22 @@ export function allergensInStatement(text, catalog) {
   const ids = [];
   const unknown = [];
   const repeated = [];
+  const named = []; // ids named one by one (not only through a group such as "frutos secos")
   for (const part of parts) {
     const found = matchAll(part, aliases);
-    for (const id of found) if (ids.includes(id) && !repeated.includes(id) && !isGroup(part)) repeated.push(id);
+    const group = isGroup(part);
+    for (const id of found) if (named.includes(id) && !repeated.includes(id) && !group) repeated.push(id);
+    if (!group) found.forEach((id) => named.includes(id) || named.push(id));
     if (found.length) found.forEach((id) => ids.includes(id) || ids.push(id));
     else if (!/^(otros?|sus|y|de|del|la|el|los|las|a|en|lineas?|productos?|derivados?|mismas?|instalaciones)$/.test(part)) unknown.push(part);
   }
   return { ids, unknown, repeated };
 }
 
-/** Group words ("frutos secos") may repeat ids already named one by one (maní); that is not a reading error. */
+/**
+ * Group words ("frutos secos") may repeat ids named one by one (maní), before or after them
+ * ("frutos secos, maní y otros alérgenos"): that is not a reading error (arreglo 4, 10-11-2026).
+ */
 const isGroup = (part) => /frutos|cereales|lacteos|derivados/.test(part);
 
 function matchAll(phrase, aliases) {
@@ -108,7 +114,23 @@ export function allergensInIngredients(text, catalog) {
       for (const id of ids) hits.push({ id, index: start, end, phrase: text.slice(start, end) });
     }
   }
+  // Strict reading (arreglo 1, 04-11-2026): "harina" without saying of what is wheat flour → CONTIENE gluten.
+  // "harina de arroz / maíz / coco / almendra…" is left to its own words ("harina de trigo" is already wheat).
+  for (const m of n.matchAll(/(^|[^a-z])(harinas?)(?![a-z])/g)) {
+    const start = m.index + m[1].length;
+    const end = start + m[2].length;
+    if (taken.slice(start, end).some(Boolean)) continue;
+    const rest = n.slice(end).split(/[,;()[\]{}.]/)[0];
+    if (/(^|\s)(de|del)\s/.test(rest)) continue;
+    for (let i = start; i < end; i++) taken[i] = true;
+    hits.push({ id: 'wheat', index: start, end, phrase: text.slice(start, end), flour: true });
+  }
   return hits.sort((a, b) => a.index - b.index);
+}
+
+/** "harina" without saying of what (read as wheat flour, arreglo 1). */
+export function hasUnqualifiedFlour(text, catalog) {
+  return allergensInIngredients(text ?? '', catalog).some((h) => h.flour);
 }
 
 /** In CONTIENE, gluten cereals are declared as gluten (legal list name). */
