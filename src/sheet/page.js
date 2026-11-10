@@ -20,7 +20,7 @@ import { MM } from '../template/geometry.js';
  */
 export const PAPER_TYPES = {
   normal: { name: 'Papel normal o adhesivo mate', gamma: 1 },
-  fotografico: { name: 'Papel fotográfico brillante', gamma: 'L0.45S1.25/L0.5', overrides: { '#F6EEDF': 0.45 } },
+  fotografico: { name: 'Papel fotográfico brillante', gamma: 'L0.45S1.25/L0.5', overrides: { '#F8F3E8': 0.45 } },
 };
 
 const CSS_PX_PER_MM = 96 / 25.4;

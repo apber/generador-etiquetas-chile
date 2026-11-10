@@ -32,9 +32,13 @@ En papel fotográfico brillante los colores se imprimen bastante más oscuros qu
 
 **Dibujo e imágenes por separado (04-11-2026):** `--gamma L0.45S1.25/L0.5` corrige los colores del dibujo (aro, textos, íconos en línea) con lo que va antes de la barra y las imágenes (logo con el hibisco, picaflor de la firma) con lo que va después; así el aro gana color sin recortar el rojo del hibisco.
 
-**Valor de `fotografico` (04-11-2026, Epson L375, papel fotográfico brillante):** dibujo con luminosidad 0,45 · saturación ×1,25, imágenes con luminosidad 0,5 y el fondo de la etiqueta (#F6EEDF) con 0,45 por canal, que lo deja pálido y neutro en vez de amarillento (`overrides` de `PAPER_TYPES`). Elegido con dos hojas de calibración comparadas con una impresión en papel normal. Antes: 0,45 por canal para todo. Con `--gamma` explícito, ese valor se aplica a todo.
+**Valor de `fotografico` (04-11-2026, Epson L375, papel fotográfico brillante):** dibujo con luminosidad 0,45 · saturación ×1,25, imágenes con luminosidad 0,5 y el fondo de la etiqueta (#F6EEDF hasta la v0.6.1; #F8F3E8 desde la v0.6.2) con 0,45 por canal, que lo deja pálido y neutro en vez de amarillento (`overrides` de `PAPER_TYPES`). Elegido con dos hojas de calibración comparadas con una impresión en papel normal. Antes: 0,45 por canal para todo. Con `--gamma` explícito, ese valor se aplica a todo.
 
 **Calibrar un papel:** `npm run sheet -- <carpeta> <id> --calibrate 1,0.75,0.6,0.5,0.4 --assets …` (o con luminosidad: `--calibrate "0.45;L0.5;L0.5S1.15;L0.5S1.3;L0.45S1.15"`) arma una hoja con la etiqueta de ese producto una vez por valor, numerada bajo el frente («Prueba de color N.º 1 · Sin corrección», …). Se imprime en el papel a calibrar con el tipo de papel correcto en el diálogo de impresión, se compara con una hoja en papel normal y el número que más se parezca da el valor de `--gamma` (o el de `PAPER_TYPES` en [`page.js`](../src/sheet/page.js)).
+
+**Configuración recomendada (10-11-2026, Epson L375, papel fotográfico brillante autoadhesivo):** el PDF de `--paper-type normal` (sin corrección) con el controlador en **papel normal, calidad Alta**. Con papel normal y calidad estándar quedan líneas más claras (bandas); con calidad Alta desaparecen y la tinta no se corre. En modo fotográfico el color se oscurece y hay que corregir (la corrección más parecida fue la mitad de `fotografico`: `L0.725S1.125/L0.75`). `fotografico` queda como opción.
+
+**Fondo de la etiqueta (v0.6.2):** #F8F3E8, más claro que el anterior (#F6EEDF), elegido en pantalla con bocetos. Si el logo trae su propio fondo crema, conviene una copia del logo con ese fondo cambiado al de la etiqueta, para que el medallón no se vea como un círculo de otro tono.
 
 ## Precisión
 

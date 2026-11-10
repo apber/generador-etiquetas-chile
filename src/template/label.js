@@ -42,7 +42,7 @@ export function labelMarkup(d, company, options = {}) {
     `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="#9C8F80" stroke-width="1.13"></line>`)).join('');
   const html = `<div class="label" data-product="${esc(d.productId)}" style="position: relative; width: ${STRIP.boardWidth}px; height: ${H0}px; font-family: 'Roboto Condensed', Arial, sans-serif; color: #2B1A10; overflow: hidden">`
     + `<svg class="strip" viewBox="0 0 ${STRIP.boardWidth} ${H0}" width="${STRIP.boardWidth}" height="${H0}" style="position: absolute; left: 0; top: 0" aria-hidden="true">`
-    + '<path class="outline" d="" fill="none" stroke="#9C8F80" stroke-width="1.5"></path><path class="outline" d="" fill="#F6EEDF"></path>'
+    + '<path class="outline" d="" fill="none" stroke="#9C8F80" stroke-width="1.5"></path><path class="outline" d="" fill="#F8F3E8"></path>'
     + `${marks}</svg>`
     + `<div class="back" aria-label="Reverso" style="position: absolute; left: ${STRIP.backDx}px; top: 0px; width: ${BACK.width}px; height: ${H0}px"></div>`
     + front.html
