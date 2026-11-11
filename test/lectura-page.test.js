@@ -358,6 +358,15 @@ test('test page: a batch of photos of several products, each reading named by th
     assert.equal(bytes.readUInt32LE(0), 0x04034B50, 'zip file');
     const names = [...bytes.toString('latin1').matchAll(/lectura-[a-z0-9_-]+\.json/g)].map((x) => x[0]);
     assert.equal(new Set(names).size, 3);
+    // «Los dos» (0.7.1): the same photos go to the queue once per reader.
+    await page.setInputFiles('#batch-input', [file('prod-b_B_tabla.jpg')]);
+    await page.waitForSelector('#batch-plan:not([hidden])');
+    await page.selectOption('#batch-reader', 'both');
+    assert.equal(await page.textContent('#batch-queue'), 'Poner 2 lecturas en la cola');
+    await page.click('#batch-queue');
+    await page.waitForFunction(() => JSON.parse(localStorage.getItem('lectura.history') ?? '[]').length === 6, null, { timeout: 30000 });
+    assert.deepEqual(calls.slice(-2).map((c) => c.model).sort(), ['gemini-3.5-flash-lite', 'gemini-3.6-flash']);
+
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

@@ -20,7 +20,7 @@ import { queueStore } from './queue-store.js';
 import { groupBatch, hintOf } from './batch.js';
 import { makeZip } from './zip.js';
 
-export const PAGE_VERSION = '0.7.0';
+export const PAGE_VERSION = '0.7.1';
 
 const KEY_STORE = 'lectura.geminiKey';
 const HISTORY_STORE = 'lectura.history';
@@ -577,11 +577,13 @@ function renderBatch() {
   $('batch-unknown').textContent = plan.unknown.length ? `Sin producto en el nombre (no se usan): ${plan.unknown.map((i) => items[i].file.name).join(', ')}` : '';
   const n = plan.groups.filter((g) => batchGroupIndexes(g).length).length;
   $('batch-queue').disabled = !n;
-  $('batch-queue').textContent = `Poner ${n} ${n === 1 ? 'lectura' : 'lecturas'} en la cola`;
+  const total = $('batch-reader').value === 'both' ? 2 * n : n;
+  $('batch-queue').textContent = `Poner ${total} ${total === 1 ? 'lectura' : 'lecturas'} en la cola`;
 }
 async function queueBatch() {
   if (!batch) return;
-  const reader = $('batch-reader').value === 'fast' ? 'fast' : 'normal';
+  const choice = $('batch-reader').value;
+  const readers = choice === 'both' ? ['normal', 'fast'] : [choice === 'fast' ? 'fast' : 'normal'];
   const now = Date.now();
   let count = 0;
   for (const g of batch.plan.groups) {
@@ -593,8 +595,11 @@ async function queueBatch() {
       hint: g.product, productHint: hintOf(g.product), test: g.test, kind: kindOf(prepared), files,
       quality: qualityOf(prepared, files), forced: prepared.some((p) => !p.ok), batch: true,
     };
-    await queueStore.put(queueItem({ kind: 'read', of: null, base, images: prepared.map((p) => p.image), reason: 'batch', now, reader }));
-    count += 1;
+    // «Los dos» (0.7.1): one item per reader with the same photos; each reader waits only for its own quota.
+    for (const reader of readers) {
+      await queueStore.put(queueItem({ kind: 'read', of: null, base, images: prepared.map((p) => p.image), reason: 'batch', now, reader }));
+      count += 1;
+    }
   }
   batch = null;
   $('batch-plan').hidden = true;
@@ -602,7 +607,7 @@ async function queueBatch() {
   const box = $('error');
   box.hidden = false;
   box.classList.add('notice');
-  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `${count} ${count === 1 ? 'lectura quedó' : 'lecturas quedaron'} en la cola.`), ` Se leen una tras otra con el lector ${READER_NAME[reader]}; si se acaban las del día, siguen solas después de que se renueve la cuota (con la página abierta).`));
+  box.replaceChildren(closeButton(), h('p', {}, h('strong', {}, `${count} ${count === 1 ? 'lectura quedó' : 'lecturas quedaron'} en la cola.`), ` Se leen una tras otra con ${readers.length > 1 ? 'los dos lectores (cada uno a su ritmo)' : `el lector ${READER_NAME[readers[0]]}`}; si se acaban las del día, siguen solas después de que se renueve la cuota (con la página abierta).`));
   $('queue-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
   processQueue();
 }
@@ -940,6 +945,7 @@ async function start() {
   $('batch-pick').addEventListener('click', () => $('batch-input').click());
   $('batch-input').addEventListener('change', (e) => { pickBatch(e.target.files); e.target.value = ''; });
   $('batch-queue').addEventListener('click', queueBatch);
+  $('batch-reader').addEventListener('change', () => { if (batch) renderBatch(); });
   $('batch-cancel').addEventListener('click', () => { batch = null; $('batch-plan').hidden = true; });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') processQueue(); });
   window.addEventListener('online', () => processQueue());
