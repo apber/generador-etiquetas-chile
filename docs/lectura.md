@@ -82,7 +82,7 @@ Las instrucciones (`PROMPT_VERSION` en [`prompt.js`](../src/reading/prompt.js)) 
 | Versión | Cambio | Puntuación |
 |---|---|---|
 | 4 (04-11-2026) | Frases de alérgenos palabra por palabra | 0 errores sin alerta en 14 lecturas con fotos buenas (03 y 04-11) |
-| 5 (10-11-2026) | Un texto con palabras gastadas, tapadas o cortadas es dudoso, con «?» donde falta (arreglo 13: el lector normal dio por clara una lista de ingredientes a la que le faltaba una palabra borrada) | **Pendiente**: tanda nueva con fotos buenas. Con las reglas de la 0.7, las 40 lecturas de la calibración (instrucciones v4) dan 0 errores sin alerta con el lector normal (antes 25) y 5 con el rápido (antes 30) |
+| 5 (10-11-2026) | Un texto con palabras gastadas, tapadas o cortadas es dudoso, con «?» donde falta (arreglo 13: el lector normal dio por clara una lista de ingredientes a la que le faltaba una palabra borrada) | 11-11-2026, 12 productos con fotos buenas, los dos lectores: normal 0 errores sin alerta (110 bien, 1 mal con alerta); rápido 0 en la tabla (104 bien, 6 con alerta), pero 1 texto sin alerta (origen «Caraca» por «Canadá» en la linaza). Revisados a mano: en las pasas rubias la palabra borrada sale como «?» y dudosa (arreglo 13); en el barquillo, «harina» da gluten y se quita el inglés. Con las reglas de la 0.7, las 40 lecturas de la calibración (instrucciones v4) dan 0 errores sin alerta con el lector normal (antes 25) y 5 con el rápido (antes 30) |
 
 ## Página de pruebas en el celular
 

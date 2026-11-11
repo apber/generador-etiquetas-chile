@@ -13,7 +13,7 @@ import { DEFAULT_MODEL, FALLBACK_MODEL } from '../src/reading/gemini.js';
  */
 const VERSIONS = {
   4: { fingerprint: '6ced6e8128a05fce', models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'], scored: '2026-11-04' },
-  5: { fingerprint: 'dba42cf51db011e6', models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'], scored: null },
+  5: { fingerprint: 'dba42cf51db011e6', models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'], scored: '2026-11-11' },
 };
 
 export function promptFingerprint() {
