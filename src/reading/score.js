@@ -31,6 +31,7 @@ export function scoreReading(expected, result) {
   const comp = result.draft.composition;
   if (expected.ingredients !== undefined) texts.push({ field: 'ingredients', similarity: similarity(plain(expected.ingredients), plain(comp.ingredients)), want: expected.ingredients, got: comp.ingredients });
   if (expected.ingredients !== undefined) texts.push({ field: 'ingredient_marks', ok: sameList(marks(expected.ingredients), marks(comp.ingredients)), want: marks(expected.ingredients), got: marks(comp.ingredients) });
+  if (expected.ingredients !== undefined) texts.push({ field: 'ingredient_parens', ok: parens(expected.ingredients) === parens(comp.ingredients), want: parens(expected.ingredients), got: parens(comp.ingredients) });
   const allergenFlagged = result.alerts.some((a) => a.pending && /allergen|ingredients/.test(a.code));
   for (const f of ['contains', 'may_contain']) {
     if (expected[f] === undefined) continue;
@@ -46,7 +47,15 @@ export function scoreReading(expected, result) {
 
   const originFlagged = result.alerts.some((a) => a.pending && /origin/.test(a.code));
   for (const t of texts) if (t.field === 'country_of_origin' && !t.ok) t.flagged = originFlagged;
-  const silentTexts = texts.filter((t) => t.ok === false && !t.flagged && ['contains', 'may_contain', 'country_of_origin'].includes(t.field)).map((t) => t.field);
+  // Ingredients: any word that differs (after removing accents, case and punctuation) or a different nesting of
+  // parentheses is a wrong text; it is silent unless an ingredients or allergen alert is pending (11-11-2026: «mearavilla»
+  // and a missing «)» had passed with a similarity of 0.9).
+  const ingredientsFlagged = result.alerts.some((a) => a.pending && /ingredients|allergen/.test(a.code));
+  for (const t of texts) {
+    if (t.field === 'ingredients') t.ok = t.similarity === 1;
+    if (t.field === 'ingredients' || t.field === 'ingredient_parens') t.flagged = !t.ok && ingredientsFlagged;
+  }
+  const silentTexts = texts.filter((t) => t.ok === false && !t.flagged && ['ingredients', 'ingredient_parens', 'contains', 'may_contain', 'country_of_origin'].includes(t.field)).map((t) => t.field);
   return {
     silent_texts: silentTexts,
     nutrients: { right: count('right'), wrong_flagged: count('wrong_flagged'), wrong_silent: count('wrong_silent'), missing: count('missing'), extra: count('extra'), rows },
@@ -56,6 +65,7 @@ export function scoreReading(expected, result) {
 }
 
 const plain = (s) => normalize(String(s ?? '').replace(/[{}]/g, '')).replace(/[^a-z0-9%]+/g, ' ').trim();
+const parens = (s) => String(s ?? '').replace(/[^()]/g, '');
 const marks = (s) => [...String(s ?? '').matchAll(/\{([^}]+)\}/g)].map((m) => normalize(m[1]));
 const sameSet = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x) => b.includes(x));
 const sameList = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, i) => b[i] === x);

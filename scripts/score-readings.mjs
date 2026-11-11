@@ -68,6 +68,7 @@ for (const file of files) {
   console.log(`${label.padEnd(50)} bien ${String(n.right).padStart(2)} · mal con aviso ${String(n.wrong_flagged).padStart(2)} · MAL SIN AVISO ${String(n.wrong_silent).padStart(2)} · sin leer ${String(n.missing).padStart(2)}${s.silent_texts.length ? ` · textos sin aviso: ${s.silent_texts.join(', ')}` : ''}`);
   if (opt.detail) {
     for (const r of n.rows.filter((x) => x.outcome === 'wrong_silent')) console.log(`    ${r.key}: ${r.got} (esperado ${r.want}, ${r.status})`);
+    for (const t of s.texts.filter((x) => s.silent_texts.includes(x.field))) console.log(`    ${t.field}: ${JSON.stringify(t.got)} (esperado ${JSON.stringify(t.want)})`);
   }
 }
 console.log('');

@@ -368,6 +368,18 @@ test('score: a wrong value that no alert flags counts as a silent error', () => 
   assert.ok(s.texts.find((x) => x.field === 'contains').order);
 });
 
+test('score: a misspelled word or a missing parenthesis in the ingredients is a silent text error', () => {
+  const base = 'cobertura de chocolate de leche (azúcar, manteca de cacao, {leche} entera en polvo, pasta de cacao, {lecitina de soya}, vainillina), {almendras}, goma laca, aceite vegetal, jarabe de glucosa';
+  const silent = (text) => {
+    const r = transcriptionToDraft(demoTranscription(text ? { ingredients: { text, legibility: 'clear' } } : {}), options);
+    return scoreReading({ ingredients: base }, r).silent_texts;
+  };
+  assert.deepEqual(silent(null), []);
+  const ing = 'Cobertura de chocolate de leche (azúcar, manteca de cacao, LECHE entera en polvo, pasta de cacao, LECITINA DE SOYA, vainillina), ALMENDRAS, goma laca, aceite vegetal, jarabe de glucosa.';
+  assert.deepEqual(silent(ing.replace('goma laca', 'goma lacca')), ['ingredients']);
+  assert.deepEqual(silent(ing.replace('vainillina)', 'vainillina')), ['ingredient_parens']);
+});
+
 test('image check: sharp detail vs flat blur, dark, screen captures', () => {
   const img = (w, h, f) => {
     const data = new Uint8ClampedArray(w * h * 4);
