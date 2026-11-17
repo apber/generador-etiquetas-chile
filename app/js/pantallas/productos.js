@@ -4,7 +4,7 @@ import { T } from '../../textos.js';
 import { Cab, Btn, Fila, MarcaRevisar, Nota, Info, Interruptor, Ico, ir, avisar, fecha, gramos } from '../ui.js';
 import { Pantalla } from '../marco.js';
 import { estado, useAlmacen, guardarProducto, eliminarProducto, leerArchivo } from '../datos/almacen.js';
-import { vendibles, componentes, avisos, datosBase } from '../productos-info.js';
+import { vendibles, componentes, avisos, datosBase, tienePendientes, estadosPendientes } from '../productos-info.js';
 import { vistaPrevia, partes } from '../etiquetas.js';
 import { VistaEtiqueta } from '../vista-etiqueta.js';
 import { textoAviso } from '../avisos.js';
@@ -22,7 +22,7 @@ export function Lista() {
     fijo=${html`<${Btn} onClick=${() => ir('/nuevo')}><span class="fila-ico"><${Ico} n="mas" />${T.productos.agregar}</span><//>`}>
     ${lista.length ? html`<p class="chico">${T.productos.cuenta(lista.length)}</p>
       <ul class="tarjeta lista">${lista.map((p) => html`<li key=${p.id}><${Fila} n=${p.product_name}
-        marca=${avisos(p.id).length ? html`<${MarcaRevisar} />` : null} onClick=${() => ir(`/productos/${p.id}`)} /></li>`)}</ul>`
+        marca=${tienePendientes(p.id) ? html`<${MarcaRevisar} />` : null} onClick=${() => ir(`/productos/${p.id}`)} /></li>`)}</ul>`
     : html`<div class="tarjeta"><h2>${T.productos.vacia}</h2><p>${T.productos.vaciaD}</p></div>`}
     ${comp.length > 0 && html`<details class="tarjeta">
       <summary><span>${T.productos.noSeVenden(comp.length)}</span><${Ico} n="sig" /></summary>
@@ -46,6 +46,10 @@ function usePrevia(id, pedido) {
 
 /** Primer aviso del producto, con su acción. */
 function AvisoProducto({ id }) {
+  const e = estadosPendientes(id);
+  if (e.dudosos.length || e.porConfirmar.length) {
+    return html`<${Nota} accion=${T.avisos.revisar} onAccion=${() => ir(`/productos/${id}/datos`)}>${T.avisos.leidos(e.dudosos.length, e.porConfirmar.length)}<//>`;
+  }
   const a = avisos(id)[0];
   if (!a) return null;
   const t = textoAviso(a, id);

@@ -1,0 +1,19 @@
+name: Publicar producción
+
+# Producción = la última versión etiquetada (vX.Y). Al crear la etiqueta, la rama «produccion» pasa a apuntar a ella;
+# Cloudflare (Pages y el Worker de producción) publica desde esa rama. Dev publica desde main.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  produccion:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - run: git push --force origin "${GITHUB_REF_NAME}^{commit}:refs/heads/produccion"

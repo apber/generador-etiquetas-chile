@@ -46,6 +46,8 @@ export const api = {
   geminiFetch: async (url, init) => {
     const u = new URL(url);
     const ruta = u.pathname.replace(/^\/v1beta\//, '');
-    return fetch(`${base()}/api/gemini/${ruta}`, { ...init, headers: { ...(init?.headers ?? {}), ...(await cabeceras()) } });
+    // La clave la pone el servidor: la cabecera de clave no sale del dispositivo
+    const { 'x-goog-api-key': _, ...resto } = init?.headers ?? {};
+    return fetch(`${base()}/api/gemini/${ruta}`, { ...init, headers: { ...resto, ...(await cabeceras()) } });
   },
 };

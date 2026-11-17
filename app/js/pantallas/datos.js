@@ -11,6 +11,13 @@ import { NUTRIENT_LABELS } from '../../../src/i18n/es.js';
 import { NoEsta } from './productos.js';
 import { Fotos as FotosNuevas } from './nuevo.js';
 
+/** Nombre de un dato en minúsculas, para los avisos («el sodio», «la porción»). */
+export function nombreCampo(k) {
+  const n = NUTRIENTS.find((x) => x.key === k);
+  if (n) return `«${NUTRIENT_LABELS[k].replace(/ \(.*\)$/, '')}»`;
+  return `«${{ serving: T.datos.porcion, ingredients: T.datos.ingredientes, contains: T.datos.contiene, may_contain: T.datos.puede,
+    country_of_origin: T.datos.origen, storage: T.datos.conservacion }[k] ?? k}»`;
+}
 const num = (v) => (v == null ? '—' : String(v).replace('.', ','));
 const nombreAlergenos = (ids) => (ids ?? []).map((id) => estado.catalog.allergens.find((a) => a.id === id)?.name.es ?? id).join(', ');
 const sinLlaves = (s) => (s ?? '').replace(/[{}]/g, '');

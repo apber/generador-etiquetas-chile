@@ -222,6 +222,8 @@ export const T = {
     claim: 'Hay un texto que no se puede usar con sellos. Revísalo.',
     otro: 'Hay algo por revisar en este producto.',
     revisar: 'Revisar', confirmar: 'Confirmar',
+    leidos: (d, c) => [d && `${d === 1 ? '1 dato' : `${d} datos`} no se pudo confirmar`, c && `${c === 1 ? '1 dato está' : `${c} datos están`} por confirmar`].filter(Boolean).join(' y ') + '. Mientras tanto, la etiqueta sale sin ellos si son obligatorios.',
+    dudoso: (n) => `No se pudo confirmar ${n}: las dos lecturas no coinciden. Revísalo en la bolsa.`,
   },
 
   // ---- Producto nuevo ----
@@ -243,6 +245,8 @@ export const T = {
     volverProductos: 'Volver a Productos',
     cancelarLectura: 'Cancelar la lectura',
     listoT: 'Listo', listoD: 'Se leyó todo y el producto quedó guardado.',
+    confirmando: 'Confirmando los datos', confirmandoD: 'Ya se leyeron las fotos. Una segunda lectura revisa que los datos estén bien; mientras tanto quedan «Por confirmar». Puedes seguir o volver más tarde.',
+    confirmandoEspera: 'La segunda lectura, que confirma los datos, quedó en espera y sigue sola. Mientras tanto, los datos quedan «Por confirmar».',
     faltaT: (n) => (n === 1 ? 'Falta 1 cosa' : `Faltan ${n} cosas`), faltaD: 'Lo demás se leyó bien y ya está guardado.',
     verEtiqueta: 'Ver la etiqueta', otro: 'Agregar otro producto', verDatos: 'Ver los datos leídos',
     enEspera: 'La lectura quedó en espera',

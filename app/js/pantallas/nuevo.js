@@ -9,6 +9,7 @@ import { iniciarLectura, useLectura, cancelarLectura, avisosLectura } from '../l
 import { avisos } from '../productos-info.js';
 import { textoAviso } from '../avisos.js';
 import { esTelefono } from './imprimir.js';
+import { nombreCampo } from './datos.js';
 
 // Las fotos elegidas sobreviven al ir y volver de la cámara (la página puede recargarse en algunos teléfonos)
 let fotosNuevo = [];
@@ -83,17 +84,21 @@ export function Lectura({ id }) {
     <//>`;
   }
   // Resultado: lo que pide algo, una cosa a la vez
-  const faltan = [...avisosLectura(l).map((a) => ({ texto: a.message, de: 'lectura' })),
-    ...avisos(p.id).map((a) => ({ texto: textoAviso(a).texto, de: 'producto' }))];
-  const dudosos = Object.entries(p.field_states ?? {}).filter(([, s]) => s === 'doubtful').length;
-  const n = faltan.length + (dudosos && !faltan.length ? 1 : 0);
+  const st = p.field_states ?? {};
+  const confirmando = N.estado !== 'listo' && N.estado !== 'error';
+  const faltan = [
+    ...Object.entries(st).filter(([, s]) => s === 'doubtful').map(([k]) => ({ texto: T.avisos.dudoso(nombreCampo(k)), accion: 'Arreglar', ir: `/productos/${p.id}/editar/${k}` })),
+    ...avisosLectura(l).filter((a) => !(a.data?.fields ?? a.data?.keys ?? []).some((k) => st[k])).map((a) => ({ texto: a.message, accion: T.avisos.revisar, ir: `/productos/${p.id}/datos` })),
+    ...avisos(p.id).map((a) => ({ texto: textoAviso(a).texto, accion: textoAviso(a).accion, ir: `/productos/${p.id}/datos` })),
+  ];
+  const n = faltan.length;
   return html`<${Pantalla} sec="productos" cab=${html`<${Cab} volver="/productos" etiquetaVolver="Volver a Productos" donde=${T.nuevo.donde} />`}>
-    <div class="gran-ico">${n ? html`<${Ico} n="alerta" />` : html`<${Ico} n="check" />`}</div>
-    <h1>${n ? T.nuevo.faltaT(n) : T.nuevo.listoT}</h1>
-    <p>${n ? T.nuevo.faltaD : T.nuevo.listoD}</p>
+    <div class="gran-ico">${n || confirmando ? html`<${Ico} n=${n ? 'alerta' : 'info'} />` : html`<${Ico} n="check" />`}</div>
+    <h1>${n ? T.nuevo.faltaT(n) : confirmando ? T.nuevo.confirmando : T.nuevo.listoT}</h1>
+    <p>${n ? T.nuevo.faltaD : confirmando ? '' : T.nuevo.listoD}</p>
     <h2>${p.product_name}</h2>
-    ${N.estado !== 'listo' && html`<${Info}>${N.estado === 'espera' ? 'Una segunda lectura, para confirmar los datos, quedó en espera y sigue sola.' : 'Una segunda lectura, para confirmar los datos, sigue en curso.'} Mientras tanto, los datos quedan «Por confirmar».<//>`}
-    ${faltan[0] && html`<${Nota} accion=${T.datos.titulo === '' ? '' : 'Revisar'} onAccion=${() => ir(`/productos/${p.id}/datos`)}>${faltan[0].texto}<//>`}
+    ${confirmando && html`<${Info}>${N.estado === 'espera' ? T.nuevo.confirmandoEspera : T.nuevo.confirmandoD}<//>`}
+    ${faltan[0] && html`<${Nota} accion=${faltan[0].accion} onAccion=${() => ir(faltan[0].ir)}>${faltan[0].texto}<//>`}
     <${Btn} onClick=${() => ir(`/productos/${p.id}/etiqueta`)}>${T.nuevo.verEtiqueta}<//>
     <${Btn} tipo="secundario" onClick=${() => ir(`/productos/${p.id}/datos`)}>${T.nuevo.verDatos}<//>
     <${Btn} tipo="secundario" onClick=${() => ir(`/productos/${p.id}/nombre`)}>${T.ficha.cambiarNombre}<//>

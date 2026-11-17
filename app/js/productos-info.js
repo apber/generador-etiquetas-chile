@@ -17,16 +17,32 @@ export function datosBase(id) {
   return cache.datos.get(id);
 }
 
-/** Avisos que piden revisar algo (no confirmados). */
+// Avisos de dato faltante que en realidad son un dato leído sin confirmar (se muestran como «Por confirmar» o «Dudoso»)
+const CAMPO_AVISO = { missing_contains: 'contains', missing_may_contain: 'may_contain', missing_origin: 'country_of_origin',
+  missing_ingredients: 'ingredients', missing_serving: 'serving' };
+const campoDe = (a) => (a.code.startsWith('missing_nutrient') ? a.params?.key : a.code === 'seal_unknown' ? a.params?.nutrient : CAMPO_AVISO[a.code]);
+
+/** Avisos que piden revisar algo (no confirmados), sin los de datos leídos que se muestran por su estado. */
 export function avisos(id) {
   const d = datosBase(id);
   if (d.error) return [{ code: 'error', message: d.error }];
-  return (d.alerts ?? []).filter((a) => !a.confirmed && !SIN_MARCA.has(a.code) && (a.print === 'ask' || a.print === 'review' || d.incomplete));
+  const st = estado.products.get(id)?.field_states ?? {};
+  return (d.alerts ?? []).filter((a) => !a.confirmed && !SIN_MARCA.has(a.code) && (a.print === 'ask' || a.print === 'review' || d.incomplete)
+    && !(st[campoDe(a)] && st[campoDe(a)] !== 'confirmed'));
 }
+
+/** Datos leídos sin confirmar: { dudosos: [clave], porConfirmar: [clave] }. */
+export function estadosPendientes(id) {
+  const st = estado.products.get(id)?.field_states ?? {};
+  const e = Object.entries(st);
+  return { dudosos: e.filter(([, s]) => s === 'doubtful').map(([k]) => k), porConfirmar: e.filter(([, s]) => s === 'unconfirmed').map(([k]) => k) };
+}
+const pendiente = (id) => { const e = estadosPendientes(id); return avisos(id).length + e.dudosos.length + e.porConfirmar.length; };
 
 const orden = (a, b) => a.product_name.localeCompare(b.product_name, 'es');
 /** Productos que se venden (con etiqueta), en orden alfabético. */
 export const vendibles = () => [...estado.products.values()].filter((p) => p.status !== 'inactive' && p.type !== 'management_only').sort(orden);
 /** Los que no se venden solos (componentes). */
 export const componentes = () => [...estado.products.values()].filter((p) => p.status === 'inactive').sort(orden);
-export const porRevisar = () => vendibles().filter((p) => avisos(p.id).length > 0);
+export const porRevisar = () => vendibles().filter((p) => pendiente(p.id) > 0);
+export const tienePendientes = (id) => pendiente(id) > 0;

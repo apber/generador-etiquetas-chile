@@ -1,0 +1,14 @@
+# Servidor de la app (Cloudflare Worker). Dos copias: dev (por defecto) y produccion (--env produccion).
+# Variables y secretos: en el panel de Cloudflare de cada Worker (ver worker/LEEME.md); keep_vars las conserva al publicar.
+name = "etiquetas-api-dev"
+main = "index.js"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat"]
+keep_vars = true
+browser = { binding = "BROWSER" }
+rules = [{ type = "Data", globs = ["**/*.woff2"], fallthrough = true }]
+
+[env.produccion]
+name = "etiquetas-api"
+keep_vars = true
+browser = { binding = "BROWSER" }

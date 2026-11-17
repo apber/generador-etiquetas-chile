@@ -6,6 +6,7 @@ import { ENTORNO, conOneDrive } from './config.js';
 import { entrar, terminarEntrada, sesionGuardada } from './datos/sesion.js';
 import { iniciarSincronizacion, sincronizar, sincronizarLuego } from './datos/onedrive.js';
 import { Btn, ir } from './ui.js';
+import { seguirLecturas } from './lectura.js';
 import * as Imp from './pantallas/imprimir.js';
 import * as Prod from './pantallas/productos.js';
 import * as Aj from './pantallas/ajustes.js';
@@ -116,6 +117,7 @@ async function arrancar() {
   await cargar();
   suscribir(() => { if (conOneDrive()) sincronizarLuego(); });
   render(html`<${App} />`, document.getElementById('app'));
+  seguirLecturas();   // lecturas en espera (cuota, servicio ocupado): siguen solas
   document.title = ENTORNO.nombre;
 }
 arrancar();
