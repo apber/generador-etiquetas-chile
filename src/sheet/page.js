@@ -136,7 +136,14 @@ export async function correctImages() {
     }
   }
   await Promise.all([...document.images].map((i) => i.decode().catch(() => null)));
-  if (document.fonts) await document.fonts.ready;
+  // The fonts are requested by name before waiting: fonts.ready alone only waits for loads already started, and
+  // a label laid out with a stand-in font would wrap and place its text differently (seen once, 12-11-2026).
+  if (document.fonts) {
+    await Promise.all(["400 6.2px 'Roboto Condensed'", "700 6.2px 'Roboto Condensed'", '700 8px Montserrat', '800 8.5px Montserrat']
+      .map((f) => document.fonts.load(f).catch(() => null)));
+    await document.fonts.ready;
+  }
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   document.body.dataset.ready = '1';
 }
 

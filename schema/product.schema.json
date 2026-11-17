@@ -52,7 +52,26 @@
         }
       }
     },
-    "notes": { "type": "string" }
+    "notes": { "type": "string" },
+    "label_parts": {
+      "description": "Parts of the label the user chose to leave out (only those the rules do not require). Default: all included.",
+      "type": "object", "additionalProperties": false,
+      "properties": { "highlight": { "type": "boolean" }, "follow_us": { "type": "boolean" } }
+    },
+    "last_print": {
+      "description": "Net weight and mix variant of the last print (the app offers them next time).",
+      "type": "object", "additionalProperties": false,
+      "properties": { "net_weight_g": { "type": "number", "exclusiveMinimum": 0 }, "variant": { "type": "object", "additionalProperties": { "type": "string" } } }
+    },
+    "field_states": {
+      "description": "App (stage 7f): state of each value read from photos: confirmed (both readers agree or the user confirmed it), unconfirmed (Por confirmar) or doubtful (Dudoso). Critical values that are not confirmed (allergens, mandatory table rows, origin) and doubtful values are left out of the label.",
+      "type": "object", "additionalProperties": { "enum": ["confirmed", "unconfirmed", "doubtful"] }
+    },
+    "reading": {
+      "description": "App (stage 7f): the reading that produced this record. Its photos and transcriptions are kept in the data folder (fotos/<id>/, lecturas/<id>/).",
+      "type": "object",
+      "properties": { "id": { "type": "string" }, "date": { "type": "string" }, "pending": { "type": "boolean" } }
+    }
   },
   "allOf": [
     {
@@ -101,7 +120,11 @@
           "description": "Full EAN-13 (13 digits) tied to this presentation; null if none.",
           "type": ["string", "null"], "pattern": "^[0-9]{13}$"
         },
-        "barcode_source": { "enum": ["own", "third_party", null] }
+        "barcode_source": { "enum": ["own", "third_party", null] },
+        "without_barcode": {
+          "description": "App: the user chose to print this presentation without a barcode (the app stops offering one).",
+          "type": "boolean"
+        }
       }
     },
     "composition": {

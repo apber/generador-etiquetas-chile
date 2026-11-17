@@ -11,11 +11,13 @@
     "label": "node scripts/label-data.mjs",
     "render": "node scripts/render-label.mjs",
     "test": "node --test",
-    "sheet": "node scripts/print-sheet.mjs"
+    "sheet": "node scripts/print-sheet.mjs",
+    "app": "node scripts/app-server.mjs"
   },
   "devDependencies": {
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "pdf-lib": "^1.17.1",
     "playwright": "^1.63.0"
   },
   "dependencies": {
