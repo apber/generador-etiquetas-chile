@@ -153,6 +153,21 @@ export async function planHojas(lista) {
   return { hojas: plan.pages.length, libres, plan, porHoja: plan.pages.map((p) => p.items.length) };
 }
 
+/**
+ * La hoja para imprimir como página (para la ventana de imprimir del teléfono, 18-11-2026: Chrome en Android no muestra
+ * un PDF dentro de la app). Usa la etiqueta guardada (la misma del PDF) con las imágenes del dispositivo.
+ * Devuelve { plan, etiquetas: [html por índice del plan] }.
+ */
+export async function hojaPagina(lista) {
+  const items = [], etiquetas = [];
+  for (const it of lista) {
+    const e = await etiquetaPdf(it.id, it);
+    const h = await conImagenes(e.html);
+    for (let k = 0; k < it.n; k++) { items.push({ id: it.id, cut: e.result.cut, freeEnd: e.result.freeEnd }); etiquetas.push(h); }
+  }
+  return { plan: planSheet(items, { paper: 'letter' }), etiquetas };
+}
+
 /** La hoja para imprimir (PDF), armada en el dispositivo con los PDF de cada etiqueta. */
 export async function hojaPdf(lista) {
   const items = [];

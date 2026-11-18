@@ -1,16 +1,19 @@
-// Imprimir etiquetas (ronda 4 y 4b): elegir, peso (y pasas del Mix), revisar, imprimir desde el teléfono (app de Epson)
-// o desde el PC (con la impresora de etiquetas), listo y ayuda. La hoja la arma el dispositivo con el PDF de cada etiqueta.
+// Imprimir etiquetas (ronda 4 y 4b): elegir, peso (y pasas del Mix), revisar, imprimir desde el teléfono (ventana de
+// imprimir del sistema, desde el 18-11-2026; antes la app de Epson) o desde el PC (con la impresora de etiquetas), listo
+// y ayuda. La hoja la arma el dispositivo con la etiqueta guardada de cada producto.
 import { html, useEffect, useState, useRef } from '../../vendor/preact-htm.js';
 import { T } from '../../textos.js';
 import { Cab, Btn, Fila, Nota, Info, Ico, Opcion, ir, avisar, pl, fecha, hora, gramos } from '../ui.js';
 import { Pantalla } from '../marco.js';
 import { estado, useAlmacen, guardarSeleccion, guardarProducto, anotarImpresion, agregarParaImprimir, quitarParaImprimir } from '../datos/almacen.js';
 import { vendibles, avisos } from '../productos-info.js';
-import { planHojas, hojaPdf, vistaPrevia, etiquetaPdf, indicePeso } from '../etiquetas.js';
+import { planHojas, hojaPdf, hojaPagina, vistaPrevia, etiquetaPdf, indicePeso } from '../etiquetas.js';
 import { VistaEtiqueta } from '../vista-etiqueta.js';
 import { textoAviso } from '../avisos.js';
 import { nextFreeBarcode } from '../../../src/barcodes.js';
 import { labelBox } from '../../../src/sheet/plan.js';
+import { sheetCss, sheetSections } from '../../../src/sheet/page.js';
+import { LABEL_FONTS } from '../../../src/render/label-pdf.js';
 import { MM } from '../../../src/template/geometry.js';
 
 export const esTelefono = () => /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
@@ -300,10 +303,13 @@ export function Telefono() {
   const abrir = async () => {
     setOcupado(true);
     try {
-      const compartido = await compartirPdf();
-      if (!compartido) avisar(T.telefono.sinCompartir);
+      const l = lista();
+      const hojas = await imprimirPagina(l);
+      ultimoPdf = { blob: null, hojas, etiquetas: total(l), items: l };   // para anotar (no hace falta el PDF)
       await anotar('telefono');
       ir('/imprimir/listo');
+    } catch {
+      avisar(T.telefono.error);
     } finally { setOcupado(false); }
   };
   const alPc = async () => {
@@ -316,14 +322,41 @@ export function Telefono() {
     cab=${html`<${Cab} volver="/imprimir/revisar" etiquetaVolver="Volver a Revisa antes de imprimir" donde=${T.revisar.titulo} />`}>
     <p>${T.telefono.papel}</p>
     <p>${T.telefono.elige}</p>
-    <dl class="tarjeta ajustes">
-      <div class="ajuste"><dt>${T.telefono.tam}</dt><dd>${T.telefono.tamV}</dd></div>
-      <div class="ajuste"><dt>${T.telefono.tipo}</dt><dd>${T.telefono.tipoV}</dd></div>
-      <div class="ajuste"><dt>${T.telefono.calidad}</dt><dd>${T.telefono.calidadV}</dd></div></dl>
+    <dl class="tarjeta ajustes">${T.telefono.ajustes.map(([k, v, n]) => html`<div class="ajuste" key=${k}><dt>${k}</dt><dd>${v}</dd>
+      ${n && html`<p class="chico" style="flex-basis:100%">${n}</p>`}</div>`)}</dl>
     <p class="chico">${T.telefono.nota}</p>
     <${Btn} ico="imp" deshabilitado=${ocupado} onClick=${abrir}>${T.telefono.abrir}<//>
     <${Btn} tipo="texto" onClick=${alPc}>${T.telefono.alPc}<//>
   <//>`;
+}
+
+/**
+ * Teléfono: abre la ventana de imprimir del sistema con las hojas como página (18-11-2026; con el complemento de Epson
+ * deja elegir la calidad, que la app de Epson no daba con papel normal). Las hojas van en una sombra (shadow DOM) para
+ * que los estilos de la app (p. ej. box-sizing) no cambien las etiquetas, y quedan fuera de la vista hasta la próxima
+ * impresión: Android vuelve a pedir las páginas si se cambia algo en la ventana. Devuelve cuántas hojas son.
+ */
+let hojaAnterior = [];
+async function imprimirPagina(l) {
+  const { plan, etiquetas } = await hojaPagina(l);
+  hojaAnterior.forEach((e) => e.remove());
+  const host = document.createElement('div');
+  host.className = 'imprimir-hoja';
+  host.setAttribute('aria-hidden', 'true');
+  const sombra = host.attachShadow({ mode: 'open' });
+  sombra.innerHTML = `<style>:host{all:initial;display:block}${sheetCss(plan)}</style>${sheetSections(plan, etiquetas)}`;
+  const pagina = document.createElement('style');   // @page solo vale en el documento, no dentro de la sombra
+  pagina.textContent = `@media print{@page{size:${plan.paper.width}mm ${plan.paper.height}mm;margin:0}`
+    + 'html,body{height:auto !important;background:#FFFFFF !important}}';
+  document.head.appendChild(pagina);
+  document.body.appendChild(host);
+  hojaAnterior = [host, pagina];
+  await Promise.all(LABEL_FONTS.map((f) => document.fonts.load(f).catch(() => null)));
+  await Promise.all([...sombra.querySelectorAll('img')].map((i) => i.decode().catch(() => null)));
+  await document.fonts.ready;
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+  window.print();
+  return plan.pages.length;
 }
 
 export function Pc() {
@@ -399,6 +432,6 @@ export function Listo() {
 export function Ayuda() {
   const A = T.ayuda;
   return html`<${Pantalla} sec="imprimir" titulo=${A.titulo} cab=${html`<${Cab} volver="/imprimir/listo" donde=${T.listo.titulo} />`}>
-    ${[[A.chicasT, A.chicasD], [A.oscurasT, A.oscurasD], [A.corridasT, A.corridasD]].map(([t, d]) => html`<div class="tarjeta" key=${t}><h2>${t}</h2><p>${d}</p></div>`)}
+    ${[...(esTelefono() ? [[A.noApareceT, A.noApareceD]] : []), [A.chicasT, A.chicasD], [A.oscurasT, esTelefono() ? A.oscurasTelD : A.oscurasD], [A.corridasT, A.corridasD]].map(([t, d]) => html`<div class="tarjeta" key=${t}><h2>${t}</h2><p>${d}</p></div>`)}
   <//>`;
 }

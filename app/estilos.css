@@ -214,5 +214,6 @@ body{background:#F8F3E8}
   .girando{display:none}
   .espera-tx{display:block}
 }
-@media print{ body > *:not(.imprimir-pdf){display:none !important} }
+@media print{ body > *:not(.imprimir-pdf):not(.imprimir-hoja){display:none !important} }
+@media screen{ .imprimir-hoja{position:fixed;left:-30000px;top:0;visibility:hidden;pointer-events:none} }
 .app h1[tabindex="-1"]:focus{outline:none}

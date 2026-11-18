@@ -156,11 +156,30 @@ const fmt = (v) => String(v).replace('.', ',');
  * A caption goes in the empty space under the front of its label, outside the cut line.
  */
 export function sheetPage(plan, labelsHtml, options = {}) {
+  return '<!doctype html><html lang="es"><head><meta charset="utf-8">'
+    + `<title>${options.title ?? 'Hoja de etiquetas'}</title>${options.head ?? ''}`
+    + `<style>${options.fontsCss ?? ''}`
+    + `${sheetCss(plan)}`
+    + '@media screen { body { background: #DDDDDD } .sheet { margin: 0 auto 8mm; box-shadow: 0 1px 4px rgba(0,0,0,.25) } }'
+    + `</style></head><body>${sheetSections(plan, labelsHtml, options)}`
+    + `<script>${colorCorrector.toString().replace(/^export\s+/, '')}\n(${correctImages.toString().replace(/^export\s+/, '')})();</script></body></html>`;
+}
+
+/** CSS of the sheet: page size without margins and one .sheet per page (also used by the app to print from a phone). */
+export function sheetCss(plan) {
+  const W = plan.paper.width, H = plan.paper.height;
+  return `@page { size: ${W}mm ${H}mm; margin: 0 }`
+    + 'html, body { margin: 0; padding: 0; background: #FFFFFF }'
+    + `.sheet { position: relative; width: ${W}mm; height: ${H}mm; overflow: hidden; break-after: page; background: #FFFFFF }`
+    + '.sheet:last-child { break-after: auto }';
+}
+
+/** The pages of the sheet (one <section class="sheet"> each) with the labels in place; options as in sheetPage. */
+export function sheetSections(plan, labelsHtml, options = {}) {
   const type = PAPER_TYPES[options.paperType ?? 'normal'] ?? PAPER_TYPES.normal;
   const gamma = options.gamma ?? type.gamma;
   const overrides = options.gamma === undefined ? type.overrides ?? {} : {};
-  const W = plan.paper.width, H = plan.paper.height;
-  const pages = plan.pages.map((p) => {
+  return plan.pages.map((p) => {
     const items = p.items.map((it) => {
       const g = options.itemGamma?.[it.index] ?? gamma;
       const label = adjustColors(labelsHtml[it.index], g, options.itemGamma ? {} : overrides);
@@ -170,16 +189,6 @@ export function sheetPage(plan, labelsHtml, options = {}) {
     }).join('');
     return `<section class="sheet">${items}</section>`;
   }).join('');
-  return '<!doctype html><html lang="es"><head><meta charset="utf-8">'
-    + `<title>${options.title ?? 'Hoja de etiquetas'}</title>${options.head ?? ''}`
-    + `<style>${options.fontsCss ?? ''}`
-    + `@page { size: ${W}mm ${H}mm; margin: 0 }`
-    + 'html, body { margin: 0; padding: 0; background: #FFFFFF }'
-    + `.sheet { position: relative; width: ${W}mm; height: ${H}mm; overflow: hidden; break-after: page; background: #FFFFFF }`
-    + '.sheet:last-child { break-after: auto }'
-    + '@media screen { body { background: #DDDDDD } .sheet { margin: 0 auto 8mm; box-shadow: 0 1px 4px rgba(0,0,0,.25) } }'
-    + `</style></head><body>${pages}`
-    + `<script>${colorCorrector.toString().replace(/^export\s+/, '')}\n(${correctImages.toString().replace(/^export\s+/, '')})();</script></body></html>`;
 }
 
 /** Captions of a color calibration sheet: number and correction of each label. */
