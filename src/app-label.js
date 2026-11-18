@@ -10,7 +10,7 @@
 import { buildLabelData } from './label-data.js';
 
 /** Cambia cuando cambia la plantilla: todas las etiquetas hechas se vuelven a hacer. */
-export const LABEL_TEMPLATE_VERSION = 'v0.8-app1';
+export const LABEL_TEMPLATE_VERSION = 'v0.8-app2';   // app2: destacado de una línea a 8 px (18-11-2026)
 
 export const LABELS_FOLDER = 'etiquetas';
 export const labelFiles = (key) => ({ meta: `${LABELS_FOLDER}/${key}.json`, pdf: `${LABELS_FOLDER}/${key}.pdf` });

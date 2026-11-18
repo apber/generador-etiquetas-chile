@@ -71,10 +71,12 @@ export async function leerArchivo(ruta) { return (await bd.leer(`f:${ruta}`))?.c
 export async function cargar() {
   if (!estado.catalog) estado.catalog = await (await fetch(new URL('../../../data/allergens.json', import.meta.url))).json();
   estado.company = (await leerArchivo('company.json')) ?? null;
-  // app.json (opcional): ajustes de la app para la empresa, p. ej. { "impresora": "Nombre de la impresora en Windows" }
+  // app.json (opcional): ajustes de la app para la empresa, p. ej. { "impresora": "Nombre de la impresora en Windows",
+  // "papel": "papel fotográfico autoadhesivo" }
   estado.app = (await leerArchivo('app.json')) ?? {};
   M.marca = estado.company?.brand ?? 'la empresa';
   M.impresora = estado.app.impresora ?? 'la impresora de etiquetas';
+  M.papel = estado.app.papel ?? 'papel de las etiquetas';
   estado.products = new Map();
   for (const [, v] of (await bd.todos('f:products/')).sort((a, b) => a[0].localeCompare(b[0]))) {
     if (v.contenido?.id) estado.products.set(v.contenido.id, v.contenido);

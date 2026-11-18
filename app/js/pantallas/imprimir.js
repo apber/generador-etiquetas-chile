@@ -314,6 +314,7 @@ export function Telefono() {
   };
   return html`<${Pantalla} sec="imprimir" titulo=${T.telefono.titulo}
     cab=${html`<${Cab} volver="/imprimir/revisar" etiquetaVolver="Volver a Revisa antes de imprimir" donde=${T.revisar.titulo} />`}>
+    <p>${T.telefono.papel}</p>
     <p>${T.telefono.elige}</p>
     <dl class="tarjeta ajustes">
       <div class="ajuste"><dt>${T.telefono.tam}</dt><dd>${T.telefono.tamV}</dd></div>
@@ -339,9 +340,14 @@ export function Pc() {
   };
   return html`<${Pantalla} sec="imprimir" titulo=${T.pc.titulo}
     cab=${html`<${Cab} volver="/imprimir/revisar" etiquetaVolver="Volver a Revisa antes de imprimir" donde=${T.revisar.titulo} />`}>
+    <p>${T.pc.papel}</p>
     <p>${T.pc.elige}</p>
     <dl class="tarjeta ajustes"><div class="ajuste"><dt>${T.pc.impresora}</dt><dd>${T.pc.impresoraV}</dd></div></dl>
     <p class="chico">${T.pc.nota}</p>
+    <details class="tarjeta"><summary><span>${T.pc.ajustesT}</span><${Ico} n="sig" /></summary>
+      <dl class="ajustes dentro">${T.pc.ajustes.map(([k, v, n]) => html`<div class="ajuste"><dt>${k}</dt><dd>${v}</dd>
+        ${n && html`<p class="chico" style="flex-basis:100%">${n}</p>`}</div>`)}</dl>
+    </details>
     <${Btn} ico="imp" deshabilitado=${ocupado} onClick=${abrir}>${T.pc.abrir}<//>
     <${Btn} tipo="texto" onClick=${guardarPdf}>${T.pc.guardar}<//>
   <//>`;

@@ -3,7 +3,7 @@
 // Los nombres de la marca y de la impresora no van aquí: salen de los datos de la empresa (M, abajo).
 
 /** Datos de la empresa que usan los textos (los pone la app al cargar: company.json y app.json). */
-export const M = { marca: 'la empresa', impresora: 'la impresora de etiquetas' };
+export const M = { marca: 'la empresa', impresora: 'la impresora de etiquetas', papel: 'papel de las etiquetas' };
 
 export const T = {
   app: { nombre: 'Etiquetas', get logo() { return `Logo de ${M.marca}`; } },
@@ -98,6 +98,7 @@ export const T = {
   },
   telefono: {
     titulo: 'Imprimir con la app de Epson',
+    get papel() { return `Pon en la impresora el ${M.papel}.`; },
     elige: 'En la app de Epson, elige estos 3 ajustes:',
     tam: 'Tamaño del papel', tamV: 'Carta',
     tipo: 'Tipo de papel', tipoV: 'Papel normal',
@@ -112,14 +113,22 @@ export const T = {
     get titulo() { return `Imprimir con «${M.impresora}»`; },
     elige: 'En la ventana de imprimir, elige esta impresora:',
     impresora: 'Impresora', get impresoraV() { return M.impresora; },
-    nota: 'Ya tiene el papel carta, «Papel normal» y calidad alta. Si la ventana ofrece «Ajustar a la página», déjalo apagado.',
+    get papel() { return `Pon en la impresora el ${M.papel}.`; },
+    get nota() { return `«${M.impresora}» ya viene ajustada: no hay que cambiar nada.`; },
+    ajustesT: '¿Qué ajustes tiene?',
+    ajustes: [   // [ajuste, valor, explicación]
+      ['Tamaño del papel', 'Carta'],
+      ['Tipo de papel', 'Papel normal', 'Aunque la hoja sea fotográfica: con ese ajuste se probaron los colores.'],
+      ['Calidad', 'Alta'],
+      ['Tamaño de impresión', 'Real (100 %)', 'Si la ventana ofrece «Ajustar a la página», déjalo apagado.'],
+    ],
     abrir: 'Abrir la ventana de imprimir',
     guardar: 'Guardar el PDF',
   },
   listo: {
     titulo: 'Listo',
     tel: (h) => `${h === 1 ? 'La hoja se mandó' : `Las ${h} hojas se mandaron`} a la app de Epson.`,
-    pc: (h) => `${h === 1 ? 'La hoja se mandó' : `Las ${h} hojas se mandaron`} a «${M.impresora}».`,
+    pc: (h) => `Se abrió la ventana de imprimir. Si elegiste «${M.impresora}», ${h === 1 ? 'la hoja sale' : `las ${h} hojas salen`} con los ajustes correctos.`,
     anotado: (et, f) => `Quedó anotado: ${et}, el ${f}. La próxima vez puedes repetir esta impresión con un toque.`,
     otras: 'Imprimir otras etiquetas',
     deNuevo: 'Imprimir de nuevo',

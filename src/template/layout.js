@@ -17,6 +17,16 @@ export async function layoutLabel(root, cfg) {
     await document.fonts.ready;
   }
 
+  // Front: a one-line highlight goes at the description size (8 px) when it fits in one line (104 px, like the
+  // description); if not, it stays at 6.4 px
+  root.querySelectorAll('.claim[data-una]').forEach((el) => {
+    el.style.fontSize = '8px';
+    const r = document.createRange(); r.selectNodeContents(el);
+    const rects = [...r.getClientRects()].filter((x) => x.width > 0);
+    const w = Math.max(...rects.map((x) => x.width));
+    if (rects.length > 1 || w > 104) el.style.fontSize = '';
+  });
+
   const firstTextTop = (el) => {
     const r = document.createRange(); r.selectNodeContents(el.firstChild ?? el);
     return r.getClientRects()[0].top;

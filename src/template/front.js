@@ -22,7 +22,9 @@ function wd(c) {
 
 /**
  * front: { productName, description[], highlight[], ringColor, slogan, seals[], netWeight.text }
- * opts: { sealSize: '10mm' | '15mm', medallion: 1 | 1.05 | 1.1 | 1.15, assets: { logo, seals: { id: url } } }
+ * opts: { sealSize: '10mm' | '15mm', medallion: 1 | 1.05 | 1.1 | 1.15, assets: { logo, seals: { id: url } },
+ *   highlightOneLine: 'description' (default: a one-line highlight at the description size, 8 px, if it fits in one line;
+ *   layout.js decides with the real font) | 'small' (6.4 px, as until v0.7) }
  */
 export function frontParts(front, opts = {}) {
   const ring = front.ringColor;
@@ -99,12 +101,14 @@ export function frontParts(front, opts = {}) {
 
   const description = front.description.map(esc).join('\n');
   const claim = (front.highlight ?? []).map(esc).join('\n');
+  // One-line highlight: layout.js tries it at the description size (17-11-2026); data-una marks it
+  const una = (front.highlight ?? []).length === 1 && (opts.highlightOneLine ?? 'description') === 'description' ? ' class="claim" data-una="1"' : ' class="claim"';
   const assets = opts.assets ?? {};
 
   const textBlock = `<div style="position: absolute; left: ${r2(zLc - textW / 2)}px; top: ${compact ? '66px' : '0px'}; width: ${r2(textW)}px; height: ${compact ? '44px' : '113px'}; display: flex; flex-direction: column; align-items: center; justify-content: ${compact ? 'flex-start' : 'center'}; gap: 3px; text-align: center; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 6.4px; line-height: 1.3; letter-spacing: 0.3px; color: ${ring}">`
     + `<div style="max-width: 104px; white-space: pre-line; font-size: 8px">${description}</div>`
-    + (claim && compact ? `<div style="color: #6E421C; margin-top: 0px; white-space: pre-line">${claim}</div>` : '')
-    + (claim && !compact ? `<div style="position: absolute; left: 0px; right: 0px; bottom: 9.45px; text-align: center; color: #6E421C; white-space: pre-line">${claim}</div>` : '')
+    + (claim && compact ? `<div${una} style="color: #6E421C; margin-top: 0px; white-space: pre-line">${claim}</div>` : '')
+    + (claim && !compact ? `<div${una} style="position: absolute; left: 0px; right: 0px; bottom: 9.45px; text-align: center; color: #6E421C; white-space: pre-line">${claim}</div>` : '')
     + '</div>';
   const weight = `<div style="position: absolute; left: ${r2(zRc - pesoW / 2)}px; top: ${pesoTop}; width: ${r2(pesoW)}px; height: ${pesoH}; display: flex; flex-direction: column; align-items: center; justify-content: ${pesoJustify}; font-family: Montserrat, sans-serif">`
     + '<div style="font-weight: 700; font-size: 6px; letter-spacing: 0.6px">PESO NETO</div>'
