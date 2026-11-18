@@ -347,19 +347,28 @@ export function Pc() {
   <//>`;
 }
 
-/** Abre la ventana de imprimir del navegador con el PDF (en un marco oculto). Termina cuando la ventana se cierra. */
+/**
+ * Abre la ventana de imprimir del navegador con el PDF (en un marco oculto). El marco y su dirección quedan hasta la
+ * próxima impresión: la ventana de imprimir de Chrome sigue leyendo el PDF mientras está abierta, y no avisa cuando se
+ * cierra (18-11-2026: al quitar el marco al segundo, la vista previa decía «Error al obtener la vista previa»).
+ */
+let marcoAnterior = null;
 function imprimirEnVentana(blob) {
   return new Promise((ok) => {
+    if (marcoAnterior) { marcoAnterior.f.remove(); URL.revokeObjectURL(marcoAnterior.url); marcoAnterior = null; }
     const url = URL.createObjectURL(blob);
     const f = document.createElement('iframe');
     f.className = 'imprimir-pdf';
-    f.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0';
+    f.setAttribute('aria-hidden', 'true');
+    f.tabIndex = -1;
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none';
     f.src = url;
+    marcoAnterior = { f, url };
     f.onload = () => {
       setTimeout(() => {
         try { f.contentWindow.focus(); f.contentWindow.print(); } catch { window.open(url, '_blank'); }
-        setTimeout(() => { f.remove(); URL.revokeObjectURL(url); ok(); }, 1000);
-      }, 300);
+        ok();
+      }, 500);
     };
     document.body.appendChild(f);
   });
