@@ -142,7 +142,7 @@ export const T = {
     chicasT: 'Salieron más chicas o cortadas', chicasD: 'El tamaño del papel debe ser Carta, a tamaño real. No elijas «Ajustar a la página».',
     oscurasT: 'Colores oscuros o con rayas claras', oscurasD: 'Tipo de papel: Papel normal. Calidad: Alta.',
     oscurasTelD: 'En «Más opciones»: Tipo de papel: Papel normal. Calidad: Superior.',
-    noApareceT: 'La impresora no aparece', noApareceD: 'El teléfono tiene que estar en el mismo wifi que la impresora y con el complemento de Epson activo (Ajustes › Conexiones › Más ajustes de conexión › Impresión).',
+    noApareceT: 'La impresora no aparece o dice «no está disponible»', noApareceD: 'Espera unos segundos o vuelve a elegirla en la flecha de arriba. Si sigue, despierta la impresora apretando un botón y revisa que el teléfono esté en el mismo wifi, con el complemento de Epson activo (Ajustes › Conexiones › Más ajustes de conexión › Impresión).',
     corridasT: 'Las etiquetas quedaron corridas', corridasD: 'Pon la hoja derecha, apoyada contra la guía de la impresora.',
   },
 

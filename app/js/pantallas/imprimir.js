@@ -30,6 +30,9 @@ export const lista = () => Object.entries(sel()).filter(([id, s]) => s.n > 0 && 
   .map(([id, s]) => ({ id, n: s.n, peso: s.peso, variante: s.variante ?? {} }))
   .sort((a, b) => nombre(a.id).localeCompare(nombre(b.id), 'es'));
 const total = (l) => l.reduce((s, x) => s + x.n, 0);
+/** Selección con las cantidades de una impresión anterior o de un trabajo (los productos que ya no están se saltan). */
+const seleccionDe = (items) => Object.fromEntries(items.filter((it) => estado.products.has(it.id))
+  .map((it) => [it.id, { n: it.n, peso: it.peso, variante: it.variante ?? {} }]));
 
 async function poner(id, n) {
   const s = { ...sel() };
@@ -72,9 +75,7 @@ export function Elegir() {
   const tel = esTelefono();
   const repetir = async () => {
     const antes = sel();
-    const s = {};
-    for (const it of ultima.items) if (estado.products.has(it.id)) s[it.id] = { n: it.n, peso: it.peso, variante: it.variante ?? {} };
-    await guardarSeleccion(s);
+    await guardarSeleccion(seleccionDe(ultima.items));
     avisar(T.imprimir.repetida, () => guardarSeleccion(antes));
   };
   const resumen = t ? T.imprimir.resumen(pl(t, 'etiqueta', 'etiquetas'), h ? pl(h.hojas, 'hoja', 'hojas') : '…') : T.imprimir.tocaMas;
@@ -104,9 +105,7 @@ export function Elegir() {
 }
 
 async function usarTrabajo(tr) {
-  const s = {};
-  for (const it of tr.items) if (estado.products.has(it.id)) s[it.id] = { n: it.n, peso: it.peso, variante: it.variante ?? {} };
-  await guardarSeleccion(s);
+  await guardarSeleccion(seleccionDe(tr.items));
   trabajoActual = tr.id;
   ir('/imprimir/pc');
 }
@@ -307,6 +306,7 @@ export function Telefono() {
       const hojas = await imprimirPagina(l);
       ultimoPdf = { blob: null, hojas, etiquetas: total(l), items: l };   // para anotar (no hace falta el PDF)
       await anotar('telefono');
+      await guardarSeleccion({});   // la lista vuelve a cero; «Repetir la última impresión» la trae (18-11-2026)
       ir('/imprimir/listo');
     } catch {
       avisar(T.telefono.error);
@@ -368,6 +368,7 @@ export function Pc() {
       await imprimirEnVentana(blob);
       await anotar('pc');
       if (trabajoActual) { await quitarParaImprimir(trabajoActual); trabajoActual = null; }
+      await guardarSeleccion({});   // la lista vuelve a cero; «Repetir la última impresión» la trae (18-11-2026)
       ir('/imprimir/listo');
     } finally { setOcupado(false); }
   };
@@ -418,13 +419,14 @@ export function Listo() {
   const r = estado.impresiones[estado.impresiones.length - 1];
   const tel = esTelefono();
   const otras = async () => { await guardarSeleccion({}); ir('/imprimir'); };
+  const deNuevo = async () => { if (r) await guardarSeleccion(seleccionDe(r.items)); ir(tel ? '/imprimir/telefono' : '/imprimir/pc'); };
   return html`<${Pantalla} sec="imprimir">
     <div class="gran-ico"><${Ico} n="check" /></div>
     <h1>${T.listo.titulo}</h1>
     ${r && html`<p>${tel ? T.listo.tel(r.hojas) : T.listo.pc(r.hojas)}</p>
       <p class="chico">${T.listo.anotado(pl(r.etiquetas, 'etiqueta', 'etiquetas'), fecha(r.fecha))}</p>`}
     <${Btn} onClick=${otras}>${T.listo.otras}<//>
-    <${Btn} tipo="secundario" ico="imp" onClick=${() => ir(tel ? '/imprimir/telefono' : '/imprimir/pc')}>${T.listo.deNuevo}<//>
+    <${Btn} tipo="secundario" ico="imp" onClick=${deNuevo}>${T.listo.deNuevo}<//>
     <${Btn} tipo="texto" onClick=${() => ir('/imprimir/ayuda')}>${T.listo.salieronMal}<//>
   <//>`;
 }
