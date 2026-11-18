@@ -41,7 +41,9 @@ const pendiente = (id) => { const e = estadosPendientes(id); return avisos(id).l
 
 const orden = (a, b) => a.product_name.localeCompare(b.product_name, 'es');
 /** Productos que se venden (con etiqueta), en orden alfabético. */
-export const vendibles = () => [...estado.products.values()].filter((p) => p.status !== 'inactive' && p.type !== 'management_only').sort(orden);
+export const vendibles = () => [...estado.products.values()].filter((p) => p.status !== 'inactive' && p.status !== 'pending' && p.type !== 'management_only').sort(orden);
+/** Los que todavía no tienen sus datos (solo nombre, color y presentación; 18-11-2026). */
+export const porCompletar = () => [...estado.products.values()].filter((p) => p.status === 'pending').sort(orden);
 /** Los que no se venden solos (componentes). */
 export const componentes = () => [...estado.products.values()].filter((p) => p.status === 'inactive').sort(orden);
 export const porRevisar = () => vendibles().filter((p) => pendiente(p.id) > 0);

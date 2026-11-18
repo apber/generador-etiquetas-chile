@@ -12,6 +12,7 @@ import { esc, icon } from './html.js';
 import { ean13Svg } from './ean13-svg.js';
 import { isValidEan13 } from '../ean13.js';
 import { qrSvg } from './qr-svg.js';
+import { ringInk } from '../ring-colors.js';
 
 const TXT = "font-family: 'Roboto Condensed', Arial, sans-serif; font-size: 6.2px; line-height: 1.17; color: #2B1A10";
 const MONT_TITLE = 'font-family: Montserrat, sans-serif; font-weight: 800; font-size: 7px; letter-spacing: 0.5px';
@@ -66,7 +67,7 @@ export function backContent(d, company, opts = {}) {
   ].filter(Boolean).map((h) => ({ ...h, icon: assets.icons?.[h.kind] }));
   return {
     name: esc(d.front.productName.toUpperCase()),
-    ring: d.front.ringColor,
+    ring: ringInk(d.front.ringColor),   // name in the ring color only if it reads on the cream (18-11-2026)
     brand: esc((company.brand ?? '').toUpperCase()),
     ing,
     origin: originText == null ? null : { title: esc(d.origin.title), text: esc(endDot(originText)) },

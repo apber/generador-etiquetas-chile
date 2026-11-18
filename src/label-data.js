@@ -64,6 +64,7 @@ const ALERT_META = {
   component_storage: ['info', 'none'],
   serving_exceeds_package: ['info', 'none'],
   inactive: ['info', 'ask'],
+  pending: ['missing', 'review'],
 };
 
 /** Decision code that removes a seal that is due: confirmed_alerts[].alert = "remove_seal:<seal id>". */
@@ -155,6 +156,11 @@ export function buildLabelData(store, request, options = {}) {
   const product = products.get(request.productId);
   if (!product) throw new Error(`Unknown product "${request.productId}"`);
   if (product.type === 'management_only') throw new Error(`"${product.id}" is a management-only product: it has no label`);
+  // A record still to complete (only name, color and presentation; 18-11-2026): no label until it has its data
+  if (product.status === 'pending') {
+    const pend = [makeAlert('pending', null, {}, product, [])];
+    return { productId: product.id, type: product.type, incomplete: true, alerts: pend, blocking: blocking(pend) };
+  }
 
   const presentation = product.presentations[request.presentation ?? 0];
   if (!presentation) throw new Error(`"${product.id}" has no presentation ${request.presentation}`);
@@ -207,7 +213,8 @@ export function buildLabelData(store, request, options = {}) {
       return { recipeProduct: c.product, id: alt ?? c.product, g: c.g_per_100g, order, originOverride };
     });
     variantUsed = chosen.map((c) => ({ component: c.recipeProduct, used: c.id }));
-    const missingComponents = chosen.filter((c) => !products.get(c.id));
+    // A component still to complete (status pending) counts as missing: it has no data yet
+    const missingComponents = chosen.filter((c) => !products.get(c.id) || products.get(c.id).status === 'pending');
     for (const c of missingComponents) add('missing_component', c.id, { componentId: c.id });
     if (missingComponents.length) {
       return { productId: product.id, type: product.type, incomplete: true, variant: variantUsed, alerts, blocking: blocking(alerts) };

@@ -28,6 +28,15 @@ App web instalable (PWA) para registrar productos, leer las fotos del proveedor 
   no se repiten y `--limpiar` borra las que ya no corresponden. Se sube esa carpeta a OneDrive y la app las tiene sin
   internet. **Al cambiar la plantilla, subir `LABEL_TEMPLATE_VERSION`** (si no, quedan en uso PDF viejos) y volver a
   correr el script.
+- **Colores del aro (Ajustes → «Colores del aro»; también desde la ficha):** lista de los productos con su muestra y el
+  nombre del color en palabras (`app/js/colores.js`); al tocar uno, una vista del aro, el color de ahora, los primeros
+  colores libres de `ring_palette` y, plegados, los demás y «Otro color» (rueda de colores del sistema). Avisa si el color
+  se parece al de otro producto (CIEDE2000 < 12; < 9 entre variantes de un mismo producto), si no se distingue del crema
+  o si ninguna letra se lee, y cuántas etiquetas ya se imprimieron con el color anterior. Un producto nuevo recibe el
+  primer color libre. Reglas de la letra y del texto en color: `src/ring-colors.js`.
+- **Productos por completar** (`status: "pending"`): plegados al final de Productos y fuera de Imprimir; su ficha
+  ofrece «Sacar fotos de la bolsa» y, al leerlas, el producto se completa con su nombre, color y presentación. Un
+  producto nuevo cuyo nombre leído coincide con uno por completar lo completa en vez de crear otro.
 - **Lectura de fotos:** siempre con los dos lectores (`app/js/lectura.js`): lo que coincide queda confirmado, lo que
   difiere queda «Dudoso» y lo leído por uno solo, «Por confirmar». Los datos críticos (alérgenos, filas obligatorias de
   la tabla, origen) que no estén confirmados y todo lo dudoso no salen en la etiqueta. Si el lector normal no está

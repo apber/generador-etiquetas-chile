@@ -1,4 +1,4 @@
-// Ajustes (provisoria hasta la ronda 5) y Códigos de barras (ronda 4).
+// Ajustes (provisoria hasta la ronda 5), Códigos de barras (ronda 4) y Colores del aro (18-11-2026).
 import { html, useState, useEffect } from '../../vendor/preact-htm.js';
 import { T } from '../../textos.js';
 import { Cab, Btn, Fila, Nota, Info, Ico, Opcion, ir, avisar, fecha, gramos, pl } from '../ui.js';
@@ -9,8 +9,11 @@ import { ENTORNO, conOneDrive } from '../config.js';
 import { sinc, pendientes, sincronizar } from '../datos/onedrive.js';
 import { sesionGuardada, salir } from '../datos/sesion.js';
 import { esTelefono } from './imprimir.js';
+import { logoUrl } from '../marco.js';
+import { libres, conAro, impresasDe, nombreColor, letraDe } from '../colores.js';
+import { ringLetterColor, ringInk, similarRingColors, ringColorProblems, isHex, LABEL_BACKGROUND } from '../../../src/ring-colors.js';
 
-export const VERSION_APP = '0.8.0-beta1';
+export const VERSION_APP = '0.8.0-beta4';
 const nombreDe = (id) => estado.products.get(id)?.product_name ?? id;
 
 export function Ajustes() {
@@ -27,6 +30,7 @@ export function Ajustes() {
   return html`<${Pantalla} sec="ajustes" raiz titulo=${T.ajustes.titulo}>
     <div class="tarjeta lista">
       <${Fila} primera n=${T.ajustes.codigos} d=${T.ajustes.codigosD(c.total, c.asignados.length, c.libres.length)} onClick=${() => ir('/ajustes/codigos')} />
+      <${Fila} n=${T.ajustes.colores} d=${T.ajustes.coloresD(conAro().filter((p) => p.ring_color).length, libres().length)} onClick=${() => ir('/ajustes/colores')} />
     </div>
     <div class="grupo"><h2 id="t-letra">${T.ajustes.letra}</h2>
       <div class="tarjeta lista" role="radiogroup" aria-labelledby="t-letra">
@@ -176,5 +180,100 @@ export function Quitar({ num }) {
     ${imp.n > 0 && html`<${Nota}>${T.codigos.quitarImpresas(imp.n)}${c.fuente === 'third_party' ? ` ${T.codigos.corpNota}` : ''}<//>`}
     <${Btn} onClick=${() => ir(`/ajustes/codigos/${num}`)}>${T.codigos.dejarBtn}<//>
     <${Btn} tipo="peligro" onClick=${quitar}>${T.codigos.quitarBtn}<//>
+  <//>`;
+}
+
+// ---- Colores del aro (18-11-2026) ----
+const Muestra = ({ color, grande }) => (color
+  ? html`<span class=${`muestra${grande ? ' grande' : ''}`} style=${`background:${color};color:${ringLetterColor(color)}`} aria-hidden="true">${grande ? 'Aa' : ''}</span>`
+  : html`<span class="muestra vacia" aria-hidden="true"></span>`);
+
+export function Colores() {
+  useAlmacen();
+  const lista = conAro();
+  const lib = libres();
+  return html`<${Pantalla} sec="ajustes" titulo=${T.colores.titulo} cab=${html`<${Cab} volver="/ajustes" etiquetaVolver="Volver a Ajustes" donde=${T.ajustes.titulo} />`}>
+    <p>${T.colores.intro}</p>
+    <ul class="tarjeta lista">${lista.map((p, i) => html`<li key=${p.id}><${Fila} primera=${i === 0} n=${p.product_name} marca=${html`<${Muestra} color=${p.ring_color} />`}
+      d=${[p.ring_color ? nombreColor(p.ring_color) : T.colores.sinColor, p.status === 'pending' ? T.colores.porCompletar : null].filter(Boolean).join(' · ')}
+      onClick=${() => ir(`/ajustes/colores/${p.id}`)} /></li>`)}</ul>
+    <details class="tarjeta"><summary><span>${T.colores.libres(lib.length)}</span><${Ico} n="sig" /></summary>
+      <div class="dentro"><p class="chico">${lib.length ? T.colores.libresD : T.colores.libresNinguno}</p>
+        <ul class="libres">${lib.map((c) => html`<li key=${c}><${Muestra} color=${c} grande /><span>${nombreColor(c)}</span></li>`)}</ul></div></details>
+  <//>`;
+}
+
+/** Aro de muestra: el color, el nombre del producto en el arco de abajo con su letra y el logo al centro. */
+function Aro({ color, nombre }) {
+  const n = nombre.toUpperCase();
+  const fs = Math.min(10, 165 / Math.max(1, n.length * 0.74));
+  const logo = logoUrl();
+  const letra = ringLetterColor(color);
+  return html`<svg class="aro" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label=${T.colores.previaAlt(nombre, nombreColor(color), letraDe(color))}>
+    <defs><path id="arco-aro" d="M 6.5,60 A 53.5,53.5 0 0 0 113.5,60" /><clipPath id="centro-aro"><circle cx="60" cy="60" r="43" /></clipPath></defs>
+    <circle cx="60" cy="60" r="60" fill=${color} /><circle cx="60" cy="60" r="43" fill=${LABEL_BACKGROUND} />
+    ${logo && html`<image href=${logo} x="17" y="17" width="86" height="86" clip-path="url(#centro-aro)" />`}
+    <text font-family="Montserrat, sans-serif" font-weight="800" font-size=${fs.toFixed(2)} fill=${letra} letter-spacing="0.4">
+      <textPath href="#arco-aro" startOffset="50%" text-anchor="middle">${n}</textPath></text></svg>`;
+}
+
+/** Una opción de color (radio del sistema, como las demás). */
+function OpcionColor({ valor, elegido, n, d, onElegir }) {
+  return html`<label class="opcion"><input type="radio" name="color" value=${valor} checked=${elegido} onChange=${() => onElegir(valor)} />
+    <${Muestra} color=${valor} grande /><span class="tx"><span class="n">${n}</span>${d && html`<span class="d">${d}</span>`}</span></label>`;
+}
+
+export function Color({ id, desde }) {
+  useAlmacen();
+  const p = estado.products.get(id);
+  const actual = isHex(p?.ring_color) ? p.ring_color.toUpperCase() : null;
+  const [elegido, setElegido] = useState(actual);
+  const [otro, setOtro] = useState(null);
+  const volver = desde === 'ficha' ? `/productos/${id}` : '/ajustes/colores';
+  const cab = html`<${Cab} volver=${volver} etiquetaVolver=${desde === 'ficha' ? 'Volver al producto' : 'Volver a Colores del aro'} donde=${desde === 'ficha' ? p?.product_name : T.colores.titulo} />`;
+  if (!p) return html`<${Pantalla} sec="ajustes" titulo="Este producto ya no está" cab=${cab} />`;
+  const lib = libres(id).filter((c) => c !== actual);
+  const vista = lib.slice(0, 3), mas = lib.slice(3);
+  const enMas = elegido && (mas.includes(elegido) || elegido === otro);
+  const cambia = elegido && elegido !== actual;
+  const otros = conAro().filter((x) => x.id !== id).map((x) => ({ id: x.id, name: x.product_name, color: x.ring_color }));
+  const parecidos = cambia ? similarRingColors(elegido, p.product_name, otros).slice(0, 2) : [];
+  const problemas = cambia ? ringColorProblems(elegido) : [];
+  const imp = impresasDe(id);
+  const opc = (c, n) => html`<${OpcionColor} key=${c} valor=${c} elegido=${elegido === c} n=${n ?? nombreColor(c)} d=${T.colores.letra(letraDe(c))} onElegir=${setElegido} />`;
+  const usar = async () => {
+    const antes = structuredClone(p);
+    await guardarProducto({ ...p, ring_color: elegido });
+    ir(volver, { reemplazar: true });
+    avisar(T.colores.cambiado(p.product_name, nombreColor(elegido)), () => guardarProducto(antes));
+  };
+  const muestra = elegido ?? actual;
+  return html`<${Pantalla} sec=${desde === 'ficha' ? 'productos' : 'ajustes'} titulo=${p.product_name} cab=${cab}
+    fijo=${html`<${Btn} onClick=${usar} deshabilitado=${!cambia}>${T.colores.usar}<//>`}>
+    <div class="grupo"><h2>${T.colores.asiSeVe}</h2>
+      ${muestra ? html`<div class="aro-previa"><${Aro} color=${muestra} nombre=${p.product_name} />
+        <div class="aro-texto"><p class="desc-muestra" style=${`color:${ringInk(muestra)}`}>${(p.description ?? [p.product_name.toUpperCase()]).join(' ')}</p>
+        <p class="chico">${ringInk(muestra) === muestra ? T.colores.textoColor : T.colores.textoCafe}</p></div></div>`
+      : html`<p>${T.colores.sinColor}</p>`}</div>
+    ${parecidos.length > 0 && html`<${Nota}>${T.colores.parecido(parecidos.map((x) => x.name).join(' y '))}<//>`}
+    ${problemas.includes('like_background') && html`<${Nota}>${T.colores.comoFondo}<//>`}
+    ${problemas.includes('low_letter_contrast') && html`<${Nota}>${T.colores.letraMala}<//>`}
+    ${cambia && imp.n > 0 && html`<${Info}>${T.colores.impresas(imp.n, imp.ultima && fecha(imp.ultima))}<//>`}
+    <div class="grupo"><h2 id="t-color">${T.colores.elige}</h2>
+      <div class="tarjeta lista" role="radiogroup" aria-labelledby="t-color">
+        ${actual && opc(actual, `${T.colores.actual}: ${nombreColor(actual).toLowerCase()}`)}
+        ${vista.map((c) => opc(c))}
+      </div>
+      <details class="tarjeta" open=${enMas}><summary><span>${mas.length ? `${T.colores.masColores(mas.length)} · ${T.colores.otro}` : T.colores.otro}</span><${Ico} n="sig" /></summary>
+        <div class="dentro lista" role="radiogroup" aria-label=${T.colores.otro}>
+          ${mas.map((c) => opc(c))}
+          <label class="opcion"><input type="radio" name="color" value="otro" checked=${Boolean(otro) && elegido === otro}
+            onChange=${() => { const c = otro ?? actual ?? '#6E421C'; setOtro(c); setElegido(c); }} />
+            ${otro ? html`<${Muestra} color=${otro} grande />` : html`<span class="muestra grande vacia" aria-hidden="true"></span>`}
+            <span class="tx"><span class="n">${T.colores.otro}</span><span class="d">${otro ? `${nombreColor(otro)} · ${T.colores.letra(letraDe(otro))}` : T.colores.otroD}</span></span></label>
+          ${otro !== null && html`<label class="campo-color"><span>${T.colores.otroBtn}</span>
+            <input type="color" value=${otro.toLowerCase()} aria-label=${T.colores.otroCampo}
+              onInput=${(e) => { const c = e.target.value.toUpperCase(); setOtro(c); setElegido(c); }} /></label>`}
+        </div></details></div>
   <//>`;
 }

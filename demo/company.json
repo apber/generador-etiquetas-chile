@@ -24,6 +24,7 @@
     "whatsapp": "+56 9 0000 0000",
     "facebook": "Frutos Demo"
   },
+  "ring_palette": ["#4A2C1A", "#7A4A1E", "#2F5D50", "#5B2A4E", "#5E7A2E", "#3B6EA5", "#D9822B", "#7E57C2", "#9CCC65", "#E57373"],
   "barcodes": [
     {
       "number": "2000000000008",

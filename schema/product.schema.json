@@ -10,7 +10,7 @@
     "format_version": { "const": 1 },
     "id": { "$ref": "#/$defs/id" },
     "type": { "enum": ["simple", "mix", "management_only"] },
-    "status": { "enum": ["active", "inactive"] },
+    "status": { "enum": ["active", "inactive", "pending"], "description": "pending = «Por completar»: only name, description, ring color and presentations; no label until its data arrive (18-11-2026)." },
     "product_name": { "type": "string", "minLength": 1, "description": "Lower arc of the medallion." },
     "description": {
       "description": "Food name (RSA art. 107 a). Front panel, up to 3 lines.",
@@ -75,7 +75,7 @@
   },
   "allOf": [
     {
-      "if": { "properties": { "type": { "const": "simple" } } },
+      "if": { "properties": { "type": { "const": "simple" }, "status": { "enum": ["active", "inactive"] } } },
       "then": {
         "required": ["description", "composition", "nutrition", "sources"],
         "not": { "required": ["recipe"] },
@@ -86,7 +86,7 @@
       }
     },
     {
-      "if": { "properties": { "type": { "const": "mix" } } },
+      "if": { "properties": { "type": { "const": "mix" }, "status": { "enum": ["active", "inactive"] } } },
       "then": {
         "required": ["description", "recipe", "nutrition"],
         "properties": {

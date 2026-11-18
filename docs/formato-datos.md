@@ -34,8 +34,8 @@ La ficha guarda **solo lo que se escribe o se lee del proveedor**. Todo lo deriv
 | `product_name` | Nombre del producto (arco inferior del medallón) |
 | `description` | Descripción: nombre del alimento (RSA art. 107 a), hasta 3 líneas |
 | `highlight` | Destacado, opcional; normalmente 1–2 líneas, 3 si hace falta (se revisa que quepa) |
-| `ring_color` | Color del aro (hexadecimal o `null`) |
-| `status` | `active` (se vende) / `inactive` (no se vende) |
+| `ring_color` | Color del aro (hexadecimal o `null`). La letra del aro (blanca o café oscuro) y el color de la descripción y del nombre del reverso salen de él: ver `src/ring-colors.js` |
+| `status` | `active` (se vende) / `inactive` (no se vende solo: componente) / `pending` («Por completar»: solo nombre, descripción, color y presentaciones; no tiene etiqueta hasta que lleguen sus datos, p. ej. con fotos) |
 | `presentations[]` | Presentaciones: `net_weight_g` (peso neto), `container` (envase), `barcode` (EAN-13 de esa presentación), `barcode_source` (`own` propio / `third_party` entregado por otra entidad) |
 | `composition.ingredients` | Ingredientes, en el orden del proveedor; alérgenos entre llaves `{maní}` (se imprimen en negrita) |
 | `composition.name_as_ingredient` | Nombre como ingrediente (lo usan las mezclas) |
@@ -57,7 +57,7 @@ La ficha guarda **solo lo que se escribe o se lee del proveedor**. Todo lo deriv
 | `confirmed_alerts[]` | Decisiones del usuario sobre alertas: `alert` (código), `decision`, `date`, `note`. Con una decisión, la alerta deja de frenar la impresión pero sigue a la vista. Quitar un sello que corresponde: `alert` = `remove_seal:<sello>` y `decision` = `remove_seal` |
 | `sources[]` | Fuentes: `level` 1 proveedor, 2 etiqueta anterior coherente, 3 tabla reconocida, 4 referencia de mercado; `kind`, `from`, `date`, `files` |
 
-En `company.json`: `brand` (marca), `packer` (envasador), `health_permit` (resolución sanitaria), `slogan` (eslogan sin y con sellos), `default_storage` (conservación por defecto), `follow_us` (Síguenos), `barcodes` (códigos de la empresa).
+En `company.json`: `brand` (marca), `packer` (envasador), `health_permit` (resolución sanitaria), `slogan` (eslogan sin y con sellos), `default_storage` (conservación por defecto), `follow_us` (Síguenos), `ring_palette` (colores del aro que ofrece la app, en orden: un producto nuevo recibe el primero que ningún producto usa), `barcodes` (códigos de la empresa).
 
 ## Cereales con gluten
 

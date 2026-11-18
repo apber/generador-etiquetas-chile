@@ -4,6 +4,7 @@
 
 import { STRIP } from './geometry.js';
 import { esc } from './html.js';
+import { ringLetterColor, ringInk } from '../ring-colors.js';
 
 const SEAL_ORDER = ['energy', 'sugars', 'saturated_fat', 'sodium'];
 const SEAL_ALT = { energy: 'CALORÍAS', sugars: 'AZÚCARES', saturated_fat: 'GRASAS SATURADAS', sodium: 'SODIO' };
@@ -28,6 +29,9 @@ function wd(c) {
  */
 export function frontParts(front, opts = {}) {
   const ring = front.ringColor;
+  // Letters on the ring: white or dark brown, the one with more contrast; text in the ring color on the cream
+  // background: the ring color only if it reads (4.5:1), otherwise dark brown (18-11-2026)
+  const ringLetter = ringLetterColor(ring), ink = ringInk(ring);
   const legal = opts.sealSize === '15mm';
   const mf = opts.medallion ?? 1.1;
   const seals = SEAL_ORDER.filter((id) => front.seals.includes(id));
@@ -80,7 +84,7 @@ export function frontParts(front, opts = {}) {
   // goes in the transform (translate), not in left/top, so it is not rounded to whole pixels.
   const k = (2 * Rv) / 300;
   const px = (v) => `${(v * k).toFixed(2)}px`;
-  const letter = (c, x, y, h, rot, weight) => `<div style="position: absolute; left: 0px; top: 0px; width: 40px; height: ${h}px; transform-origin: 50% 100%; transform: translate(${(x * k - 20).toFixed(3)}px, ${(y * k - h).toFixed(3)}px) ${rot} scale(${k.toFixed(5)}); text-align: center; font-family: Montserrat, sans-serif; font-weight: ${weight}; font-size: ${h}px; line-height: 1; color: #FFFFFF; white-space: pre">${esc(c)}</div>`;
+  const letter = (c, x, y, h, rot, weight) => `<div style="position: absolute; left: 0px; top: 0px; width: 40px; height: ${h}px; transform-origin: 50% 100%; transform: translate(${(x * k - 20).toFixed(3)}px, ${(y * k - h).toFixed(3)}px) ${rot} scale(${k.toFixed(5)}); text-align: center; font-family: Montserrat, sans-serif; font-weight: ${weight}; font-size: ${h}px; line-height: 1; color: ${ringLetter}; white-space: pre">${esc(c)}</div>`;
   const arc = [...producto].map((c, i) => {
     const mid = acc + ws[i] / 2; acc += ws[i];
     const th = th0 - mid / rc;
@@ -105,7 +109,7 @@ export function frontParts(front, opts = {}) {
   const una = (front.highlight ?? []).length === 1 && (opts.highlightOneLine ?? 'description') === 'description' ? ' class="claim" data-una="1"' : ' class="claim"';
   const assets = opts.assets ?? {};
 
-  const textBlock = `<div style="position: absolute; left: ${r2(zLc - textW / 2)}px; top: ${compact ? '66px' : '0px'}; width: ${r2(textW)}px; height: ${compact ? '44px' : '113px'}; display: flex; flex-direction: column; align-items: center; justify-content: ${compact ? 'flex-start' : 'center'}; gap: 3px; text-align: center; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 6.4px; line-height: 1.3; letter-spacing: 0.3px; color: ${ring}">`
+  const textBlock = `<div style="position: absolute; left: ${r2(zLc - textW / 2)}px; top: ${compact ? '66px' : '0px'}; width: ${r2(textW)}px; height: ${compact ? '44px' : '113px'}; display: flex; flex-direction: column; align-items: center; justify-content: ${compact ? 'flex-start' : 'center'}; gap: 3px; text-align: center; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 6.4px; line-height: 1.3; letter-spacing: 0.3px; color: ${ink}">`
     + `<div style="max-width: 104px; white-space: pre-line; font-size: 8px">${description}</div>`
     + (claim && compact ? `<div${una} style="color: #6E421C; margin-top: 0px; white-space: pre-line">${claim}</div>` : '')
     + (claim && !compact ? `<div${una} style="position: absolute; left: 0px; right: 0px; bottom: 9.45px; text-align: center; color: #6E421C; white-space: pre-line">${claim}</div>` : '')

@@ -34,6 +34,8 @@ function pantalla(r) {
     const pant = { etiqueta: Prod.Etiqueta, grande: Prod.Grande, lleva: Prod.Lleva, eliminar: Prod.Eliminar, nombre: Prod.Nombre,
       datos: Datos.Datos, fotos: Datos.Fotos }[c];
     if (c === 'sello') return html`<${Prod.Sello} id=${b} sello=${d} />`;
+    if (c === 'color') return html`<${Aj.Color} key=${b} id=${b} desde="ficha" />`;
+    if (c === 'fotos' && d === 'nuevas') return html`<${Nuevo.Fotos} key=${b} productoId=${b} />`;
     if (c === 'editar') return html`<${Datos.Editar} key=${d} id=${b} campo=${d} />`;
     if (pant) return html`<${pant} key=${b} id=${b} />`;
   }
@@ -43,6 +45,7 @@ function pantalla(r) {
   }
   if (a === 'ajustes') {
     if (!b) return html`<${Aj.Ajustes} />`;
+    if (b === 'colores') return c ? html`<${Aj.Color} key=${c} id=${c} />` : html`<${Aj.Colores} />`;
     if (b === 'codigos') {
       if (!c) return html`<${Aj.Codigos} />`;
       if (d === 'pasar' && e) return html`<${Aj.Pasar2} num=${c} id=${e} />`;

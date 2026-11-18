@@ -53,7 +53,7 @@ function variantes(p) {
   for (const c of p.recipe?.components ?? []) {
     if (!c.alternatives?.length) continue;
     const opciones = [c.product, ...c.alternatives];
-    const conFicha = opciones.filter((o) => store.products.has(o));
+    const conFicha = opciones.filter((o) => store.products.has(o) && store.products.get(o).status !== 'pending');
     for (const o of opciones) if (!conFicha.includes(o)) console.log(`  ${p.id}: sin ficha de ${o} (esa variante no se hace)`);
     out = out.flatMap((v) => conFicha.map((o) => (o === c.product ? v : { ...v, [c.product]: o })));
   }
@@ -62,7 +62,7 @@ function variantes(p) {
 const pedidos = [];
 for (const p of store.products.values()) {
   if (soloIds.length && !soloIds.includes(p.id)) continue;
-  if (p.status === 'inactive' || p.type === 'management_only') continue;
+  if (p.status === 'inactive' || p.status === 'pending' || p.type === 'management_only') continue;
   const vs = variantes(p);
   for (const pr of p.presentations ?? []) for (const variante of vs) pedidos.push({ id: p.id, peso: pr.net_weight_g, variante });
 }

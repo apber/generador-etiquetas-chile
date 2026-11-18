@@ -4,7 +4,8 @@ import { T } from '../../textos.js';
 import { Cab, Btn, Fila, MarcaRevisar, Nota, Info, Interruptor, Ico, ir, avisar, fecha, gramos } from '../ui.js';
 import { Pantalla } from '../marco.js';
 import { estado, useAlmacen, guardarProducto, eliminarProducto, leerArchivo } from '../datos/almacen.js';
-import { vendibles, componentes, avisos, datosBase, tienePendientes, estadosPendientes } from '../productos-info.js';
+import { vendibles, componentes, porCompletar, avisos, datosBase, tienePendientes, estadosPendientes } from '../productos-info.js';
+import { nombreColor } from '../colores.js';
 import { vistaPrevia, partes } from '../etiquetas.js';
 import { VistaEtiqueta } from '../vista-etiqueta.js';
 import { textoAviso } from '../avisos.js';
@@ -18,6 +19,7 @@ export function Lista() {
   useAlmacen();
   const lista = vendibles();
   const comp = componentes();
+  const pend = porCompletar();
   return html`<${Pantalla} sec="productos" raiz titulo=${T.productos.titulo}
     fijo=${html`<${Btn} onClick=${() => ir('/nuevo')}><span class="fila-ico"><${Ico} n="mas" />${T.productos.agregar}</span><//>`}>
     ${lista.length ? html`<p class="chico">${T.productos.cuenta(lista.length)}</p>
@@ -28,6 +30,10 @@ export function Lista() {
       <summary><span>${T.productos.noSeVenden(comp.length)}</span><${Ico} n="sig" /></summary>
       <div class="dentro"><p class="chico">${T.productos.noSeVendenD}</p>
         ${comp.map((p) => html`<${Fila} key=${p.id} n=${p.product_name} onClick=${() => ir(`/productos/${p.id}`)} />`)}</div></details>`}
+    ${pend.length > 0 && html`<details class="tarjeta">
+      <summary><span>${T.productos.porCompletar(pend.length)}</span><${Ico} n="sig" /></summary>
+      <div class="dentro"><p class="chico">${T.productos.porCompletarD}</p>
+        ${pend.map((p) => html`<${Fila} key=${p.id} n=${p.product_name} marca=${html`<${Muestra} color=${p.ring_color} />`} onClick=${() => ir(`/productos/${p.id}`)} />`)}</div></details>`}
   <//>`;
 }
 
@@ -56,6 +62,25 @@ function AvisoProducto({ id }) {
   return html`<${Nota} accion=${t.accion} onAccion=${() => ir(`/productos/${id}/datos`)}>${t.texto}<//>`;
 }
 
+/** Muestra del color del aro (con su nombre para el lector de pantalla). */
+export const Muestra = ({ color }) => (color ? html`<span class="muestra" style=${`background:${color}`} role="img" aria-label=${nombreColor(color)}></span>` : null);
+
+/** Ficha de un producto por completar: solo nombre y color; se completa con fotos. */
+function FichaPendiente({ p }) {
+  const mezcla = p.type === 'mix';
+  return html`<${Pantalla} sec="productos" titulo=${p.product_name}
+    cab=${html`<${Cab} volver="/productos" etiquetaVolver="Volver a Productos" donde=${T.productos.titulo} />`}
+    fijo=${!mezcla && html`<${Btn} ico="camara" onClick=${() => ir(`/productos/${p.id}/fotos/nuevas`)}>${T.ficha.sacarFotos}<//>`}>
+    <p><span class="et pc"><${Ico} n="info" />${T.ficha.pendienteT}</span></p>
+    <p>${mezcla ? T.ficha.pendienteMezcla : T.ficha.pendienteD}</p>
+    <div class="tarjeta lista">
+      <${Fila} primera n=${T.ficha.color} d=${p.ring_color ? nombreColor(p.ring_color) : T.colores.sinColor} marca=${html`<${Muestra} color=${p.ring_color} />`} onClick=${() => ir(`/productos/${p.id}/color`)} />
+      <${Fila} n=${T.ficha.cambiarNombre} onClick=${() => ir(`/productos/${p.id}/nombre`)} />
+    </div>
+    <${Btn} tipo="peligro" onClick=${() => ir(`/productos/${p.id}/eliminar`)}>${T.ficha.eliminar}<//>
+  <//>`;
+}
+
 export function Ficha({ id }) {
   useAlmacen();
   const p = estado.products.get(id);
@@ -63,6 +88,7 @@ export function Ficha({ id }) {
   const [fotos, setFotos] = useState(null);
   useEffect(() => { leerArchivo(`fotos/${id}/indice.json`).then((x) => setFotos(x ?? [])); }, [id, estado.version]);
   if (!p) return html`<${NoEsta} />`;
+  if (p.status === 'pending') return html`<${FichaPendiente} p=${p} />`;
   const inactivo = p.status === 'inactive';
   return html`<${Pantalla} sec="productos" titulo=${p.product_name}
     cab=${html`<${Cab} volver="/productos" etiquetaVolver="Volver a Productos" donde=${T.productos.titulo} />`}
@@ -75,6 +101,7 @@ export function Ficha({ id }) {
     <div class="tarjeta lista">
       <${Fila} primera n=${T.ficha.datos} d=${T.ficha.datosD} onClick=${() => ir(`/productos/${id}/datos`)} />
       ${!inactivo && html`<${Fila} n=${T.ficha.lleva} d=${T.ficha.llevaD} onClick=${() => ir(`/productos/${id}/lleva`)} />`}
+      ${!inactivo && html`<${Fila} n=${T.ficha.color} d=${p.ring_color ? nombreColor(p.ring_color) : T.colores.sinColor} marca=${html`<${Muestra} color=${p.ring_color} />`} onClick=${() => ir(`/productos/${id}/color`)} />`}
       <${Fila} n=${T.ficha.fotos} d=${T.ficha.fotosD(fotos?.length ?? 0, fotos?.[0]?.fecha && fecha(fotos[0].fecha))} onClick=${() => ir(`/productos/${id}/fotos`)} />
       <${Fila} n=${T.ficha.cambiarNombre} onClick=${() => ir(`/productos/${id}/nombre`)} />
     </div>

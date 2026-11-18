@@ -196,6 +196,10 @@ export const ALERT_TEXTS = {
     message: () => 'Este producto está marcado como "no se vende".',
     detail: () => '',
   },
+  pending: {
+    message: () => 'Este producto está por completar: todavía no tiene sus datos.',
+    detail: () => 'Solo tiene nombre, descripción, color del aro y presentación. Se completa con las fotos de la bolsa del proveedor.',
+  },
 };
 
 export { ADDED as ADDED_NAMES };

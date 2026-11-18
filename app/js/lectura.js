@@ -13,6 +13,7 @@ import { NUTRIENTS } from '../../src/nutrients.js';
 import { bd } from './datos/bd.js';
 import { estado, guardarProducto, escribir, leerArchivo } from './datos/almacen.js';
 import { api } from './api.js';
+import { primerLibre } from './colores.js';
 
 export const LECTORES = { normal: { model: DEFAULT_MODEL }, rapido: { model: FALLBACK_MODEL } };
 export const CRITICOS = new Set(['contains', 'may_contain', 'country_of_origin', ...NUTRIENTS.filter((n) => n.group === 'mandatory').map((n) => n.key)]);
@@ -127,6 +128,13 @@ const esperar = (ms, signal) => new Promise((ok, mal) => {
 
 // ---- De las lecturas al producto ----
 const slug = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'producto';
+const sinTildes = (x) => String(x ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+/** El producto «Por completar» con ese nombre (sin contar tildes ni mayúsculas), si hay uno. */
+function porCompletarLlamado(nombre) {
+  if (!nombre) return null;
+  return [...estado.products.values()].find((p) => p.status === 'pending' && p.type === 'simple' && sinTildes(p.product_name) === sinTildes(nombre)) ?? null;
+}
+
 function idLibre(nombre) {
   const base = slug(nombre);
   let id = base;
@@ -186,8 +194,10 @@ async function aplicar(id) {
   const R = l.lectores.rapido.estado === 'listo' ? l.lectores.rapido : null;
   if (!N && !R) return;
   const t = (N ?? R).transcription;
-  const anterior = l.productoId ? estado.products.get(l.productoId) : null;
-  const nombre = anterior?.product_name ?? (t.product_name?.trim() || 'Producto nuevo');
+  const leido = t.product_name?.trim() || null;
+  // Un producto nuevo con el nombre de uno «Por completar» lo completa (toma su color y su presentación; 18-11-2026)
+  const anterior = l.productoId ? estado.products.get(l.productoId) : porCompletarLlamado(leido);
+  const nombre = anterior?.product_name ?? (leido || 'Producto nuevo');
   const rN = N && resultadoDe(N, l, nombre);
   const rR = R && resultadoDe(R, l, nombre);
   const base = rN ?? rR;
@@ -199,7 +209,7 @@ async function aplicar(id) {
     format_version: 1, id: pid, type: 'simple', status: 'active',
     product_name: nombre, description: anterior?.description ?? descripcionDe(nombre),
     ...(anterior?.highlight ? { highlight: anterior.highlight } : {}),
-    ring_color: anterior?.ring_color ?? null,
+    ring_color: anterior?.ring_color ?? primerLibre(),
     presentations: anterior?.presentations ?? [{ net_weight_g: 50, container: 'small_pouch', barcode: null, barcode_source: null }],
     composition: { ...base.draft.composition },
     nutrition: { ...base.draft.nutrition, serving: base.draft.nutrition.serving ?? anterior?.nutrition?.serving ?? { g: 30, household_measure: '¼ taza', source: 'f1' } },

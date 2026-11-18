@@ -1,6 +1,6 @@
 {
   "name": "generador-etiquetas-chile",
-  "version": "0.8.0-beta3",
+  "version": "0.8.0-beta4",
   "private": true,
   "description": "Food label generator compliant with Chilean labeling rules",
   "type": "module",

@@ -177,8 +177,8 @@ export function Peso({ id, desde }) {
           const op = estado.products.get(o);
           const elegido = (variante[v.componente] ?? v.componente) === o;
           return html`<${Opcion} key=${o} nombre=${v.componente} valor=${o} elegido=${elegido} n=${op?.product_name ?? o}
-            d=${!op ? T.peso.sinFicha : i === 0 ? T.peso.deSiempre : null}
-            onElegir=${(val) => { if (!estado.products.has(val)) { avisar(`${T.peso.sinFicha}.`); return; } setVariante(val === v.componente ? {} : { ...variante, [v.componente]: val }); }} />`;
+            d=${!op ? T.peso.sinFicha : op.status === 'pending' ? T.peso.porCompletar : i === 0 ? T.peso.deSiempre : null}
+            onElegir=${(val) => { const x = estado.products.get(val); if (!x || x.status === 'pending') { avisar(`${x ? T.peso.porCompletar : T.peso.sinFicha}.`); return; } setVariante(val === v.componente ? {} : { ...variante, [v.componente]: val }); }} />`;
         })}</div></div>`)}
     ${vars.length > 0 && html`<${Info}>${T.peso.anotadas}<//>`}
     ${!vars.length && html`<p class="chico">${T.peso.proxima}</p>`}

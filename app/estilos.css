@@ -217,3 +217,17 @@ body{background:#F8F3E8}
 @media print{ body > *:not(.imprimir-pdf):not(.imprimir-hoja){display:none !important} }
 @media screen{ .imprimir-hoja{position:fixed;left:-30000px;top:0;visibility:hidden;pointer-events:none} }
 .app h1[tabindex="-1"]:focus{outline:none}
+/* Colores del aro (18-11-2026): las muestras son datos (el color de cada producto), no colores de la app */
+.muestra{display:inline-grid;place-items:center;flex:none;width:calc(28px * var(--ts,1));height:calc(28px * var(--ts,1));border-radius:50%;border:1.5px solid var(--borde);forced-color-adjust:none;font-family:Montserrat,sans-serif;font-weight:800;font-size:calc(14px * var(--ts,1));line-height:1}
+.muestra.grande{width:calc(44px * var(--ts,1));height:calc(44px * var(--ts,1))}
+.muestra.vacia{background:repeating-linear-gradient(135deg,var(--sup) 0 5px,var(--sup2) 5px 10px)}
+.fila .muestra{order:-1}
+.libres{display:flex;flex-direction:column;gap:10px;margin:8px 0 0;padding:0;list-style:none}
+.libres li{display:flex;align-items:center;gap:12px}
+.aro-previa{display:flex;flex-wrap:wrap;align-items:center;gap:16px}
+.aro{flex:none;forced-color-adjust:none}
+.aro-texto{flex:1 1 180px;min-width:0}
+.desc-muestra{margin:0 0 8px;padding:10px 12px;border-radius:var(--r-chico);background:#F8F3E8;forced-color-adjust:none;font-family:Montserrat,sans-serif;font-weight:700;font-size:calc(16px * var(--ts,1));line-height:calc(22px * var(--ts,1));letter-spacing:.3px}
+.campo-color{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:10px 0;border-top:1.5px solid var(--sup2)}
+.campo-color input[type="color"]{width:96px;height:48px;padding:4px;border:1.5px solid var(--borde);border-radius:var(--r-chico);background:var(--sup);cursor:pointer}
+.campo-color input:focus-visible{outline:3px solid var(--foco);outline-offset:3px}
