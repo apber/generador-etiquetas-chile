@@ -8,13 +8,23 @@ App web instalable (PWA) para registrar productos, leer las fotos del proveedor 
   la empresa (`company.json` y `app.json`).
 - **Datos:** en el dispositivo (IndexedDB, `app/js/datos/almacen.js`) y en una carpeta de OneDrive con los mismos
   archivos que usa Node: `company.json`, `products/<id>.json`, `marca/assets.json` y sus imágenes, más lo que agrega la
-  app: `app.json` (opcional, p. ej. `{ "impresora": "Nombre de la impresora en Windows" }`), `registro/impresiones.json`,
+  app: `app.json` (opcional, p. ej. `{ "impresora": "Nombre de la impresora en Windows" }`), `etiquetas/`, `registro/impresiones.json`,
   `para-imprimir/`, `fotos/<id>/` y `lecturas/<id>/`. La sincronización (`app/js/datos/onedrive.js`) sube lo cambiado y
   baja lo nuevo (consulta delta de Microsoft Graph).
-- **Etiquetas:** el servidor arma el PDF vectorial de cada etiqueta (una por presentación: producto + peso, y en una
-  mezcla + variante; `src/render/label-pdf.js`) y el dispositivo lo guarda. La hoja la arma el dispositivo sin
-  internet (`src/sheet/compose-pdf.js`, pdf-lib) con el mismo plan que `npm run sheet`. La vista previa usa la
-  etiqueta guardada o, si no hay, la maqueta en el mismo dispositivo.
+- **Etiquetas:** cada etiqueta (una por presentación: producto + peso, y en una mezcla + variante) es un PDF vectorial
+  que se hace una sola vez y queda en la carpeta de datos como `etiquetas/<clave>.pdf` y `etiquetas/<clave>.json` (la
+  etiqueta en HTML, sus medidas y de qué presentación es), así que se sincroniza con el otro dispositivo. La clave
+  (`src/app-label.js`) cambia si cambia algo de lo que sale en la etiqueta: los datos, la empresa, el contenido de las
+  imágenes de marca o la plantilla (`LABEL_TEMPLATE_VERSION`). Solo una etiqueta que no está hecha se le pide al
+  servidor (`src/render/label-pdf.js`); al hacerse una nueva, se borra la anterior de esa presentación. La hoja la arma
+  el dispositivo sin internet (`src/sheet/compose-pdf.js`, pdf-lib) con el mismo plan que `npm run sheet`. La vista
+  previa usa la etiqueta hecha o, si no hay, la maqueta en el mismo dispositivo.
+- **Etiquetas por adelantado:** `node scripts/preparar-etiquetas.mjs <carpeta> [ids…] [--rehacer] [--limpiar]` hace en
+  este computador las etiquetas de todas las presentaciones de los productos activos (y de cada variante de una mezcla
+  con ficha) con la misma clave y el mismo PDF que el servidor, y las deja en `<carpeta>/etiquetas/`; las que ya están
+  no se repiten y `--limpiar` borra las que ya no corresponden. Se sube esa carpeta a OneDrive y la app las tiene sin
+  internet. **Al cambiar la plantilla, subir `LABEL_TEMPLATE_VERSION`** (si no, quedan en uso PDF viejos) y volver a
+  correr el script.
 - **Lectura de fotos:** siempre con los dos lectores (`app/js/lectura.js`): lo que coincide queda confirmado, lo que
   difiere queda «Dudoso» y lo leído por uno solo, «Por confirmar». Los datos críticos (alérgenos, filas obligatorias de
   la tabla, origen) que no estén confirmados y todo lo dudoso no salen en la etiqueta. Si el lector normal no está

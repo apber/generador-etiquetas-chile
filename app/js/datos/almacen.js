@@ -6,13 +6,14 @@
 import { useEffect, useState } from '../../vendor/preact-htm.js';
 import { bd } from './bd.js';
 import { M } from '../../textos.js';
+import { filterForLabel, brandFileNames, brandFingerprint, sha256Hex } from '../../../src/app-label.js';
 
 export const estado = {
   listo: false,
   company: null,
   products: new Map(),
   catalog: null,
-  marca: null,          // { assets (assets.json), urls: { archivo: blob URL }, textos: { archivo.svg: texto } }
+  marca: null,          // { assets (assets.json), urls: { archivo: blob URL }, textos: { archivo.svg: texto }, huella }
   impresiones: [],      // registro de impresiones, la más nueva al final
   paraImprimir: [],     // trabajos mandados desde el teléfono al computador
   ajustes: { ts: 1 },
@@ -34,28 +35,13 @@ export function useAlmacen() {
 /** Datos con la forma que usa buildLabelData (con los datos leídos que todavía no pueden ir a la etiqueta, fuera). */
 export const tienda = () => ({ company: estado.company, products: paraEtiqueta(), catalog: estado.catalog });
 
-// Datos críticos (alérgenos, filas obligatorias de la tabla, origen): solo confirmados. Cualquier dato dudoso: fuera.
-const CRITICOS = new Set(['contains', 'may_contain', 'country_of_origin', 'energy_kcal', 'protein_g', 'total_fat_g',
-  'available_carbohydrates_g', 'total_sugars_g', 'sodium_mg']);
 let cacheEt = { version: -1, mapa: null };
 function paraEtiqueta() {
   if (cacheEt.version === estado.version) return cacheEt.mapa;
   const mapa = new Map();
-  for (const [id, p] of estado.products) mapa.set(id, filtrar(p));
+  for (const [id, p] of estado.products) mapa.set(id, filterForLabel(p));
   cacheEt = { version: estado.version, mapa };
   return mapa;
-}
-export function filtrar(p) {
-  const st = p.field_states;
-  if (!st || !Object.values(st).some((s) => s !== 'confirmed')) return p;
-  const q = structuredClone(p);
-  for (const [k, s] of Object.entries(st)) {
-    if (s === 'confirmed' || (s === 'unconfirmed' && !CRITICOS.has(k))) continue;
-    if (q.nutrition?.per_100g && k in q.nutrition.per_100g) delete q.nutrition.per_100g[k];
-    else if (k === 'serving') q.nutrition.serving = null;
-    else if (q.composition && k in q.composition) q.composition[k] = null;
-  }
-  return q;
 }
 
 const esJson = (ruta) => ruta.endsWith('.json');
@@ -106,7 +92,13 @@ async function cargarMarca() {
     urls[nombre] = URL.createObjectURL(v.contenido);
     if (nombre.endsWith('.svg')) textos[nombre] = await v.contenido.text();
   }
-  estado.marca = { assets, urls, textos };
+  // Huella de las imágenes que usa la etiqueta (su contenido): parte de la clave de cada etiqueta hecha
+  const hashes = {};
+  for (const n of brandFileNames(assets)) {
+    const b = (await bd.leer(`f:marca/${n}`))?.contenido;
+    if (b instanceof Blob) hashes[n] = await sha256Hex(await b.arrayBuffer());
+  }
+  estado.marca = { assets, urls, textos, huella: brandFingerprint(assets, hashes) };
 }
 
 /** Imágenes de marca para la plantilla: direcciones (vista previa) o data: (para mandarlas al servidor). */

@@ -109,7 +109,7 @@ export const ALERT_TEXTS = {
     detail: () => 'El código de barras no es obligatorio por norma; lo piden los comercios.',
   },
   invalid_barcode: {
-    message: (p) => `El código de barras ${p.number} tiene mal el último dígito: la etiqueta sale con «SIN CÓDIGO». Revise el número.`,
+    message: (p) => `El código de barras ${p.number} tiene mal el último dígito: la etiqueta sale sin código de barras. Revise el número.`,
     detail: () => 'El último dígito de un EAN-13 se calcula con los otros 12; si no calza, el número está mal copiado y un lector no lo aceptaría.',
   },
   seal_unknown: {

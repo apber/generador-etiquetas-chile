@@ -12,7 +12,8 @@
     "render": "node scripts/render-label.mjs",
     "test": "node --test",
     "sheet": "node scripts/print-sheet.mjs",
-    "app": "node scripts/app-server.mjs"
+    "app": "node scripts/app-server.mjs",
+    "preparar": "node scripts/preparar-etiquetas.mjs"
   },
   "devDependencies": {
     "@cloudflare/puppeteer": "^2.0.1",

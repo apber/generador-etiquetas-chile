@@ -1,59 +1,60 @@
-// Etiquetas en la app: datos de cada presentación, vista previa, PDF de cada etiqueta (lo arma el servidor y queda
-// guardado en el dispositivo) y la hoja para imprimir (la arma el dispositivo, sin internet).
+// Etiquetas en la app: datos de cada presentación, vista previa, PDF de cada etiqueta y la hoja para imprimir (la arma
+// el dispositivo, sin internet). Cada etiqueta hecha queda en la carpeta de datos (etiquetas/<clave>.pdf y .json,
+// src/app-label.js), así que se sincroniza con el otro dispositivo; las que se hacen por adelantado
+// (scripts/preparar-etiquetas.mjs) llegan igual. Solo una etiqueta que no está hecha se le pide al servidor.
 
-import { buildLabelData } from '../../src/label-data.js';
 import { labelMarkup, layoutLabel } from '../../src/template/label.js';
 import { cleanLabel, LABEL_FONTS } from '../../src/render/label-pdf.js';
 import { composeSheet } from '../../src/sheet/compose-pdf.js';
 import { planSheet } from '../../src/sheet/plan.js';
+import { appLabelData, companyForLabel, labelKey, labelFiles, labelMeta, labelParts, LABELS_FOLDER } from '../../src/app-label.js';
 import { PDFDocument } from '../vendor/pdf-lib.js';
-import { estado, tienda, imagenesEtiqueta } from './datos/almacen.js';
+import { estado, tienda, imagenesEtiqueta, escribir, leerArchivo, borrarArchivo, avisarCambio } from './datos/almacen.js';
 import { bd } from './datos/bd.js';
 import { api } from './api.js';
-
-export const VERSION_PLANTILLA = 'v0.7-app1';   // cambia → se vuelven a pedir los PDF guardados
 
 /** Índice de la presentación con ese peso (o -1). */
 export const indicePeso = (p, peso) => (p.presentations ?? []).findIndex((x) => x.net_weight_g === peso);
 
 /** Partes de la etiqueta que la usuaria quitó (las que la norma no pide). */
-export const partes = (p) => ({ highlight: true, follow_us: true, ...(p.label_parts ?? {}) });
+export const partes = labelParts;
 
 /**
  * Datos de la etiqueta de un producto. pedido: { peso, variante: { componente: alternativa } }.
  * Sin peso: la primera presentación.
  */
-export function datosEtiqueta(id, { peso, variante } = {}) {
-  const p = estado.products.get(id);
-  let i = peso == null ? 0 : indicePeso(p, peso);
-  const pedido = { productId: id, presentation: Math.max(0, i) };
-  if (i < 0) pedido.netWeightG = peso;
-  if (variante && Object.keys(variante).length) pedido.variant = variante;
-  const d = buildLabelData(tienda(), pedido);
-  if (d.incomplete) return d;
-  const pt = partes(p);
-  if (!pt.highlight) d.front = { ...d.front, highlight: [] };
-  return d;
-}
+export const datosEtiqueta = (id, pedido = {}) => appLabelData(tienda(), id, pedido);
 
 /** Empresa como la ve la plantilla (sin Síguenos si el producto lo quitó). */
-function empresaPara(id) {
-  const pt = partes(estado.products.get(id));
-  return pt.follow_us ? estado.company : { ...estado.company, follow_us: {} };
+const empresaPara = (id) => companyForLabel(estado.company, estado.products.get(id));
+
+/** Clave de una etiqueta: cambia con los datos, la empresa, las imágenes de marca y la plantilla. */
+export const claveEtiqueta = (id, d) => labelKey(d, empresaPara(id), estado.marca?.huella ?? '');
+
+/** La etiqueta ya hecha con esa clave: { pdf (ArrayBuffer), html, result } o null. */
+async function guardada(clave) {
+  const f = labelFiles(clave);
+  const meta = await leerArchivo(f.meta);
+  const pdf = await leerArchivo(f.pdf);
+  if (!meta?.html || !meta.result || !(pdf instanceof Blob)) return null;
+  return { pdf: await pdf.arrayBuffer(), html: meta.html, result: meta.result };
 }
 
-// ---- Clave de una etiqueta: cambia con los datos, las imágenes de marca y la plantilla ----
-async function sha(texto) {
-  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(texto));
-  return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('').slice(0, 32);
-}
-function huellaMarca() {
-  const m = estado.marca;
-  return m ? JSON.stringify(m.assets) + Object.keys(m.urls).sort().join() : '';
-}
-export async function claveEtiqueta(id, d) {
-  const { alerts, blocking, ...datos } = d;
-  return sha(JSON.stringify([VERSION_PLANTILLA, datos, empresaPara(id), huellaMarca()]));
+/** Guarda una etiqueta nueva y borra las anteriores de la misma presentación (quedaron viejas). */
+async function guardar(clave, id, pedido, d, r) {
+  const f = labelFiles(clave);
+  const peso = d.front?.netWeight?.g ?? pedido.peso ?? null;
+  const variante = pedido.variante ?? {};
+  const misma = (m) => m?.producto === id && m.peso === peso && JSON.stringify(m.variante ?? {}) === JSON.stringify(variante);
+  for (const [k, v] of await bd.todos(`f:${LABELS_FOLDER}/`)) {
+    if (!k.endsWith('.json') || k === `f:${f.meta}` || !misma(v.contenido)) continue;
+    const ruta = k.slice(2);
+    await borrarArchivo(ruta);
+    await borrarArchivo(ruta.replace(/\.json$/, '.pdf'));
+  }
+  await escribir(f.pdf, new Blob([r.pdf], { type: 'application/pdf' }));
+  await escribir(f.meta, labelMeta({ productId: id, peso, variante, html: r.html, result: r.result, fecha: new Date().toISOString() }));
+  avisarCambio();   // para que se suba
 }
 
 // ---- Vista previa: la guardada (igual al PDF) o, si no hay, maquetada aquí mismo ----
@@ -84,8 +85,8 @@ export async function vistaPrevia(id, pedido = {}) {
   const d = datosEtiqueta(id, pedido);
   if (d.incomplete) return { incompleta: d };
   const clave = await claveEtiqueta(id, d);
-  const g = await bd.leer(`etq:${clave}`);
-  if (g) return { html: await conImagenes(g.html), result: g.result, guardada: true, datos: d, clave };
+  const meta = await leerArchivo(labelFiles(clave).meta);
+  if (meta?.html && meta.result) return { html: await conImagenes(meta.html), result: meta.result, guardada: true, datos: d, clave };
   if (!previasLocales.has(clave)) previasLocales.set(clave, maquetarAqui(id, d));
   try {
     const v = await previasLocales.get(clave);
@@ -107,13 +108,12 @@ export async function etiquetaPdf(id, pedido = {}) {
   const d = datosEtiqueta(id, pedido);
   if (d.incomplete) { const e = new Error('incompleta'); e.code = 'incompleta'; e.datos = d; throw e; }
   const clave = await claveEtiqueta(id, d);
-  const g = await bd.leer(`etq:${clave}`);
+  const g = await guardada(clave);
   if (g) return g;
   const assets = await imagenesEtiqueta({ comoData: true });
   const r = await api.etiqueta({ labelData: d, company: empresaPara(id), assets, marca: nombresMarca() });
-  const reg = { pdf: r.pdf, html: r.html, result: r.result, producto: id, fecha: new Date().toISOString() };
-  await bd.guardar(`etq:${clave}`, reg);
-  return reg;
+  await guardar(clave, id, pedido, d, r);
+  return { pdf: r.pdf, html: r.html, result: r.result };
 }
 
 /** Para que el servidor devuelva la etiqueta con «@marca:archivo» en vez de cada imagen. */

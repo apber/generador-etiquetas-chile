@@ -22,6 +22,7 @@ export const DEFAULT_TEMPLATE_OPTIONS = {
   ringColor: '#6E421C',       // when the record has no ring color (alert missing_ring_color)
   missingSections: 'omit',     // a missing ingredients-panel section is left out; 'placeholder' prints missingText
   missingText: '[por confirmar]',
+  missingBarcode: 'blank',     // no valid barcode: blank space (17-11-2026); 'placeholder' = dashed box with «SIN CÓDIGO»
 };
 
 /** The label element (front and back variants still to lay out) and the settings for layoutLabel. */
