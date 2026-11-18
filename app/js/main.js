@@ -1,11 +1,12 @@
 // App de etiquetas: arranque y direcciones (#/…). La app abre en Imprimir (ronda 4b).
-import { html, render, useEffect, useState } from '../vendor/preact-htm.js';
+import { html, render, useEffect, useRef, useState } from '../vendor/preact-htm.js';
 import { T } from '../textos.js';
 import { estado, cargar, useAlmacen, importar, suscribir } from './datos/almacen.js';
 import { ENTORNO, conOneDrive } from './config.js';
 import { entrar, terminarEntrada, sesionGuardada } from './datos/sesion.js';
 import { iniciarSincronizacion, sincronizar, sincronizarLuego } from './datos/onedrive.js';
 import { Btn, ir } from './ui.js';
+import { readZip, dataFolderFiles } from '../../src/zip-read.js';
 import { seguirLecturas } from './lectura.js';
 import * as Imp from './pantallas/imprimir.js';
 import * as Prod from './pantallas/productos.js';
@@ -65,13 +66,33 @@ function Bienvenida({ error, trayendo }) {
     }
     await importar(archivos);
   };
+  // Carpeta de OneDrive vacía: cargar la copia de los datos (.zip). Se guarda aquí y se sube sola a OneDrive (que crea
+  // la carpeta). Solo aparece con la carpeta vacía, así que no puede pisar datos.
+  const archivo = useRef(null);
+  const [errZip, setErrZip] = useState(null);
+  const cargarZip = async (f) => {
+    if (!f) return;
+    setOcupado(true); setErrZip(null);
+    try {
+      const archivos = dataFolderFiles(await readZip(await f.arrayBuffer()));
+      await importar(archivos, { pendiente: true });
+    } catch (e) {
+      setErrZip(e.message === 'sin_company' ? T.inicio.zipSinDatos : T.inicio.zipMalo);
+      setOcupado(false);
+    }
+  };
   return html`<div class="app" style=${`--ts:${estado.ajustes.ts ?? 1}`}><div class="zona"><main class="cuerpo centro">
     <h1 style="margin-top:32px">${T.inicio.titulo}</h1>
     ${trayendo ? html`<span class="girando" aria-hidden="true"></span><p class="espera-tx">${T.nuevo.todavia}</p><p role="status">${T.inicio.trayendo}</p>`
     : conOneDrive() ? html`<p>${T.inicio.entrarD}</p>
       ${error && html`<div class="nota" role="alert"><span class="tx">${error}</span></div>`}
-      ${trayendo === false && html`<p>${T.inicio.vacia} ${T.inicio.vaciaD}</p>`}
-      <${Btn} onClick=${() => entrar()}>${T.inicio.entrar}<//>`
+      ${trayendo === false ? html`<p>${T.inicio.vacia} ${T.inicio.cargarZipD}</p>
+        ${errZip && html`<div class="nota" role="alert"><span class="tx">${errZip}</span></div>`}
+        ${ocupado && html`<p role="status">${T.inicio.cargandoZip}</p>`}
+        <input ref=${archivo} type="file" accept=".zip,application/zip,application/x-zip-compressed" hidden
+          onChange=${(e) => { cargarZip(e.target.files[0]); e.target.value = ''; }} />
+        <${Btn} deshabilitado=${ocupado} onClick=${() => archivo.current.click()}>${T.inicio.cargarZip}<//>`
+      : html`<${Btn} onClick=${() => entrar()}>${T.inicio.entrar}<//>`}`
     : html`<p>${T.inicio.demo}</p><${Btn} deshabilitado=${ocupado} onClick=${demo}>${T.inicio.cargarDemo}<//>`}
   </main></div></div>`;
 }

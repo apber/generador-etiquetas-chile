@@ -11,6 +11,9 @@ App web instalable (PWA) para registrar productos, leer las fotos del proveedor 
   app: `app.json` (opcional, p. ej. `{ "impresora": "Nombre de la impresora en Windows" }`), `etiquetas/`, `registro/impresiones.json`,
   `para-imprimir/`, `fotos/<id>/` y `lecturas/<id>/`. La sincronización (`app/js/datos/onedrive.js`) sube lo cambiado y
   baja lo nuevo (consulta delta de Microsoft Graph).
+  **Primera vez:** si la carpeta de OneDrive no existe o está vacía, la app ofrece «Cargar los datos desde un archivo»:
+  se elige la copia de la carpeta (.zip; `src/zip-read.js`) y la app la guarda y la sube (OneDrive crea la carpeta).
+  Solo aparece con la carpeta vacía, así que no puede pisar datos.
 - **Etiquetas:** cada etiqueta (una por presentación: producto + peso, y en una mezcla + variante) es un PDF vectorial
   que se hace una sola vez y queda en la carpeta de datos como `etiquetas/<clave>.pdf` y `etiquetas/<clave>.json` (la
   etiqueta en HTML, sus medidas y de qué presentación es), así que se sincroniza con el otro dispositivo. La clave
