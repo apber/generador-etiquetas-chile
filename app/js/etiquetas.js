@@ -54,7 +54,7 @@ async function guardar(clave, id, pedido, d, r) {
   }
   await escribir(f.pdf, new Blob([r.pdf], { type: 'application/pdf' }));
   await escribir(f.meta, labelMeta({ productId: id, peso, variante, html: r.html, result: r.result, fecha: new Date().toISOString() }));
-  avisarCambio();   // para que se suba
+  avisarCambio('subir');   // para que se suba (lo que se ve no cambia: la etiqueta es la misma)
 }
 
 // ---- Vista previa: la guardada (igual al PDF) o, si no hay, maquetada aquí mismo ----
@@ -104,12 +104,18 @@ async function conImagenes(html) {
  * PDF de una etiqueta: el guardado o uno nuevo del servidor. Devuelve { pdf (ArrayBuffer), result, html }.
  * Sin internet y sin PDF guardado: Error con code 'sin_conexion'.
  */
+const enCamino = new Map();   // clave → pedido al servidor en curso (la misma etiqueta no se pide dos veces a la vez)
 export async function etiquetaPdf(id, pedido = {}) {
   const d = datosEtiqueta(id, pedido);
   if (d.incomplete) { const e = new Error('incompleta'); e.code = 'incompleta'; e.datos = d; throw e; }
   const clave = await claveEtiqueta(id, d);
   const g = await guardada(clave);
   if (g) return g;
+  if (!enCamino.has(clave)) enCamino.set(clave, pedirEtiqueta(clave, id, pedido, d).finally(() => enCamino.delete(clave)));
+  return enCamino.get(clave);
+}
+
+async function pedirEtiqueta(clave, id, pedido, d) {
   const assets = await imagenesEtiqueta({ comoData: true });
   const r = await api.etiqueta({ labelData: d, company: empresaPara(id), assets, marca: nombresMarca() });
   await guardar(clave, id, pedido, d, r);

@@ -136,7 +136,9 @@ function App() {
 async function arrancar() {
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
   await cargar();
-  suscribir(() => { if (conOneDrive()) sincronizarLuego(); });
+  // Sincronizar tras un cambio de datos o un archivo nuevo; no tras un cambio de la vista (el estado de la propia
+  // sincronización), que la volvía a lanzar cada 2 s sin fin (18-11-2026).
+  suscribir((tipo) => { if (tipo !== 'vista' && conOneDrive()) sincronizarLuego(); });
   render(html`<${App} />`, document.getElementById('app'));
   seguirLecturas();   // lecturas en espera (cuota, servicio ocupado): siguen solas
   document.title = ENTORNO.nombre;

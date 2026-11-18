@@ -75,8 +75,8 @@ let enCurso = null;
 export function sincronizar() {
   if (!conOneDrive()) return Promise.resolve();
   enCurso ??= (async () => {
-    if (!navigator.onLine) { sinc.estado = 'sin_conexion'; avisarCambio(); return; }
-    sinc.estado = 'sincronizando'; sinc.error = null; avisarCambio();
+    if (!navigator.onLine) { sinc.estado = 'sin_conexion'; avisarCambio('vista'); return; }
+    sinc.estado = 'sincronizando'; sinc.error = null; avisarCambio('vista');
     try {
       await repararDescargas();
       // 1. Subir
@@ -117,7 +117,7 @@ export function sincronizar() {
       sinc.estado = navigator.onLine ? 'error' : 'sin_conexion'; sinc.error = e;
       if (e.status === 410) await bd.borrar('delta');   // el delta venció: la próxima vez se revisa todo
     } finally {
-      enCurso = null; avisarCambio();
+      enCurso = null; avisarCambio('vista');
     }
   })();
   return enCurso;

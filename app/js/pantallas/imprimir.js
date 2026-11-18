@@ -195,6 +195,7 @@ function usePreparar(l) {
     (async () => {
       const problemas = [];
       for (const it of l) {
+        if (!vivo) return;   // la lista o los datos cambiaron: sigue la vuelta nueva
         try { await etiquetaPdf(it.id, it); } catch (e) { problemas.push({ id: it.id, code: e.code ?? 'servidor' }); }
       }
       if (vivo) setR({ listo: true, problemas });

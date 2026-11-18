@@ -22,7 +22,15 @@ export const estado = {
 };
 
 const oyentes = new Set();
-export function avisarCambio() { estado.version++; oyentes.forEach((f) => f()); }
+/**
+ * Avisa un cambio. tipo: 'datos' (cambió algo de los datos: se vuelve a calcular y se sincroniza), 'subir' (hay un
+ * archivo nuevo que subir, sin cambio en lo que se ve) o 'vista' (solo cambió lo que se muestra, p. ej. el estado de
+ * la sincronización: no se vuelve a sincronizar, para no quedar en un ciclo).
+ */
+export function avisarCambio(tipo = 'datos') {
+  if (tipo === 'datos') estado.version++;
+  oyentes.forEach((f) => f(tipo));
+}
 export function suscribir(f) { oyentes.add(f); return () => oyentes.delete(f); }
 
 /** Vuelve a dibujar el componente cuando cambian los datos. */
