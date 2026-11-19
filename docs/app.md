@@ -8,7 +8,8 @@ App web instalable (PWA) para registrar productos, leer las fotos del proveedor 
   la empresa (`company.json` y `app.json`).
 - **Datos:** en el dispositivo (IndexedDB, `app/js/datos/almacen.js`) y en una carpeta de OneDrive con los mismos
   archivos que usa Node: `company.json`, `products/<id>.json`, `marca/assets.json` y sus imágenes, más lo que agrega la
-  app: `app.json` (opcional, p. ej. `{ "impresora": "Nombre de la impresora en Windows" }`), `etiquetas/`, `registro/impresiones.json`,
+  app: `app.json` (opcional, p. ej. `{ "impresora": "Nombre de la impresora en Windows", "papel": "papel fotográfico autoadhesivo",
+  "marcaImpresora": "epson" }`; se cambia en Ajustes → Impresora), `etiquetas/`, `registro/impresiones.json`,
   `para-imprimir/`, `fotos/<id>/` y `lecturas/<id>/`. La sincronización (`app/js/datos/onedrive.js`) sube lo cambiado y
   baja lo nuevo (consulta delta de Microsoft Graph).
   **Primera vez:** si la carpeta de OneDrive no existe o está vacía, la app ofrece «Cargar los datos desde un archivo»:
@@ -31,6 +32,17 @@ App web instalable (PWA) para registrar productos, leer las fotos del proveedor 
 - **Imprimir:** con algo elegido, «Quitar todas» arriba de la lista (sin confirmación, con «Deshacer»). En «Revisa antes de
   imprimir», cada etiqueta aparece en la hoja apenas está lista; mientras tanto su lugar es un rectángulo gris con
   «Preparando…» (o «Falta» si no se pudo preparar) y se ve cuántas van listas. Un solo aviso por causa.
+- **Imprimir desde el teléfono:** la app manda las hojas a la ventana de imprimir de Android, que necesita el
+  complemento de la marca de la impresora (Epson Print Enabler, HP Print Service Plugin o Canon Print Service;
+  `app/js/impresora-marcas.js`). La primera vez en cada teléfono, antes de la ventana de imprimir, aparece «Preparar este
+  teléfono para imprimir»: instalar el complemento (con enlace a Play Store), activarlo en Ajustes › Impresión, quitarle
+  el límite de batería y, en Xiaomi, el autoencendido. La marca del teléfono se reconoce sola (Chrome entrega el modelo:
+  `navigator.userAgentData.getHighEntropyValues(['model'])`) y solo si no se reconoce se pregunta (Samsung, Xiaomi u
+  otra); la de la impresora sale de `app.json` (si falta, se pregunta una vez y queda para toda la empresa). «Ya está
+  listo» se guarda en el teléfono, para esa marca de impresora. Los mismos pasos están en el desplegable «¿La impresora
+  no aparece o dice «no está disponible»?» y en Ajustes → Impresora.
+- **Ajustes → Impresora:** marca de la impresora, nombre de la impresora en el computador, papel y, en el teléfono,
+  «Preparar este teléfono para imprimir». Se guarda en `app.json` (con «Deshacer») y avisa que conviene una hoja de prueba.
 - **Colores del aro (Ajustes → «Colores del aro»; también desde la ficha):** lista de los productos con su muestra y el
   nombre del color en palabras (`app/js/colores.js`); al tocar uno, una vista del aro, el color de ahora, los primeros
   colores libres de `ring_palette` y, plegados, los demás y «Otro color» (rueda de colores del sistema). Avisa si el color

@@ -13,6 +13,7 @@ import * as Prod from './pantallas/productos.js';
 import * as Aj from './pantallas/ajustes.js';
 import * as Nuevo from './pantallas/nuevo.js';
 import * as Datos from './pantallas/datos.js';
+import * as Impr from './pantallas/impresora.js';
 
 const ruta = () => (location.hash.replace(/^#/, '') || '/imprimir').split('?')[0];
 
@@ -23,7 +24,9 @@ function pantalla(r) {
     if (!b) return html`<${Imp.Elegir} />`;
     if (b === 'revisar') return html`<${Imp.Revisar} />`;
     if (b === 'peso') return html`<${Imp.Peso} key=${c} id=${c} desde=${d} />`;
-    if (b === 'telefono') return html`<${Imp.Telefono} />`;
+    // La primera vez en este teléfono (o con otra marca de impresora), antes de imprimir: preparar el teléfono
+    if (b === 'telefono') return Impr.telefonoListo() ? html`<${Imp.Telefono} />` : html`<${Impr.Preparar} desde="imprimir" />`;
+    if (b === 'preparar') return html`<${Impr.Preparar} key=${c} desde=${c} />`;
     if (b === 'pc') return html`<${Imp.Pc} />`;
     if (b === 'listo') return html`<${Imp.Listo} />`;
     if (b === 'ayuda') return html`<${Imp.Ayuda} />`;
@@ -46,6 +49,7 @@ function pantalla(r) {
   if (a === 'ajustes') {
     if (!b) return html`<${Aj.Ajustes} />`;
     if (b === 'colores') return c ? html`<${Aj.Color} key=${c} id=${c} />` : html`<${Aj.Colores} />`;
+    if (b === 'impresora') return c ? html`<${Impr.EditarImpresora} key=${c} campo=${c} />` : html`<${Impr.Impresora} />`;
     if (b === 'codigos') {
       if (!c) return html`<${Aj.Codigos} />`;
       if (d === 'pasar' && e) return html`<${Aj.Pasar2} num=${c} id=${e} />`;

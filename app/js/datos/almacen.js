@@ -7,6 +7,7 @@ import { useEffect, useState } from '../../vendor/preact-htm.js';
 import { bd } from './bd.js';
 import { M } from '../../textos.js';
 import { filterForLabel, brandFileNames, brandFingerprint, sha256Hex } from '../../../src/app-label.js';
+import { MARCAS_IMPRESORA, marcaImpresoraDe } from '../impresora-marcas.js';
 
 export const estado = {
   listo: false,
@@ -16,7 +17,8 @@ export const estado = {
   marca: null,          // { assets (assets.json), urls: { archivo: blob URL }, textos: { archivo.svg: texto }, huella }
   impresiones: [],      // registro de impresiones, la más nueva al final
   paraImprimir: [],     // trabajos mandados desde el teléfono al computador
-  ajustes: { ts: 1 },
+  app: {},             // app.json: impresora, papel y marca de la impresora (para toda la empresa)
+  ajustes: { ts: 1 },   // de este dispositivo: tamaño de letra y teléfono preparado para imprimir
   seleccion: {},        // { productId: { n, peso, variante } }
   version: 0,
 };
@@ -72,11 +74,10 @@ export async function cargar() {
   if (!estado.catalog) estado.catalog = await (await fetch(new URL('../../../data/allergens.json', import.meta.url))).json();
   estado.company = (await leerArchivo('company.json')) ?? null;
   // app.json (opcional): ajustes de la app para la empresa, p. ej. { "impresora": "Nombre de la impresora en Windows",
-  // "papel": "papel fotográfico autoadhesivo" }
+  // "papel": "papel fotográfico autoadhesivo", "marcaImpresora": "epson" }. Se cambian en Ajustes → Impresora.
   estado.app = (await leerArchivo('app.json')) ?? {};
   M.marca = estado.company?.brand ?? 'la empresa';
-  M.impresora = estado.app.impresora ?? 'la impresora de etiquetas';
-  M.papel = estado.app.papel ?? 'papel de las etiquetas';
+  ponerApp();
   estado.products = new Map();
   for (const [, v] of (await bd.todos('f:products/')).sort((a, b) => a[0].localeCompare(b[0]))) {
     if (v.contenido?.id) estado.products.set(v.contenido.id, v.contenido);
@@ -148,6 +149,29 @@ export async function guardarProducto(p) {
 export async function eliminarProducto(id) {
   await borrarArchivo(`products/${id}.json`);
   estado.products.delete(id);
+  avisarCambio();
+}
+/** Textos que salen de app.json (impresora, papel y marca de la impresora). */
+function ponerApp() {
+  M.impresora = estado.app.impresora || 'la impresora de etiquetas';
+  M.papel = estado.app.papel || 'papel de las etiquetas';
+  M.marcaImpresora = MARCAS_IMPRESORA[marcaImpresoraDe(estado.app)]?.nombre ?? null;
+}
+/** Cambia app.json (se sincroniza con OneDrive: vale para todos los dispositivos). Devuelve el anterior, para deshacer. */
+export async function guardarApp(cambios) {
+  const antes = estado.app;
+  estado.app = { ...antes, ...cambios };
+  for (const [k, v] of Object.entries(estado.app)) if (v == null || v === '') delete estado.app[k];
+  await escribir('app.json', estado.app);
+  ponerApp();
+  avisarCambio();
+  return antes;
+}
+/** Vuelve a dejar app.json como estaba (Deshacer). */
+export async function reponerApp(antes) {
+  estado.app = antes;
+  await escribir('app.json', antes);
+  ponerApp();
   avisarCambio();
 }
 export async function guardarEmpresa(c) {

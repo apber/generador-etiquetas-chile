@@ -3,7 +3,9 @@
 // Los nombres de la marca y de la impresora no van aquí: salen de los datos de la empresa (M, abajo).
 
 /** Datos de la empresa que usan los textos (los pone la app al cargar: company.json y app.json). */
-export const M = { marca: 'la empresa', impresora: 'la impresora de etiquetas', papel: 'papel de las etiquetas' };
+export const M = { marca: 'la empresa', impresora: 'la impresora de etiquetas', papel: 'papel de las etiquetas', marcaImpresora: null };
+/** «La Epson» o, sin marca elegida, «La impresora de etiquetas». */
+const laImpresora = () => (M.marcaImpresora ? `La ${M.marcaImpresora}` : 'La impresora de etiquetas');
 
 export const T = {
   app: { nombre: 'Etiquetas', get logo() { return `Logo de ${M.marca}`; } },
@@ -105,13 +107,17 @@ export const T = {
     titulo: 'Imprimir desde el teléfono',
     get papel() { return `Pon en la impresora el ${M.papel}.`; },
     elige: 'Se abre la ventana de imprimir. La primera vez elige estos ajustes; después el teléfono los recuerda:',
-    ajustes: [   // [ajuste, valor, explicación]
-      ['Impresora', 'La Epson'],
-      ['Tamaño del papel', 'Carta'],
-      ['Tipo de papel', 'Papel normal', 'Está en «Más opciones».'],
-      ['Calidad', 'Superior', 'Está en «Más opciones».'],
-    ],
+    get ajustes() {   // [ajuste, valor, explicación]
+      return [
+        ['Impresora', laImpresora()],
+        ['Tamaño del papel', 'Carta'],
+        ['Tipo de papel', 'Papel normal', 'Está en «Más opciones».'],
+        ['Calidad', 'Superior', 'Está en «Más opciones».'],
+      ];
+    },
     nota: '«Papel normal» aunque la hoja sea fotográfica: con ese ajuste se probaron los colores.',
+    noApareceT: '¿La impresora no aparece o dice «no está disponible»?',
+    noApareceD: 'Espera unos segundos o vuelve a elegirla en la flecha de arriba de la ventana de imprimir. Si sigue, despierta la impresora apretando un botón y revisa que el teléfono esté en el mismo wifi. Si nada de eso sirve, revisa que este teléfono esté preparado:',
     abrir: 'Abrir la ventana de imprimir',
     alPc: 'Imprimir en el computador',
     mandadoPc: 'Se mandó al computador: aparece en Imprimir etiquetas, en «Para imprimir».',
@@ -147,8 +153,62 @@ export const T = {
     chicasT: 'Salieron más chicas o cortadas', chicasD: 'El tamaño del papel debe ser Carta, a tamaño real. No elijas «Ajustar a la página».',
     oscurasT: 'Colores oscuros o con rayas claras', oscurasD: 'Tipo de papel: Papel normal. Calidad: Alta.',
     oscurasTelD: 'En «Más opciones»: Tipo de papel: Papel normal. Calidad: Superior.',
-    noApareceT: 'La impresora no aparece o dice «no está disponible»', noApareceD: 'Espera unos segundos o vuelve a elegirla en la flecha de arriba. Si sigue, despierta la impresora apretando un botón y revisa que el teléfono esté en el mismo wifi, con el complemento de Epson activo (Ajustes › Conexiones › Más ajustes de conexión › Impresión).',
+    noApareceT: 'La impresora no aparece o dice «no está disponible»', noApareceD: 'Espera unos segundos o vuelve a elegirla en la flecha de arriba. Si sigue, despierta la impresora apretando un botón y revisa que el teléfono esté en el mismo wifi y preparado para imprimir.',
+    preparar: 'Revisar que el teléfono esté preparado',
     corridasT: 'Las etiquetas quedaron corridas', corridasD: 'Pon la hoja derecha, apoyada contra la guía de la impresora.',
+  },
+
+  // ---- Preparar el teléfono para imprimir (18-11-2026, opción A) ----
+  preparar: {
+    titulo: 'Preparar este teléfono para imprimir',
+    intro: 'Se hace una sola vez en cada teléfono. Así la impresora aparece en la ventana de imprimir y no se desconecta.',
+    tel: { samsung: 'Samsung', xiaomi: 'Xiaomi', otra: 'otra marca' },
+    pasosPara: (m) => `Pasos para un teléfono ${m}.`,
+    cambiarTel: 'Cambiar la marca',
+    preguntaTel: '¿De qué marca es este teléfono?',
+    xiaomiD: 'También Redmi y POCO',
+    otraTel: 'Otra marca',
+    preguntaImp: '¿De qué marca es la impresora?',
+    preguntaImpD: 'Se guarda para todos los teléfonos y el computador. Se cambia en Ajustes › Impresora.',
+    // Paso 1: instalar el complemento de la marca de la impresora
+    instalarT: (c) => `Instala «${c}»`,
+    instalarD: 'Es la aplicación gratis que conecta el teléfono con la impresora. Toca el botón y después «Instalar».',
+    instalarOtraT: 'Instala el complemento de tu impresora',
+    instalarOtraD: 'En Play Store, busca la marca de la impresora junto a «print service» (por ejemplo, «Brother print service») e instala el de esa marca.',
+    playStore: 'Abrir en Play Store',
+    complemento: 'el complemento',
+    // Paso 2: activarlo
+    activarT: 'Actívalo en «Impresión»',
+    activarD: (c, tel) => `${tel === 'samsung' ? 'Abre Ajustes › Conexiones › Más ajustes de conexión › Impresión.' : 'Abre Ajustes y escribe «Impresión» en la lupa de arriba.'} Toca «${c}» y actívalo. Si ahí ves «Servicio de impresión predeterminado» activado, desactívalo: así la impresora no sale dos veces.`,
+    // Paso 3: batería
+    bateriaT: 'Quítale el límite de batería',
+    bateriaD: (c, tel) => (tel === 'samsung'
+      ? `Abre Ajustes › Aplicaciones › ${c} › Batería y elige «Sin restricciones». Después, en Ajustes › Batería › Límites de uso en segundo plano, revisa que no esté en «Aplicaciones en suspensión» ni en «Aplicaciones en suspensión profunda».`
+      : `Abre Ajustes › Aplicaciones, busca «${c}», entra en Batería y elige «Sin restricciones».`),
+    // Paso 4 (Xiaomi): autoencendido
+    autoT: 'Deja que se encienda solo',
+    autoD: (c) => `Abre Ajustes › Aplicaciones › Permisos › «Autoencendido en segundo plano» y activa «${c}».`,
+    autoOtraD: (c) => `Si tu teléfono tiene «Autoencendido» o «Inicio automático» (suele estar en Ajustes › Aplicaciones), actívalo también para ${c}.`,
+    primeraVez: (c) => `Si la impresora no aparece la primera vez, abre ${c} una vez (en Play Store, botón «Abrir») y vuelve a intentarlo.`,
+    listo: 'Ya está listo',
+    listoAviso: 'Este teléfono quedó preparado para imprimir.',
+  },
+  impresora: {
+    titulo: 'Impresora',
+    intro: 'Vale para todos los teléfonos y el computador de la empresa.',
+    marcaT: 'Marca de la impresora', marcaD: 'Define qué complemento se instala en el teléfono.',
+    otra: 'Otra marca',
+    nombre: 'Nombre en el computador', nombreD: 'Como aparece en la ventana de imprimir de Windows.',
+    nombreEj: 'Ej.: Etiquetas', sinNombre: 'Sin nombre',
+    papel: 'Papel de las etiquetas', papelD: 'Se muestra al imprimir: «Pon en la impresora el …».',
+    papelEj: 'Ej.: papel fotográfico autoadhesivo', sinPapel: 'Sin escribir',
+    telefono: 'Este teléfono', preparado: 'Preparado para imprimir', sinPreparar: 'Todavía no está preparado',
+    prueba: 'Al cambiar de impresora, conviene imprimir primero una hoja de prueba y revisar los colores y el tamaño.',
+    guardado: (que) => `Se guardó ${que}. Conviene imprimir una hoja de prueba.`,
+    guardadoPapel: 'Se guardó el papel.',
+    guardar: (que) => `Guardar ${que}`,
+    elNombre: 'el nombre', elPapel: 'el papel', laMarca: 'la marca',
+    vacio: 'Escribe el nombre, por ejemplo Etiquetas.',
   },
 
   // ---- Productos ----
@@ -299,7 +359,8 @@ export const T = {
     colores: 'Colores del aro', coloresD: (n, l) => `${n} productos con color y ${l} ${l === 1 ? 'color libre' : 'colores libres'}`,
     letra: 'Tamaño de letra', normal: 'Normal', grande: 'Grande', muyGrande: 'Muy grande',
     get empresa() { return `Datos de ${M.marca}`; }, empresaD: 'Envasador, resolución sanitaria y redes',
-    impresora: 'Impresora', impresoraTel: 'La Epson: Carta, Papel normal, calidad Superior', get impresoraPc() { return M.impresora; },
+    impresora: 'Impresora',
+    impresoraD: (tel, listo) => [M.marcaImpresora ?? 'Marca sin elegir', tel ? (listo ? 'teléfono preparado' : 'teléfono sin preparar') : M.impresora].join(' · '),
     respaldo: 'Respaldo', respaldoD: (c) => `OneDrive, carpeta ${c}`,
     sinRespaldo: 'Solo en este dispositivo',
     alDia: (f) => `Todo guardado en OneDrive (${f}).`,

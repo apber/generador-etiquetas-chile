@@ -9,11 +9,12 @@ import { ENTORNO, conOneDrive } from '../config.js';
 import { sinc, pendientes, sincronizar } from '../datos/onedrive.js';
 import { sesionGuardada, salir } from '../datos/sesion.js';
 import { esTelefono } from './imprimir.js';
+import { telefonoListo } from './impresora.js';
 import { logoUrl } from '../marco.js';
 import { libres, conAro, impresasDe, nombreColor, letraDe } from '../colores.js';
 import { ringLetterColor, ringInk, similarRingColors, ringColorProblems, isHex, LABEL_BACKGROUND } from '../../../src/ring-colors.js';
 
-export const VERSION_APP = '0.8.0-beta5';
+export const VERSION_APP = '0.8.0-beta6';
 const nombreDe = (id) => estado.products.get(id)?.product_name ?? id;
 
 export function Ajustes() {
@@ -31,12 +32,12 @@ export function Ajustes() {
     <div class="tarjeta lista">
       <${Fila} primera n=${T.ajustes.codigos} d=${T.ajustes.codigosD(c.total, c.asignados.length, c.libres.length)} onClick=${() => ir('/ajustes/codigos')} />
       <${Fila} n=${T.ajustes.colores} d=${T.ajustes.coloresD(conAro().filter((p) => p.ring_color).length, libres().length)} onClick=${() => ir('/ajustes/colores')} />
+      <${Fila} n=${T.ajustes.impresora} d=${T.ajustes.impresoraD(esTelefono(), telefonoListo())} onClick=${() => ir('/ajustes/impresora')} />
     </div>
     <div class="grupo"><h2 id="t-letra">${T.ajustes.letra}</h2>
       <div class="tarjeta lista" role="radiogroup" aria-labelledby="t-letra">
         ${[['1', T.ajustes.normal], ['1.15', T.ajustes.grande], ['1.3', T.ajustes.muyGrande]].map(([v, n]) => html`<${Opcion} key=${v} nombre="letra"
           valor=${v} elegido=${ts === v} n=${n} onElegir=${(x) => guardarAjustes({ ts: Number(x) })} />`)}</div></div>
-    <div class="grupo"><h2>${T.ajustes.impresora}</h2><p>${esTelefono() ? T.ajustes.impresoraTel : T.ajustes.impresoraPc}</p></div>
     <div class="grupo"><h2>${T.ajustes.respaldo}</h2>
       <p>${conOneDrive() ? T.ajustes.respaldoD(ENTORNO.microsoft.carpeta) : T.ajustes.sinRespaldo}</p>
       ${conOneDrive() && html`<p class="chico" role="status">${estadoSinc}</p>`}

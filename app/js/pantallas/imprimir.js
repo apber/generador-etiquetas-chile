@@ -15,6 +15,7 @@ import { labelBox } from '../../../src/sheet/plan.js';
 import { sheetCss, sheetSections } from '../../../src/sheet/page.js';
 import { LABEL_FONTS } from '../../../src/render/label-pdf.js';
 import { MM } from '../../../src/template/geometry.js';
+import { GuiaTelefono } from './impresora.js';
 
 export const esTelefono = () => /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
 
@@ -355,6 +356,9 @@ export function Telefono() {
     <dl class="tarjeta ajustes">${T.telefono.ajustes.map(([k, v, n]) => html`<div class="ajuste" key=${k}><dt>${k}</dt><dd>${v}</dd>
       ${n && html`<p class="chico" style="flex-basis:100%">${n}</p>`}</div>`)}</dl>
     <p class="chico">${T.telefono.nota}</p>
+    <details class="tarjeta"><summary><span>${T.telefono.noApareceT}</span><${Ico} n="sig" /></summary>
+      <div class="dentro pila"><p>${T.telefono.noApareceD}</p><${GuiaTelefono} id="guia-tel" /></div>
+    </details>
     <${Btn} ico="imp" deshabilitado=${ocupado} onClick=${abrir}>${T.telefono.abrir}<//>
     <${Btn} tipo="texto" onClick=${alPc}>${T.telefono.alPc}<//>
   <//>`;
@@ -464,6 +468,8 @@ export function Listo() {
 export function Ayuda() {
   const A = T.ayuda;
   return html`<${Pantalla} sec="imprimir" titulo=${A.titulo} cab=${html`<${Cab} volver="/imprimir/listo" donde=${T.listo.titulo} />`}>
-    ${[...(esTelefono() ? [[A.noApareceT, A.noApareceD]] : []), [A.chicasT, A.chicasD], [A.oscurasT, esTelefono() ? A.oscurasTelD : A.oscurasD], [A.corridasT, A.corridasD]].map(([t, d]) => html`<div class="tarjeta" key=${t}><h2>${t}</h2><p>${d}</p></div>`)}
+    ${esTelefono() && html`<div class="tarjeta"><h2>${A.noApareceT}</h2><p>${A.noApareceD}</p>
+      <${Btn} tipo="secundario" onClick=${() => ir('/imprimir/preparar/ayuda')}>${A.preparar}<//></div>`}
+    ${[[A.chicasT, A.chicasD], [A.oscurasT, esTelefono() ? A.oscurasTelD : A.oscurasD], [A.corridasT, A.corridasD]].map(([t, d]) => html`<div class="tarjeta" key=${t}><h2>${t}</h2><p>${d}</p></div>`)}
   <//>`;
 }

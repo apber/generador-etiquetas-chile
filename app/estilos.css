@@ -178,6 +178,13 @@ body{background:#F8F3E8}
 .app details summary::-webkit-details-marker{display:none}
 .app details[open] summary svg{transform:rotate(90deg)}
 .app details .dentro{padding:0 16px 6px}
+.app details .dentro.pila{display:flex;flex-direction:column;gap:12px;padding-bottom:16px}
+.pasos{display:flex;flex-direction:column;gap:12px}
+.pasos li{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:var(--r-grande);background:var(--sup);border:1.5px solid var(--borde)}
+.pasos .num{flex:none;display:grid;place-items:center;width:calc(32px * var(--ts,1));height:calc(32px * var(--ts,1));border-radius:50%;background:var(--accion);color:var(--sobre-accion);font-weight:700}
+.pasos .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.pasos h3{font-size:calc(18px * var(--ts,1));line-height:calc(24px * var(--ts,1))}
+.pasos a.btn{text-decoration:none}
 .app h1.numero{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 
 .fotos{display:flex;flex-direction:column;gap:10px}
