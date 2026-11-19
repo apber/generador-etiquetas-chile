@@ -369,7 +369,8 @@ export const T = {
     errorSinc: 'No se pudo guardar en OneDrive. Se intenta de nuevo sola.',
     cuenta: (c) => `Cuenta: ${c}`,
     salir: 'Salir de la cuenta',
-    version: (v, e) => `Versión ${v} · ${e}`,
+    // La versión sale de package.json al publicar (scripts/app-entorno.mjs); en dev, además el commit
+    version: (v, c, e) => `Versión ${v ?? 'en desarrollo'}${c && /beta/.test(v ?? '') ? ` (${c})` : ''} · ${e}`,
   },
   codigos: {
     titulo: 'Códigos de barras',

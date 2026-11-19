@@ -14,7 +14,6 @@ import { logoUrl } from '../marco.js';
 import { libres, conAro, impresasDe, nombreColor, letraDe } from '../colores.js';
 import { ringLetterColor, ringInk, similarRingColors, ringColorProblems, isHex, LABEL_BACKGROUND } from '../../../src/ring-colors.js';
 
-export const VERSION_APP = '0.8.0-beta6';
 const nombreDe = (id) => estado.products.get(id)?.product_name ?? id;
 
 export function Ajustes() {
@@ -44,7 +43,7 @@ export function Ajustes() {
       ${sesion?.cuenta && html`<p class="chico">${T.ajustes.cuenta(sesion.cuenta.correo ?? sesion.cuenta.nombre)}</p>`}
       ${conOneDrive() && sesion && html`<${Btn} tipo="secundario" onClick=${() => sincronizar()}>Guardar ahora en OneDrive<//>
         <${Btn} tipo="texto" onClick=${async () => { await salir(); location.reload(); }}>${T.ajustes.salir}<//>`}</div>
-    <p class="chico">${T.ajustes.version(VERSION_APP, ENTORNO.nombre)}</p>
+    <p class="chico">${T.ajustes.version(ENTORNO.version, ENTORNO.commit, ENTORNO.nombre)}</p>
   <//>`;
 }
 

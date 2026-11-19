@@ -73,6 +73,12 @@ Dos copias: **dev** (lo último de `main`) y **producción** (la última versió
 etiqueta, `.github/workflows/produccion.yml` mueve la rama `produccion` a ella). Cada copia tiene su app, su servidor,
 su clave de Gemini y su carpeta de OneDrive; en el teléfono quedan como dos apps («Nombre» y «Nombre DEV»).
 
+**Números de versión (desde el 18-11-2026):** `package.json` dice hacia qué versión va `main`: en dev,
+`0.10.0-beta.1`, `0.10.0-beta.2`… (Ajustes muestra además el commit). Para publicar: un commit que deja `0.10.0` (sin
+`-beta`), la etiqueta `v0.10` sobre ese commit y, enseguida, `main` pasa a `0.11.0-beta.1`. Así producción muestra el
+mismo número que su etiqueta y dev, el de la versión que viene. Ajustes lee la versión del entorno que escribe
+`scripts/app-entorno.mjs`; no hay otro número escrito a mano.
+
 **App (Cloudflare Pages, conectada al repositorio):** comando de compilación `node scripts/app-entorno.mjs`, carpeta
 de salida `dist`, rama `main` (dev) o `produccion`. Variables de entorno del proyecto:
 
