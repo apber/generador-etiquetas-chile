@@ -150,7 +150,7 @@ export async function planHojas(lista) {
   const ultima = items[items.length - 1];
   let libres = 0;
   while (planSheet([...items, ...Array(libres + 1).fill(ultima)], { paper: 'letter' }).pages.length === plan.pages.length) libres++;
-  return { hojas: plan.pages.length, libres, plan, porHoja: plan.pages.map((p) => p.items.length) };
+  return { hojas: plan.pages.length, libres, plan, items, porHoja: plan.pages.map((p) => p.items.length) };
 }
 
 /**

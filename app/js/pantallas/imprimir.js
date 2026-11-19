@@ -73,6 +73,11 @@ export function Elegir() {
   const t = total(l);
   const ultima = estado.impresiones[estado.impresiones.length - 1];
   const tel = esTelefono();
+  const quitarTodas = async () => {
+    const antes = sel();
+    await guardarSeleccion({});
+    avisar(T.imprimir.quitadas(t), () => guardarSeleccion(antes));
+  };
   const repetir = async () => {
     const antes = sel();
     await guardarSeleccion(seleccionDe(ultima.items));
@@ -88,7 +93,8 @@ export function Elegir() {
         onClick=${() => usarTrabajo(tr)} />`)}</div></section>`}
     ${ultima && html`<button class="tile" type="button" onClick=${repetir}><span class="ico"><${Ico} n="repetir" /></span><span class="tx">
       <span class="t">${T.imprimir.repetir}</span><span class="d">${T.imprimir.repetirD(fecha(ultima.fecha), ultima.items.map((x) => `${x.n} ${x.nombre}`).join(', ').replace(/, ([^,]*)$/, ' y $1'))}</span></span></button>`}
-    ${prods.length ? html`<p class="chico">${T.imprimir.elige}</p>
+    ${prods.length ? html`${t ? html`<div class="elegidas"><p class="chico" role="status">${T.imprimir.elegidas(t)}</p>
+        <${Btn} tipo="texto" onClick=${quitarTodas}>${T.imprimir.quitarTodas}<//></div>` : html`<p class="chico">${T.imprimir.elige}</p>`}
       <ul class="tarjeta lista">${prods.map((p) => {
         const s = sel()[p.id];
         const n = s?.n ?? 0;
@@ -187,20 +193,35 @@ export function Peso({ id, desde }) {
 }
 
 // ---- Revisar ----
+/** Un aviso por causa: con el servidor sin minutos, todas las que faltan fallan igual (antes salían dos avisos). */
+const avisosFalta = (fs) => {
+  const vistos = new Set();
+  return fs.filter((f) => {
+    const k = f.code === 'limite' || f.code === 'servidor' ? f.code : `${f.code}:${f.id}`;
+    if (vistos.has(k)) return false;
+    vistos.add(k);
+    return true;
+  }).filter((f, _, a) => !(f.code === 'servidor' && a.some((x) => x.code === 'limite')));
+};
+/** Etiquetas (contando copias) ya listas. */
+const listasDe = (l, hechas) => l.filter((it) => hechas.includes(it.id)).reduce((s, it) => s + it.n, 0);
+
 /** Prepara (o trae del dispositivo) el PDF de cada etiqueta elegida. */
 function usePreparar(l) {
-  const [r, setR] = useState({ listo: false, problemas: [] });
+  const [r, setR] = useState({ listo: false, problemas: [], hechas: [] });
   const clave = JSON.stringify([l, estado.version]);
   useEffect(() => {
     let vivo = true;
-    setR({ listo: false, problemas: [] });
+    setR({ listo: false, problemas: [], hechas: [] });
     (async () => {
-      const problemas = [];
+      const problemas = [], hechas = [];
       for (const it of l) {
         if (!vivo) return;   // la lista o los datos cambiaron: sigue la vuelta nueva
-        try { await etiquetaPdf(it.id, it); } catch (e) { problemas.push({ id: it.id, code: e.code ?? 'servidor' }); }
+        try { await etiquetaPdf(it.id, it); hechas.push(it.id); } catch (e) { problemas.push({ id: it.id, code: e.code ?? 'servidor' }); }
+        // Avance real, etiqueta por etiqueta (la vista previa muestra cada una apenas está lista; 18-11-2026)
+        if (vivo) setR({ listo: false, problemas: [...problemas], hechas: [...hechas] });
       }
-      if (vivo) setR({ listo: true, problemas });
+      if (vivo) setR({ listo: true, problemas, hechas });
     })();
     return () => { vivo = false; };
   }, [clave]);
@@ -208,14 +229,19 @@ function usePreparar(l) {
 }
 
 /** Miniatura de una hoja: las etiquetas en su lugar sobre la página carta. */
-function Miniatura({ pagina, vistas, plan }) {
+// Cada etiqueta se ve apenas está lista; mientras tanto, su lugar es un rectángulo gris del mismo tamaño con
+// «Preparando…» (o «Falta» si no se pudo preparar). 18-11-2026, opción A.
+function Miniatura({ pagina, vistas, plan, items, lista: ok, fallo }) {
   const W = plan.paper.width, H = plan.paper.height;
   return html`<span class="pag" aria-hidden="true">${pagina.items.map((it) => {
     const v = vistas[it.index];
-    if (!v?.html) return null;
-    const b = labelBox(v.result.cut, v.result.freeEnd);
-    return html`<div key=${it.index} style=${`position:absolute;left:${((it.xMm + b.leftPx / MM) / W) * 100}%;top:${(it.yMm / H) * 100}%;width:${(b.widthMm / W) * 100}%`}>
-      <${VistaEtiqueta} vista=${v} zona="tira" alt="" /></div>`;
+    const m = items?.[it.index];
+    const b = v?.html ? labelBox(v.result.cut, v.result.freeEnd) : m ? labelBox(m.cut, m.freeEnd) : null;
+    if (!b) return null;
+    const caja = `position:absolute;left:${((it.xMm + b.leftPx / MM) / W) * 100}%;top:${(it.yMm / H) * 100}%;width:${(b.widthMm / W) * 100}%`;
+    if (v?.html && ok(it.id)) return html`<div key=${it.index} style=${caja}><${VistaEtiqueta} vista=${v} zona="tira" alt="" /></div>`;
+    return html`<div key=${it.index} class=${`hueco${fallo(it.id) ? ' falla' : ''}`} style=${`${caja};aspect-ratio:${b.widthMm}/${b.heightMm}`}>
+      <span>${fallo(it.id) ? T.revisar.huecoFalta : T.revisar.huecoPreparando}</span></div>`;
   })}</span>`;
 }
 
@@ -230,8 +256,11 @@ export function Revisar() {
     let vivo = true;
     (async () => {
       const out = [];
-      for (const it of l) { const v = await vistaPrevia(it.id, it).catch(() => null); for (let k = 0; k < it.n; k++) out.push(v); }
-      if (vivo) setVistas(out);
+      for (const it of l) {
+        const v = await vistaPrevia(it.id, it).catch(() => null);
+        for (let k = 0; k < it.n; k++) out.push(v);
+        if (vivo) setVistas([...out]);
+      }
     })();
     return () => { vivo = false; };
   }, [JSON.stringify([l, estado.version])]);
@@ -247,13 +276,14 @@ export function Revisar() {
     ${!l.length ? html`<p class="chico">${T.revisar.nada}</p>` : html`<ul class="tarjeta lista">${l.map((it, i) => html`<li key=${it.id}>
       <${Fila} primera=${i === 0} n=${nombre(it.id)} d=${T.revisar.linea(pl(it.n, 'etiqueta', 'etiquetas'), gramos(it.peso), textoVariante(estado.products.get(it.id), it.variante))}
         onClick=${() => ir(`/imprimir/peso/${it.id}/revisar`)} /></li>`)}</ul>`}
-    ${faltan.map((f) => html`<${Nota} key=${f.id}>${f.code === 'sin_conexion' ? T.revisar.faltaInternet(nombre(f.id))
+    ${avisosFalta(faltan).map((f) => html`<${Nota} key=${f.id}>${f.code === 'sin_conexion' ? T.revisar.faltaInternet(nombre(f.id))
       : f.code === 'incompleta' ? T.revisar.incompleta(nombre(f.id)) : f.code === 'limite' ? T.revisar.limite : T.revisar.errorServidor}<//>`)}
     ${h?.plan && html`<div class="grupo"><h2>${T.revisar.asi}</h2>
       <div class="hojas">${h.plan.pages.map((pg, i) => html`<div class="hoja" key=${i}>
-        <${Miniatura} pagina=${pg} vistas=${vistas} plan=${h.plan} /><span>${T.revisar.hoja(i + 1, pl(pg.items.length, 'etiqueta', 'etiquetas'))}</span></div>`)}</div>
+        <${Miniatura} pagina=${pg} vistas=${vistas} plan=${h.plan} items=${h.items} lista=${(id) => prep.hechas.includes(id)} fallo=${(id) => faltan.some((f) => f.id === id)} /><span>${T.revisar.hoja(i + 1, pl(pg.items.length, 'etiqueta', 'etiquetas'))}</span></div>`)}</div>
       <p class="chico">${h.libres ? T.revisar.caben(h.hojas, h.libres) : T.revisar.llenas}</p></div>`}
-    ${!prep.listo && l.length > 0 && html`<p class="chico" role="status">${T.revisar.preparando}</p>`}
+    ${!h?.plan && l.length > 0 && html`<div class="grupo"><h2>${T.revisar.asi}</h2><div class="hojas"><div class="hoja"><span class="pag hueco-hoja" aria-hidden="true"></span></div></div></div>`}
+    ${!prep.listo && l.length > 0 && html`<p class="chico" role="status">${T.revisar.preparandoN(listasDe(l, prep.hechas), t)}</p>`}
     <${Btn} ico="imp" deshabilitado=${!listoPdf || !t} onClick=${imprimir}>${T.revisar.imprimir(h ? pl(h.hojas, 'hoja', 'hojas') : '')}<//>
     <${Btn} tipo="secundario" ico=${tel ? 'compartir' : 'guardar'} deshabilitado=${!listoPdf || !t} onClick=${() => (tel ? compartirPdf() : guardarPdf())}>
       ${tel ? T.revisar.compartir : T.revisar.guardarPdf}<//>

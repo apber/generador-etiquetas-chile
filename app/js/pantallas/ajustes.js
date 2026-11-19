@@ -13,7 +13,7 @@ import { logoUrl } from '../marco.js';
 import { libres, conAro, impresasDe, nombreColor, letraDe } from '../colores.js';
 import { ringLetterColor, ringInk, similarRingColors, ringColorProblems, isHex, LABEL_BACKGROUND } from '../../../src/ring-colors.js';
 
-export const VERSION_APP = '0.8.0-beta4';
+export const VERSION_APP = '0.8.0-beta5';
 const nombreDe = (id) => estado.products.get(id)?.product_name ?? id;
 
 export function Ajustes() {

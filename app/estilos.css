@@ -231,3 +231,13 @@ body{background:#F8F3E8}
 .campo-color{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:10px 0;border-top:1.5px solid var(--sup2)}
 .campo-color input[type="color"]{width:96px;height:48px;padding:4px;border:1.5px solid var(--borde);border-radius:var(--r-chico);background:var(--sup);cursor:pointer}
 .campo-color input:focus-visible{outline:3px solid var(--foco);outline-offset:3px}
+/* Vista previa mientras se preparan las etiquetas (18-11-2026): el lugar de cada una, en gris */
+.hueco{display:flex;align-items:center;justify-content:center;background:var(--sup2);border:1px dashed var(--borde);border-radius:2px;animation:latir 1.6s ease-in-out infinite}
+.hueco span{font-size:calc(11px * var(--ts,1));line-height:1.2;color:var(--texto2);font-weight:700}
+.hueco.falla{animation:none;border-style:solid;border-color:var(--aviso)}
+.hueco-hoja{animation:latir 1.6s ease-in-out infinite}
+@keyframes latir{50%{background:var(--sup)}}
+@media (prefers-reduced-motion:reduce){.hueco,.hueco-hoja{animation:none}}
+.elegidas{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0 12px}
+.elegidas .chico{margin:0}
+.app .elegidas .btn{width:auto;flex:none}

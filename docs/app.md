@@ -28,6 +28,9 @@ App web instalable (PWA) para registrar productos, leer las fotos del proveedor 
   no se repiten y `--limpiar` borra las que ya no corresponden. Se sube esa carpeta a OneDrive y la app las tiene sin
   internet. **Al cambiar la plantilla, subir `LABEL_TEMPLATE_VERSION`** (si no, quedan en uso PDF viejos) y volver a
   correr el script.
+- **Imprimir:** con algo elegido, «Quitar todas» arriba de la lista (sin confirmación, con «Deshacer»). En «Revisa antes de
+  imprimir», cada etiqueta aparece en la hoja apenas está lista; mientras tanto su lugar es un rectángulo gris con
+  «Preparando…» (o «Falta» si no se pudo preparar) y se ve cuántas van listas. Un solo aviso por causa.
 - **Colores del aro (Ajustes → «Colores del aro»; también desde la ficha):** lista de los productos con su muestra y el
   nombre del color en palabras (`app/js/colores.js`); al tocar uno, una vista del aro, el color de ahora, los primeros
   colores libres de `ring_palette` y, plegados, los demás y «Otro color» (rueda de colores del sistema). Avisa si el color
